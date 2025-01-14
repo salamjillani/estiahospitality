@@ -1,6 +1,6 @@
 // server/middleware/auth.js
 const jwt = require('jsonwebtoken');
-const { User } = require('../models/User');
+const User = require('../models/User'); // Fix: Remove curly braces
 
 const auth = async (req, res, next) => {
   try {

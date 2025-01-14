@@ -1,32 +1,42 @@
-import { useState } from 'react';
+// frontend/src/components/Auth.jsx
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     name: ''
   });
+  
   const navigate = useNavigate();
+  const { user, login, register } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+    setLoading(true);
+    setError('');
     
     try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(formData)
-      });
-      
-      if (response.ok) {
-        navigate('/dashboard');
+      if (isLogin) {
+        await login(formData);
+      } else {
+        await register(formData);
       }
     } catch (error) {
-      console.error('Auth error:', error);
+      setError(error.message || 'Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -38,6 +48,11 @@ const Auth = () => {
             {isLogin ? 'Sign in to your account' : 'Create a new account'}
           </h2>
         </div>
+        {error && (
+          <div className="text-red-600 text-sm text-center mb-4">
+            {error}
+          </div>
+        )}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {!isLogin && (
             <div>
@@ -83,16 +98,23 @@ const Auth = () => {
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              disabled={loading}
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                loading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              {isLogin ? 'Sign in' : 'Sign up'}
+              {loading ? 'Processing...' : (isLogin ? 'Sign in' : 'Sign up')}
             </button>
           </div>
           <div className="text-center">
             <button
               type="button"
               className="text-sm text-blue-600 hover:text-blue-500"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError('');
+                setFormData({ email: '', password: '', name: '' });
+              }}
             >
               {isLogin ? 'Need an account? Sign up' : 'Already have an account? Sign in'}
             </button>

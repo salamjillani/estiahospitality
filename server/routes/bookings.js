@@ -2,7 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
-const { Booking, Property } = require('../models/Booking');
+const Booking = require('../models/Booking');
+const Property = require('../models/Property');
 
 // Get bookings for properties
 router.get('/', auth, async (req, res) => {
@@ -37,7 +38,6 @@ router.get('/', auth, async (req, res) => {
 // Create booking
 router.post('/', auth, async (req, res) => {
   try {
-    // Check if user has access to the property
     const property = await Property.findById(req.body.property);
     if (!property) {
       return res.status(404).json({ message: 'Property not found' });
@@ -46,21 +46,6 @@ router.post('/', auth, async (req, res) => {
     if (req.user.role !== 'admin' && 
         !req.user.assignedProperties.includes(property._id)) {
       return res.status(403).json({ message: 'Access denied' });
-    }
-    
-    // Check for booking conflicts
-    const conflictingBooking = await Booking.findOne({
-      property: req.body.property,
-      $or: [
-        {
-          startDate: { $lte: new Date(req.body.endDate) },
-          endDate: { $gte: new Date(req.body.startDate) }
-        }
-      ]
-    });
-    
-    if (conflictingBooking) {
-      return res.status(400).json({ message: 'Booking dates conflict with existing booking' });
     }
     
     const booking = new Booking({
@@ -74,3 +59,5 @@ router.post('/', auth, async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
+
+module.exports = router;

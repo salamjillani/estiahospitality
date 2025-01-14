@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth, checkRole } = require('../middleware/auth');
-const { Property } = require('../models/Property');
+const Property = require('../models/Property');
 
 // Get all properties (admin) or assigned properties (non-admin)
 router.get('/', auth, async (req, res) => {
@@ -34,6 +34,5 @@ router.post('/', auth, checkRole(['admin']), async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
-
 
 module.exports = router;

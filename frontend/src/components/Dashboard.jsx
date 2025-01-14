@@ -1,3 +1,4 @@
+//frontend/src/components/Dashboard.jsx
 import  { useState } from 'react';
 import { Calendar, Clock, DollarSign, Home, CheckSquare, Star, Settings, Users, BarChart2, Globe, Inbox } from 'lucide-react';
 import FullCalendar from '@fullcalendar/react';

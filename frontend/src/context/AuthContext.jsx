@@ -1,11 +1,15 @@
+// frontend/src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { api } from '../utils/api';
+import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     checkAuth();
@@ -13,41 +17,47 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      }
+      const userData = await api.get('/api/auth/me');
+      setUser(userData);
     } catch (error) {
       console.error('Auth check failed:', error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
+  const login = async (credentials) => {
+    const userData = await api.post('/api/auth/login', credentials);
+    setUser(userData.user);
+    navigate('/dashboard');
+  };
+
+  const register = async (userData) => {
+    const response = await api.post('/api/auth/register', userData);
+    setUser(response.user);
+    navigate('/dashboard');
+  };
+
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
+      await api.post('/api/auth/logout');
       setUser(null);
+      navigate('/auth');
     } catch (error) {
       console.error('Logout failed:', error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 AuthProvider.propTypes = {
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
 };
 
 export const useAuth = () => {
