@@ -1,10 +1,4 @@
-// frontend/src/App.jsx
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Auth from "./components/Auth";
 import PropTypes from "prop-types";

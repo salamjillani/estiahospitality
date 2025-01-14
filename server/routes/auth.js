@@ -6,6 +6,16 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 
+// Middleware to check user role
+const checkRole = (roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    next();
+  };
+};
+
 // Register route
 router.post('/register', async (req, res) => {
     try {
@@ -107,7 +117,7 @@ router.post('/login', async (req, res) => {
   });
 
   // Get all non-admin users
-router.get('/users', auth, checkRole(['admin']), async (req, res) => {
+  router.get('/users', auth, checkRole(['admin']), async (req, res) => {
     try {
       const users = await User.find({ role: { $ne: 'admin' } })
         .select('-password')
@@ -118,4 +128,4 @@ router.get('/users', auth, checkRole(['admin']), async (req, res) => {
     }
   });
   
-module.exports = router;
+  module.exports = router;

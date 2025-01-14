@@ -1,62 +1,72 @@
-//frontend/src/components/Dashboard.jsx
-import  { useState } from 'react';
-import { Calendar, Clock, DollarSign, Home, CheckSquare, Star, Settings, Users, BarChart2, Globe, Inbox } from 'lucide-react';
-import FullCalendar from '@fullcalendar/react';
-import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import interactionPlugin from '@fullcalendar/interaction';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Calendar,
+  Clock,
+  DollarSign,
+  Home,
+  CheckSquare,
+  Star,
+  Settings,
+  Users,
+  BarChart2,
+  Globe,
+  Inbox,
+} from "lucide-react";
+import FullCalendar from "@fullcalendar/react";
+import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
 
 // New style imports for latest versions
-import '@fullcalendar/core';
-import '@fullcalendar/resource-timeline';
-import '@fullcalendar/daygrid';
+import "@fullcalendar/core";
+import "@fullcalendar/resource-timeline";
+import "@fullcalendar/daygrid";
 
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState('Calendar');
+  const [activeTab, setActiveTab] = useState("Calendar");
 
   const sidebarItems = [
-    { icon: <div className="grid grid-cols-2 gap-0.5 w-4 h-4"><div className="bg-current"></div><div className="bg-current"></div><div className="bg-current"></div><div className="bg-current"></div></div>, label: 'Dashboard' },
-    { icon: <Inbox size={18} />, label: 'Inbox' },
-    { icon: <Calendar size={18} />, label: 'Calendar' },
-    { icon: <DollarSign size={18} />, label: 'Price' },
-    // In Dashboard.jsx, add to sidebarItems:
-{ icon: <Home size={18} />, label: 'Properties', path: '/properties' },
-    { icon: <CheckSquare size={18} />, label: 'Tasks' },
-    { icon: <Star size={18} />, label: 'Reviews' },
-    { icon: <Settings size={18} />, label: 'Automation' },
-    { icon: <Clock size={18} />, label: 'Owner Connect' },
-    { icon: <Users size={18} />, label: 'Guests' },
-    { icon: <BarChart2 size={18} />, label: 'Metrics' },
-    { icon: <Globe size={18} />, label: 'Booking Site' }
+    { icon: <Inbox size={18} />, label: "Inbox" },
+    { icon: <Calendar size={18} />, label: "Calendar" },
+    { icon: <DollarSign size={18} />, label: "Price" },
+    { icon: <Home size={18} />, label: "Properties", path: "/properties" },
+    { icon: <CheckSquare size={18} />, label: "Tasks" },
+    { icon: <Star size={18} />, label: "Reviews" },
+    { icon: <Settings size={18} />, label: "Automation" },
+    { icon: <Clock size={18} />, label: "Owner Connect" },
+    { icon: <Users size={18} />, label: "Guests" },
+    { icon: <BarChart2 size={18} />, label: "Metrics" },
+    { icon: <Globe size={18} />, label: "Booking Site" },
   ];
 
   const resources = [
-    { id: 'c009', title: 'Cottage 009' },
-    { id: 'c015', title: 'Cottage 015' },
-    { id: 'r1206', title: 'Double Room 1206' },
-    { id: 'r1209', title: 'Double Room 1209' },
-    { id: 'r1211', title: 'Double Room 1211' }
+    { id: "c009", title: "Cottage 009" },
+    { id: "c015", title: "Cottage 015" },
+    { id: "r1206", title: "Double Room 1206" },
+    { id: "r1209", title: "Double Room 1209" },
+    { id: "r1211", title: "Double Room 1211" },
   ];
 
   const events = [
     {
-      id: '1',
-      resourceId: 'c009',
-      title: 'Roger Helms (Vrbo - 7 Nights)',
-      start: '2024-07-20',
-      end: '2024-07-27',
-      backgroundColor: '#ec4899',
-      borderColor: '#ec4899'
+      id: "1",
+      resourceId: "c009",
+      title: "Roger Helms (Vrbo - 7 Nights)",
+      start: "2024-07-20",
+      end: "2024-07-27",
+      backgroundColor: "#ec4899",
+      borderColor: "#ec4899",
     },
     {
-      id: '2',
-      resourceId: 'c015',
-      title: 'Michelle (Booking.com - 6 Nights)',
-      start: '2024-07-27',
-      end: '2024-08-02',
-      backgroundColor: '#22c55e',
-      borderColor: '#22c55e'
-    }
+      id: "2",
+      resourceId: "c015",
+      title: "Michelle (Booking.com - 6 Nights)",
+      start: "2024-07-27",
+      end: "2024-08-02",
+      backgroundColor: "#22c55e",
+      borderColor: "#22c55e",
+    },
   ];
 
   return (
@@ -72,23 +82,36 @@ const Dashboard = () => {
           </div>
         </div>
         <nav className="mt-4">
-          {sidebarItems.map((item, index) => (
-            <button
-              key={index}
-              onClick={() => setActiveTab(item.label)}
-              className={`w-full flex items-center px-4 py-2.5 text-sm ${
-                activeTab === item.label ? 'text-blue-600 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {item.icon}
-              <span className="ml-3">{item.label}</span>
-            </button>
-          ))}
+          {sidebarItems.map((item, index) =>
+            item.path ? (
+              <Link
+                to={item.path}
+                key={index}
+                className="block px-4 py-2.5 flex items-center text-gray-700 hover:bg-gray-50"
+              >
+                {item.icon}
+                <span className="ml-3">{item.label}</span>
+              </Link>
+            ) : (
+              <button
+                key={index}
+                onClick={() => setActiveTab(item.label)}
+                className={`w-full flex items-center px-4 py-2.5 text-sm ${
+                  activeTab === item.label
+                    ? "text-blue-600 bg-blue-50"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {item.icon}
+                <span className="ml-3">{item.label}</span>
+              </button>
+            )
+          )}
         </nav>
       </div>
 
       {/* Main Content */}
-      {activeTab === 'Calendar' && (
+      {activeTab === "Calendar" && (
         <div className="flex-1 overflow-auto">
           <div className="p-4">
             <div className="flex justify-between items-center mb-4">
@@ -104,16 +127,20 @@ const Dashboard = () => {
                 </button>
               </div>
             </div>
-            
+
             {/* FullCalendar Integration */}
             <div className="bg-white rounded-lg shadow p-4">
               <FullCalendar
-                plugins={[resourceTimelinePlugin, dayGridPlugin, interactionPlugin]}
+                plugins={[
+                  resourceTimelinePlugin,
+                  dayGridPlugin,
+                  interactionPlugin,
+                ]}
                 initialView="resourceTimelineMonth"
                 headerToolbar={{
-                  left: 'prev,next today',
-                  center: 'title',
-                  right: 'resourceTimelineDay,resourceTimelineWeek,resourceTimelineMonth'
+                  left: "prev,next today",
+                  center: "title",
+                  right: "resourceTimelineDay,resourceTimelineWeek,resourceTimelineMonth",
                 }}
                 editable={true}
                 selectable={true}
@@ -126,13 +153,13 @@ const Dashboard = () => {
                 slotMinWidth={70}
                 resourceAreaHeaderContent="Properties"
                 resourceLabelDidMount={(info) => {
-                  info.el.style.fontSize = '0.875rem';
+                  info.el.style.fontSize = "0.875rem";
                 }}
                 eventDidMount={(info) => {
-                  info.el.style.fontSize = '0.75rem';
+                  info.el.style.fontSize = "0.75rem";
                 }}
                 slotLabelDidMount={(info) => {
-                  info.el.style.fontSize = '0.75rem';
+                  info.el.style.fontSize = "0.75rem";
                 }}
               />
             </div>
