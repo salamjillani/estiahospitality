@@ -106,4 +106,16 @@ router.post('/login', async (req, res) => {
     }
   });
 
+  // Get all non-admin users
+router.get('/users', auth, checkRole(['admin']), async (req, res) => {
+    try {
+      const users = await User.find({ role: { $ne: 'admin' } })
+        .select('-password')
+        .sort('name');
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
 module.exports = router;

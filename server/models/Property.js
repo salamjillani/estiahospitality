@@ -1,4 +1,3 @@
-// server/models/Property.js
 const mongoose = require('mongoose');
 
 const propertySchema = new mongoose.Schema(
@@ -10,7 +9,7 @@ const propertySchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["cottage", "apartment", "villa", "room"],
+      enum: ['cottage', 'apartment', 'villa', 'room'],
     },
     identifier: {
       type: String,
@@ -19,13 +18,13 @@ const propertySchema = new mongoose.Schema(
     },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     managers: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        ref: 'User',
       },
     ],
   },
@@ -34,6 +33,23 @@ const propertySchema = new mongoose.Schema(
   }
 );
 
-const Property = mongoose.model("Property", propertySchema);
+// Pre-save hook to ensure unique identifiers
+propertySchema.pre('save', async function (next) {
+  if (!this.isModified('identifier')) return next();
+  const existingProperty = await Property.findOne({ identifier: this.identifier });
+  if (existingProperty) {
+    throw new Error('Property identifier must be unique');
+  }
+  next();
+});
+
+// Middleware to populate managers and owner fields when querying properties
+propertySchema.pre(/^find/, function (next) {
+  this.populate('owner', 'name email')
+      .populate('managers', 'name email');
+  next();
+});
+
+const Property = mongoose.model('Property', propertySchema);
 
 module.exports = Property;

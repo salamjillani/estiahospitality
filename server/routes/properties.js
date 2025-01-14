@@ -34,5 +34,36 @@ router.post('/', auth, checkRole(['admin']), async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
-
+// Update property
+router.put('/:id', auth, checkRole(['admin']), async (req, res) => {
+    try {
+      const property = await Property.findById(req.params.id);
+      if (!property) {
+        return res.status(404).json({ message: 'Property not found' });
+      }
+      
+      const updatedProperty = await Property.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        { new: true }
+      );
+      res.json(updatedProperty);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Delete property
+  router.delete('/:id', auth, checkRole(['admin']), async (req, res) => {
+    try {
+      const property = await Property.findById(req.params.id);
+      if (!property) {
+        return res.status(404).json({ message: 'Property not found' });
+      }
+      await Property.findByIdAndDelete(req.params.id);
+      res.json({ message: 'Property deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 module.exports = router;

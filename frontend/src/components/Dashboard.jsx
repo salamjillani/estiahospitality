@@ -19,7 +19,8 @@ const Dashboard = () => {
     { icon: <Inbox size={18} />, label: 'Inbox' },
     { icon: <Calendar size={18} />, label: 'Calendar' },
     { icon: <DollarSign size={18} />, label: 'Price' },
-    { icon: <Home size={18} />, label: 'Properties' },
+    // In Dashboard.jsx, add to sidebarItems:
+{ icon: <Home size={18} />, label: 'Properties', path: '/properties' },
     { icon: <CheckSquare size={18} />, label: 'Tasks' },
     { icon: <Star size={18} />, label: 'Reviews' },
     { icon: <Settings size={18} />, label: 'Automation' },
