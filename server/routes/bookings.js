@@ -1,32 +1,39 @@
 // server/routes/bookings.js
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const { auth, checkRole } = require('../middleware/auth');
+const { validateBooking } = require('../middleware/bookingValidation');
 const Booking = require('../models/Booking');
 const Property = require('../models/Property');
 
-// Get bookings for properties
+// Get bookings with proper date handling and filtering
 router.get('/', auth, async (req, res) => {
   try {
     const { startDate, endDate, propertyId } = req.query;
     let query = {};
     
-    // Date range filter
+    // Date range filter with proper parsing
     if (startDate && endDate) {
       query.startDate = { $gte: new Date(startDate) };
       query.endDate = { $lte: new Date(endDate) };
     }
     
-    // Property filter
+    // Property access control
     if (propertyId) {
       query.property = propertyId;
     } else if (req.user.role !== 'admin') {
-      // Non-admin users can only see bookings for their assigned properties
       query.property = { $in: req.user.assignedProperties };
     }
     
     const bookings = await Booking.find(query)
-      .populate('property')
+      .populate({
+        path: 'property',
+        select: 'title identifier type'
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'name email'
+      })
       .sort({ startDate: 1 });
       
     res.json(bookings);
@@ -35,26 +42,72 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Create booking
-router.post('/', auth, async (req, res) => {
+// Create booking with validation
+router.post('/', auth, validateBooking, async (req, res) => {
   try {
-    const property = await Property.findById(req.body.property);
-    if (!property) {
+    const { property, startDate, endDate, guestName, source, notes } = req.body;
+
+    // Check property access
+    const propertyDoc = await Property.findById(property);
+    if (!propertyDoc) {
       return res.status(404).json({ message: 'Property not found' });
     }
-    
+
     if (req.user.role !== 'admin' && 
-        !req.user.assignedProperties.includes(property._id)) {
+        !req.user.assignedProperties.includes(propertyDoc._id)) {
+      return res.status(403).json({ message: 'Access denied to this property' });
+    }
+
+    const booking = new Booking({
+      property,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      guestName,
+      source,
+      notes,
+      createdBy: req.user._id,
+      status: 'confirmed'
+    });
+
+    await booking.save();
+
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate({
+        path: 'property',
+        select: 'title identifier type'
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'name email'
+      });
+
+    res.status(201).json(populatedBooking);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Update booking status
+router.patch('/:id/status', auth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const booking = await Booking.findById(req.params.id)
+      .populate('property');
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Check access rights
+    if (req.user.role !== 'admin' && 
+        !req.user.assignedProperties.includes(booking.property._id)) {
       return res.status(403).json({ message: 'Access denied' });
     }
-    
-    const booking = new Booking({
-      ...req.body,
-      createdBy: req.user._id
-    });
-    
+
+    booking.status = status;
     await booking.save();
-    res.status(201).json(booking);
+
+    res.json(booking);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

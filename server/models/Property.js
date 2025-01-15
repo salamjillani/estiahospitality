@@ -27,6 +27,9 @@ const propertySchema = new mongoose.Schema(
         ref: 'User',
       },
     ],
+    listingUrls: [{
+      type: String
+    }]
   },
   {
     timestamps: true,
