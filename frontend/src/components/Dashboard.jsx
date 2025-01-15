@@ -3,9 +3,12 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import { websocketService } from '../services/webSocketService';
+import { Loader2 } from 'lucide-react';
+
 import { 
   Inbox, Calendar, DollarSign, Home, CheckSquare, 
-  Star, Settings, Clock, Users, BarChart2, Globe, Loader2 
+  Star, Settings, Clock, Users, BarChart2, Globe 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -51,18 +54,35 @@ const Dashboard = () => {
   useEffect(() => {
     fetchProperties();
     fetchBookings();
+    
+    // Subscribe to property updates
+    const unsubscribe = websocketService.subscribe('property_created', (newProperty) => {
+      setProperties(prev => [...prev, newProperty]);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const fetchProperties = async () => {
     try {
+      setError('');
       const response = await fetch('http://localhost:5000/api/properties', {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json'
+        }
       });
-      if (!response.ok) throw new Error('Failed to fetch properties');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch properties');
+      }
+      
       const data = await response.json();
       setProperties(data.properties || []);
-    } catch (error) {
-      setError('Error fetching properties: ' + error.message);
+    } catch (err) {
+      setError('Error fetching properties: ' + err.message);
+      console.error('Error fetching properties:', err);
     }
   };
 
@@ -221,7 +241,7 @@ const Dashboard = () => {
       <div className="flex-1 overflow-hidden flex flex-col">
         <div className="h-full flex flex-col relative">
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded m-4">
+            <div onClick={() => setError('')} className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded m-4 cursor-pointer">
               <p>{error}</p>
             </div>
           )}

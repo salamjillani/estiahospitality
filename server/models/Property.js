@@ -9,7 +9,7 @@ const propertySchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ['cottage', 'apartment', 'villa', 'room'],
+      enum: ['separate_room', 'entire_property', 'cottage', 'apartment', 'villa'], // Updated enum values
     },
     identifier: {
       type: String,
@@ -21,12 +21,10 @@ const propertySchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    managers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
+    managers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
     listingUrls: [{
       type: String
     }]

@@ -37,7 +37,7 @@ router.post('/register', async (req, res) => {
         email,
         password,
         name,
-        role: 'viewer', // Default role
+        role: role || 'manager',
       });
   
       await user.save();

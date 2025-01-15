@@ -48,9 +48,11 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout failed:', error);
     }
   };
-
+  const hasAccess = (requiredRoles) => {
+    return user && requiredRoles.includes(user.role);
+  };
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, hasAccess }}>
       {children}
     </AuthContext.Provider>
   );

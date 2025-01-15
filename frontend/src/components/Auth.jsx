@@ -10,7 +10,8 @@ const Auth = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    name: ''
+    name: '',
+    role: 'manager'
   });
   
   const navigate = useNavigate();
@@ -54,21 +55,38 @@ const Auth = () => {
           </div>
         )}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {!isLogin && (
-            <div>
-              <label htmlFor="name" className="sr-only">Name</label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Full name"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-              />
-            </div>
+        {!isLogin && (
+            <>
+              <div>
+                <label htmlFor="name" className="sr-only">Name</label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  required
+                  className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Full name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <label htmlFor="role" className="sr-only">Role</label>
+                <select
+                  id="role"
+                  name="role"
+                  className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  value={formData.role}
+                  onChange={(e) => setFormData({...formData, role: e.target.value})}
+                >
+                  <option value="manager">Manager</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              </div>
+            </>
+            
           )}
+          
           <div>
             <label htmlFor="email" className="sr-only">Email address</label>
             <input
