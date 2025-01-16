@@ -1,64 +1,88 @@
-import  { useState, useEffect } from 'react';
-import { Plus, Search, MoreHorizontal, Loader2, Link as LinkIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { websocketService } from '../services/webSocketService';
+import { useState, useEffect, useCallback } from "react";
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Loader2,
+  Link as LinkIcon,
+} from "lucide-react";
+import { websocketService } from "../services/webSocketService";
+import { useAuth } from "../context/AuthContext";
 
 const PropertyManagement = () => {
   const [properties, setProperties] = useState([]);
-  const [activeTab, setActiveTab] = useState('properties');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState("properties");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showNewPropertyModal, setShowNewPropertyModal] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [selectedProperties, setSelectedProperties] = useState([]);
+  const { user } = useAuth();
+  console.log("Current user:", user); // Add this line
 
   const [formData, setFormData] = useState({
-    title: '',
-    type: 'separate_room',
-    identifier: '',
-    listingUrls: []
+    title: "",
+    type: "separate_room",
+    identifier: "",
+    listingUrls: [],
   });
 
-  useEffect(() => {
-    fetchProperties();
-    const unsubscribe = websocketService.subscribe('property_created', (newProperty) => {
-      setProperties(prev => [...prev, newProperty]);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const fetchProperties = async () => {
+  const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
-      setError('');
-      const response = await fetch('http://localhost:5000/api/properties', {
-        credentials: 'include',
+      setError("");
+      const response = await fetch("http://localhost:5000/api/properties", {
+        credentials: "include",
         headers: {
-          'Accept': 'application/json'
-        }
+          Accept: "application/json",
+        },
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch properties');
+        throw new Error(errorData.message || "Failed to fetch properties");
       }
-      
+
       const data = await response.json();
       setProperties(data.properties || []);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching properties:', err);
+      console.error("Error fetching properties:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProperties();
+    const unsubscribe = websocketService.subscribe(
+      "property_created",
+      (newProperty) => {
+        setProperties((prev) => {
+          if (prev.some((p) => p._id === newProperty._id)) {
+            return prev;
+          }
+          return [...prev, newProperty];
+        });
+      }
+    );
+
+    return () => unsubscribe();
+  }, [fetchProperties]);
+
+  useEffect(() => {
+    console.log("Current user details:", {
+      role: user?.role,
+      id: user?._id,
+      assignedProperties: user?.assignedProperties,
+    });
+  }, [user]);
 
   const handlePropertySelect = (property) => {
-    setSelectedProperties(prev => {
-      const isSelected = prev.find(p => p._id === property._id);
+    setSelectedProperties((prev) => {
+      const isSelected = prev.find((p) => p._id === property._id);
       if (isSelected) {
-        return prev.filter(p => p._id !== property._id);
+        return prev.filter((p) => p._id !== property._id);
       }
       return [...prev, property];
     });
@@ -67,46 +91,55 @@ const PropertyManagement = () => {
   const handleNewProperty = async (e) => {
     e.preventDefault();
     try {
+      console.log("Starting property creation...");
+      console.log("Current user:", user);
       setLoading(true);
-      setError('');
+      setError("");
 
       if (!formData.title || !formData.type || !formData.identifier) {
-        throw new Error('Please fill in all required fields');
+        throw new Error("Please fill in all required fields");
       }
 
-      const response = await fetch('http://localhost:5000/api/properties', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+      const response = await fetch("http://localhost:5000/api/properties", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        credentials: 'include',
-        body: JSON.stringify(formData)
+        credentials: "include",
+        body: JSON.stringify(formData),
       });
-      
+
+      console.log("Property creation response status:", response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to add property');
+        console.error("Property creation error:", errorData);
+        throw new Error(errorData.message || "Failed to add property");
       }
-      
+
       const newProperty = await response.json();
-      setProperties(prev => [...prev, newProperty]);
+      console.log("New property created:", newProperty);
+      setProperties((prev) => [...prev, newProperty]);
       setShowNewPropertyModal(false);
-      setFormData({ 
-        title: '', 
-        type: 'separate_room', 
-        identifier: '', 
-        listingUrls: [] 
+      setFormData({
+        title: "",
+        type: "separate_room",
+        identifier: "",
+        listingUrls: [],
       });
     } catch (err) {
       setError(err.message);
-      console.error('Error adding property:', err);
+      console.error("Error adding property:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredProperties = properties.filter(property =>
+  // Check if user has permission to add properties
+  const canAddProperty = user && ["admin", "manager"].includes(user.role);
+
+  const filteredProperties = properties.filter((property) =>
     property.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -117,11 +150,16 @@ const PropertyManagement = () => {
           <span className="block sm:inline">{error}</span>
           <span
             className="absolute top-0 bottom-0 right-0 px-4 py-3 cursor-pointer"
-            onClick={() => setError('')}
+            onClick={() => setError("")}
           >
-            <svg className="h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+            <svg
+              className="h-6 w-6 text-red-500"
+              role="button"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+            >
               <title>Close</title>
-              <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+              <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z" />
             </svg>
           </span>
         </div>
@@ -142,21 +180,21 @@ const PropertyManagement = () => {
         <div className="flex space-x-8">
           <button
             className={`pb-4 px-1 ${
-              activeTab === 'properties'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500'
+              activeTab === "properties"
+                ? "border-b-2 border-blue-600 text-blue-600"
+                : "text-gray-500"
             }`}
-            onClick={() => setActiveTab('properties')}
+            onClick={() => setActiveTab("properties")}
           >
             Properties
           </button>
           <button
             className={`pb-4 px-1 ${
-              activeTab === 'roomTypes'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500'
+              activeTab === "roomTypes"
+                ? "border-b-2 border-blue-600 text-blue-600"
+                : "text-gray-500"
             }`}
-            onClick={() => setActiveTab('roomTypes')}
+            onClick={() => setActiveTab("roomTypes")}
           >
             Room Types
           </button>
@@ -175,6 +213,15 @@ const PropertyManagement = () => {
           />
           <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
         </div>
+        {canAddProperty ? (
+          <button
+            onClick={() => setShowNewPropertyModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 ml-auto flex items-center gap-2"
+          >
+            <Plus size={18} />
+            New property
+          </button>
+        ) : null}
         <button className="px-4 py-2 text-gray-700 border rounded-md hover:bg-gray-50">
           Groups
         </button>
@@ -184,13 +231,7 @@ const PropertyManagement = () => {
         <button className="px-4 py-2 text-gray-700 border rounded-md hover:bg-gray-50">
           Tag
         </button>
-        <button
-          onClick={() => setShowNewPropertyModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 ml-auto flex items-center gap-2"
-        >
-          <Plus size={18} />
-          New property
-        </button>
+        
       </div>
 
       {/* Properties List */}
@@ -198,8 +239,8 @@ const PropertyManagement = () => {
         {/* List Header */}
         <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b text-sm font-medium text-gray-500">
           <div className="col-span-1">
-            <input 
-              type="checkbox" 
+            <input
+              type="checkbox"
               className="rounded border-gray-300"
               onChange={() => {
                 if (selectedProperties.length === properties.length) {
@@ -208,7 +249,10 @@ const PropertyManagement = () => {
                   setSelectedProperties([...properties]);
                 }
               }}
-              checked={selectedProperties.length === properties.length && properties.length > 0}
+              checked={
+                selectedProperties.length === properties.length &&
+                properties.length > 0
+              }
             />
           </div>
           <div className="col-span-3">Name</div>
@@ -234,62 +278,69 @@ const PropertyManagement = () => {
         )}
 
         {/* Property Items */}
-        {!loading && filteredProperties.map((property) => (
-          <div 
-            key={property._id}
-            className="grid grid-cols-12 gap-4 px-6 py-4 border-b hover:bg-gray-50"
-          >
-            <div className="col-span-1">
-              <input 
-                type="checkbox"
-                checked={selectedProperties.some(p => p._id === property._id)}
-                onChange={() => handlePropertySelect(property)}
-                className="rounded border-gray-300"
-              />
-            </div>
-            <div className="col-span-3 flex items-center gap-3">
-              <div className="w-12 h-8 bg-gray-200 rounded">
-                <img 
-                  src="/api/placeholder/48/32"
-                  alt=""
-                  className="w-full h-full object-cover rounded"
+        {!loading &&
+          filteredProperties.map((property) => (
+            <div
+              key={property._id}
+              className="grid grid-cols-12 gap-4 px-6 py-4 border-b hover:bg-gray-50"
+            >
+              <div className="col-span-1">
+                <input
+                  type="checkbox"
+                  checked={selectedProperties.some(
+                    (p) => p._id === property._id
+                  )}
+                  onChange={() => handlePropertySelect(property)}
+                  className="rounded border-gray-300"
                 />
               </div>
-              <div>
-                <div className="font-medium text-gray-900">{property.title}</div>
-                <div className="text-sm text-gray-500">{property.type}</div>
+              <div className="col-span-3 flex items-center gap-3">
+                <div className="w-12 h-8 bg-gray-200 rounded">
+                  <img
+                    src="/api/placeholder/48/32"
+                    alt=""
+                    className="w-full h-full object-cover rounded"
+                  />
+                </div>
+                <div>
+                  <div className="font-medium text-gray-900">
+                    {property.title}
+                  </div>
+                  <div className="text-sm text-gray-500">{property.type}</div>
+                </div>
+              </div>
+              <div className="col-span-3 flex items-center">
+                {property.listingUrls && property.listingUrls.length > 0 ? (
+                  <div className="flex gap-2">
+                    {property.listingUrls.map((url, index) => (
+                      <a
+                        key={index}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <LinkIcon size={18} />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <button className="text-blue-600 hover:text-blue-700">
+                    <Plus size={18} />
+                  </button>
+                )}
+              </div>
+              <div className="col-span-3 flex items-center text-gray-500">
+                -
+              </div>
+              <div className="col-span-2 flex items-center justify-between">
+                <span className="text-gray-500">-</span>
+                <button className="text-gray-400 hover:text-gray-600">
+                  <MoreHorizontal size={18} />
+                </button>
               </div>
             </div>
-            <div className="col-span-3 flex items-center">
-              {property.listingUrls && property.listingUrls.length > 0 ? (
-                <div className="flex gap-2">
-                  {property.listingUrls.map((url, index) => (
-                    <a 
-                      key={index}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-700"
-                    >
-                      <LinkIcon size={18} />
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <button className="text-blue-600 hover:text-blue-700">
-                  <Plus size={18} />
-                </button>
-              )}
-            </div>
-            <div className="col-span-3 flex items-center text-gray-500">-</div>
-            <div className="col-span-2 flex items-center justify-between">
-              <span className="text-gray-500">-</span>
-              <button className="text-gray-400 hover:text-gray-600">
-                <MoreHorizontal size={18} />
-              </button>
-            </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       {/* New Property Modal */}
@@ -306,7 +357,9 @@ const PropertyManagement = () => {
                   <input
                     type="text"
                     value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
@@ -317,7 +370,9 @@ const PropertyManagement = () => {
                   </label>
                   <select
                     value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, type: e.target.value })
+                    }
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
@@ -335,7 +390,9 @@ const PropertyManagement = () => {
                   <input
                     type="text"
                     value={formData.identifier}
-                    onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, identifier: e.target.value })
+                    }
                     className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                     placeholder="Unique identifier for the property"

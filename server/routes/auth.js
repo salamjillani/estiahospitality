@@ -19,7 +19,7 @@ const checkRole = (roles) => {
 // Register route
 router.post('/register', async (req, res) => {
     try {
-      const { email, password, name } = req.body;
+      const { email, password, name, role } = req.body;
   
       // Validate input fields
       if (!email || !password || !name) {
@@ -37,7 +37,7 @@ router.post('/register', async (req, res) => {
         email,
         password,
         name,
-        role: role || 'manager',
+        role: role || 'viewer',
       });
   
       await user.save();
@@ -59,6 +59,7 @@ router.post('/register', async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
+          assignedProperties: user.assignedProperties
         },
       });
     } catch (error) {
@@ -109,6 +110,7 @@ router.post('/login', async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
+          assignedProperties: user.assignedProperties
         },
       });
     } catch (error) {
@@ -123,6 +125,17 @@ router.post('/login', async (req, res) => {
         .select('-password')
         .sort('name');
       res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+  router.get('/me', auth, async (req, res) => {
+    try {
+      const user = await User.findById(req.user._id).select('-password');
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      res.json(user);
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

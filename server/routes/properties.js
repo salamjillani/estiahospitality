@@ -30,8 +30,12 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Create new property
-router.post('/', auth, checkRole(['admin']), async (req, res) => {
+router.post('/', auth, checkRole(['admin', 'manager']), async (req, res) => {
   try {
+    console.log('User attempting to create property:', {
+      userId: req.user._id,
+      role: req.user.role
+    }); 
     const { title, type, identifier } = req.body;
 
     if (!title || !type || !identifier) {

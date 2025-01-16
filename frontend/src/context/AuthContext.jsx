@@ -12,26 +12,31 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAuth();
+    const checkAuthStatus = async () => {
+      try {
+        console.log('Checking auth status...');
+        const userData = await api.get('/api/auth/me');
+        console.log('Auth status:', userData);
+        setUser(userData);
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuthStatus();
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      const userData = await api.get('/api/auth/me');
-      setUser(userData);
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const login = async (credentials) => {
-    const userData = await api.post('/api/auth/login', credentials);
-    setUser(userData.user);
-    navigate('/dashboard');
-  };
+  // Add logging in frontend/src/context/AuthContext.jsx
+const login = async (credentials) => {
+  const response = await api.post('/api/auth/login', credentials);
+  console.log('Login response data:', response);
+  console.log('Setting user with role:', response.user.role);
+  setUser(response.user);
+  navigate('/dashboard');
+};
 
   const register = async (userData) => {
     const response = await api.post('/api/auth/register', userData);
@@ -48,9 +53,11 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout failed:', error);
     }
   };
+
   const hasAccess = (requiredRoles) => {
     return user && requiredRoles.includes(user.role);
   };
+
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout, hasAccess }}>
       {children}
