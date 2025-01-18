@@ -3,7 +3,7 @@ const Booking = require('../models/Booking');
 
 const validateBooking = async (req, res, next) => {
   try {
-    const { startDate, endDate, property } = req.body;
+    const { startDate, endDate, property, totalPrice, commissionPercentage } = req.body;
     
     // Basic date validation
     const start = new Date(startDate);
@@ -15,6 +15,18 @@ const validateBooking = async (req, res, next) => {
     
     if (start >= end) {
       return res.status(400).json({ message: 'End date must be after start date' });
+    }
+    
+    // Price validation
+    if (totalPrice === undefined || totalPrice <= 0) {
+      return res.status(400).json({ message: 'Valid total price is required' });
+    }
+
+    // Commission validation if provided
+    if (commissionPercentage !== undefined) {
+      if (commissionPercentage < 0 || commissionPercentage > 100) {
+        return res.status(400).json({ message: 'Commission percentage must be between 0 and 100' });
+      }
     }
     
     // Check for overlapping bookings

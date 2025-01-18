@@ -81,5 +81,92 @@ router.post('/', auth, checkRole(['admin', 'manager']), async (req, res) => {
     });
   }
 });
+// Add these routes to server/routes/properties.js
 
+// Update property
+router.put('/:id', auth, checkRole(['admin', 'manager']), async (req, res) => {
+  try {
+    const { title, type, identifier } = req.body;
+    
+    // Validate required fields
+    if (!title || !type || !identifier) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    
+    // Check if property exists
+    const property = await Property.findById(req.params.id);
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+    
+    // Check if user has permission to edit this property
+    if (req.user.role !== 'admin' && !property.managers.includes(req.user._id)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Check if new identifier is already in use by another property
+    const existingProperty = await Property.findOne({ 
+      identifier, 
+      _id: { $ne: req.params.id } 
+    });
+    if (existingProperty) {
+      return res.status(400).json({ message: 'Property identifier already exists' });
+    }
+    
+    // Update the property
+    const updatedProperty = await Property.findByIdAndUpdate(
+      req.params.id,
+      { title, type, identifier },
+      { new: true }
+    ).populate('owner', 'name email')
+     .populate('managers', 'name email');
+    
+    // Broadcast update via WebSocket
+    req.app.locals.broadcast('property_updated', updatedProperty);
+    
+    res.json(updatedProperty);
+  } catch (error) {
+    console.error('Error in PUT /properties/:id:', error);
+    res.status(500).json({ 
+      message: 'Error updating property', 
+      error: error.message 
+    });
+  }
+});
+
+// Delete property
+router.delete('/:id', auth, checkRole(['admin', 'manager']), async (req, res) => {
+  try {
+    // Check if property exists
+    const property = await Property.findById(req.params.id);
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+    
+    // Check if user has permission to delete this property
+    if (req.user.role !== 'admin' && !property.managers.includes(req.user._id)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // Delete the property
+    await Property.findByIdAndDelete(req.params.id);
+    
+    // Remove property reference from users' assignedProperties
+    await User.updateMany(
+      { assignedProperties: req.params.id },
+      { $pull: { assignedProperties: req.params.id } }
+    );
+    
+    // Broadcast deletion via WebSocket
+    req.app.locals.broadcast('property_deleted', { _id: req.params.id });
+    
+    res.json({ message: 'Property deleted successfully' });
+  } catch (error) {
+    console.error('Error in DELETE /properties/:id:', error);
+    res.status(500).json({ 
+      message: 'Error deleting property', 
+      error: error.message 
+    });
+  }
+});
 module.exports = router;
