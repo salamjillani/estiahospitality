@@ -1,4 +1,3 @@
-// server/routes/bookings.js
 const express = require('express');
 const router = express.Router();
 const { auth, checkRole } = require('../middleware/auth');
@@ -12,13 +11,11 @@ router.get('/', auth, async (req, res) => {
     const { startDate, endDate, propertyId } = req.query;
     let query = {};
     
-    // Date range filter with proper parsing
     if (startDate && endDate) {
       query.startDate = { $gte: new Date(startDate) };
       query.endDate = { $lte: new Date(endDate) };
     }
     
-    // Property access control
     if (propertyId) {
       query.property = propertyId;
     } else if (req.user.role !== 'admin') {
@@ -35,7 +32,7 @@ router.get('/', auth, async (req, res) => {
         select: 'name email'
       })
       .sort({ startDate: 1 });
-      
+    
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -45,7 +42,24 @@ router.get('/', auth, async (req, res) => {
 // Create booking with validation
 router.post('/', auth, validateBooking, async (req, res) => {
   try {
-    const { property, startDate, endDate, guestName, source, notes } = req.body;
+    const {
+      property,
+      startDate,
+      endDate,
+      guestName,
+      numberOfGuests,
+      pricePerNight,
+      source
+    } = req.body;
+    
+
+    // Validate required fields
+    if (!property || !startDate || !endDate || !guestName || !numberOfGuests || !pricePerNight) {
+      return res.status(400).json({
+        message: 'Missing required fields',
+        required: ['property', 'startDate', 'endDate', 'guestName', 'numberOfGuests', 'pricePerNight']
+      });
+    }
 
     // Check property access
     const propertyDoc = await Property.findById(property);
@@ -53,24 +67,21 @@ router.post('/', auth, validateBooking, async (req, res) => {
       return res.status(404).json({ message: 'Property not found' });
     }
 
-    if (req.user.role !== 'admin' && 
-        !req.user.assignedProperties.includes(propertyDoc._id)) {
+    if (req.user.role !== 'admin' && !req.user.assignedProperties.includes(propertyDoc._id)) {
       return res.status(403).json({ message: 'Access denied to this property' });
     }
 
+    // Create new booking with all required fields
     const booking = new Booking({
-      property,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      guestName,
-      source,
-      notes,
+      ...req.validatedBooking,
       createdBy: req.user._id,
       status: 'confirmed'
     });
 
+    // Save booking
     await booking.save();
 
+    // Return populated booking
     const populatedBooking = await Booking.findById(booking._id)
       .populate({
         path: 'property',
@@ -83,6 +94,7 @@ router.post('/', auth, validateBooking, async (req, res) => {
 
     res.status(201).json(populatedBooking);
   } catch (error) {
+    console.error('Booking creation error:', error);
     res.status(400).json({ message: error.message });
   }
 });
@@ -93,20 +105,18 @@ router.patch('/:id/status', auth, async (req, res) => {
     const { status } = req.body;
     const booking = await Booking.findById(req.params.id)
       .populate('property');
-
+    
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
     }
-
-    // Check access rights
-    if (req.user.role !== 'admin' && 
-        !req.user.assignedProperties.includes(booking.property._id)) {
+    
+    if (req.user.role !== 'admin' && !req.user.assignedProperties.includes(booking.property._id)) {
       return res.status(403).json({ message: 'Access denied' });
     }
-
+    
     booking.status = status;
     await booking.save();
-
+    
     res.json(booking);
   } catch (error) {
     res.status(400).json({ message: error.message });
