@@ -11,7 +11,7 @@ import {
   AlertTriangle,
   X,
 } from "lucide-react";
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
 import { websocketService } from "../services/webSocketService";
 import { useAuth } from "../context/AuthContext";
 
@@ -27,7 +27,7 @@ const PropertyManagement = () => {
   const [editingProperty, setEditingProperty] = useState(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState(null);
-  const { user } = useAuth();
+  const { user, token } = useAuth(); // Added token from auth context
 
   const [formData, setFormData] = useState({
     title: "",
@@ -44,6 +44,7 @@ const PropertyManagement = () => {
         credentials: "include",
         headers: {
           Accept: "application/json",
+          Authorization: `Bearer ${token}`, // Use token from context
         },
       });
 
@@ -60,7 +61,7 @@ const PropertyManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     fetchProperties();
@@ -104,6 +105,7 @@ const PropertyManagement = () => {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
+          Authorization: `Bearer ${token}`, // Use token from context
         },
         credentials: "include",
         body: JSON.stringify(formData),
@@ -148,6 +150,7 @@ const PropertyManagement = () => {
           headers: {
             "Content-Type": "application/json",
             Accept: "application/json",
+            Authorization: `Bearer ${token}`, // Use token from context
           },
           credentials: "include",
           body: JSON.stringify(editingProperty),
@@ -167,6 +170,7 @@ const PropertyManagement = () => {
       setEditingProperty(null);
     } catch (err) {
       setError(err.message);
+      console.error("Error updating property:", err);
     } finally {
       setLoading(false);
     }
@@ -181,6 +185,9 @@ const PropertyManagement = () => {
         `http://localhost:5000/api/properties/${propertyToDelete._id}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`, // Use token from context
+          },
           credentials: "include",
         }
       );
@@ -197,9 +204,18 @@ const PropertyManagement = () => {
       setPropertyToDelete(null);
     } catch (err) {
       setError(err.message);
+      console.error("Error deleting property:", err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const hasPermission = (property) => {
+    return user && (
+      user.role === 'admin' ||
+      user.role === 'manager' ||
+      (property.managers && property.managers.some(manager => manager._id === user._id))
+    );
   };
 
   const openEditModal = (property) => {
@@ -212,7 +228,42 @@ const PropertyManagement = () => {
     setShowDeleteDialog(true);
   };
 
- 
+  // Added PropTypes for renderPropertyActions
+
+  const PropertyActions = ({ property }) => (
+    <div className="flex items-center space-x-2">
+      {hasPermission(property) && (
+        <>
+          <button
+            onClick={() => openEditModal(property)}
+            className="p-1 text-gray-400 hover:text-blue-600"
+            title="Edit property"
+          >
+            <Edit size={18} />
+          </button>
+          <button
+            onClick={() => openDeleteDialog(property)}
+            className="p-1 text-gray-400 hover:text-red-600"
+            title="Delete property"
+          >
+            <Trash2 size={18} />
+          </button>
+        </>
+      )}
+      <button className="p-1 text-gray-400 hover:text-gray-600">
+        <MoreHorizontal size={18} />
+      </button>
+    </div>
+  );
+
+  PropertyActions.propTypes = {
+    property: PropTypes.shape({
+      _id: PropTypes.string.isRequired,
+      managers: PropTypes.arrayOf(PropTypes.shape({
+        _id: PropTypes.string.isRequired,
+      })),
+    }).isRequired,
+  };
 
   const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
     if (!isOpen) return null;
@@ -224,9 +275,10 @@ const PropertyManagement = () => {
             <AlertTriangle className="h-6 w-6 text-red-600" />
             <h2 className="text-xl font-bold">Delete Property</h2>
           </div>
-          
+
           <p className="mb-6 text-gray-600">
-            Are you sure you want to delete &quot;{propertyTitle}&quot;? This action cannot be undone.
+            Are you sure you want to delete &quot;{propertyTitle}&quot;? This
+            action cannot be undone.
           </p>
 
           <div className="flex justify-end gap-3">
@@ -249,7 +301,7 @@ const PropertyManagement = () => {
       </div>
     );
   };
-  
+
   DeleteDialog.propTypes = {
     isOpen: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
@@ -257,34 +309,41 @@ const PropertyManagement = () => {
     propertyTitle: PropTypes.string,
   };
 
-
   const canAddProperty = user && ["admin", "manager"].includes(user.role);
 
   const filteredProperties = properties.filter((property) =>
     property.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const renderPropertyActions = (property) => (
-    <div className="flex items-center space-x-2">
-      <button
-        onClick={() => openEditModal(property)}
-        className="p-1 text-gray-400 hover:text-blue-600"
-        title="Edit property"
-      >
-        <Edit size={18} />
-      </button>
-      <button
-        onClick={() => openDeleteDialog(property)}
-        className="p-1 text-gray-400 hover:text-red-600"
-        title="Delete property"
-      >
-        <Trash2 size={18} />
-      </button>
-      <button className="p-1 text-gray-400 hover:text-gray-600">
-        <MoreHorizontal size={18} />
-      </button>
-    </div>
-  );
+
+// Add function to check if user has permission
+
+// Update renderPropertyActions to check permissions
+const renderPropertyActions = (property) => (
+  <div className="flex items-center space-x-2">
+    {hasPermission(property) && (
+      <>
+        <button
+          onClick={() => openEditModal(property)}
+          className="p-1 text-gray-400 hover:text-blue-600"
+          title="Edit property"
+        >
+          <Edit size={18} />
+        </button>
+        <button
+          onClick={() => openDeleteDialog(property)}
+          className="p-1 text-gray-400 hover:text-red-600"
+          title="Delete property"
+        >
+          <Trash2 size={18} />
+        </button>
+      </>
+    )}
+    <button className="p-1 text-gray-400 hover:text-gray-600">
+      <MoreHorizontal size={18} />
+    </button>
+  </div>
+);
 
   return (
     <div className="p-6">
@@ -416,7 +475,9 @@ const PropertyManagement = () => {
               <div className="col-span-1">
                 <input
                   type="checkbox"
-                  checked={selectedProperties.some((p) => p._id === property._id)}
+                  checked={selectedProperties.some(
+                    (p) => p._id === property._id
+                  )}
                   onChange={() => handlePropertySelect(property)}
                   className="rounded border-gray-300"
                 />
@@ -430,7 +491,9 @@ const PropertyManagement = () => {
                   />
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">{property.title}</div>
+                  <div className="font-medium text-gray-900">
+                    {property.title}
+                  </div>
                   <div className="text-sm text-gray-500">{property.type}</div>
                 </div>
               </div>
@@ -445,7 +508,8 @@ const PropertyManagement = () => {
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-700"
                       >
-                        <LinkIcon size={18} /></a>
+                        <LinkIcon size={18} />
+                      </a>
                     ))}
                   </div>
                 ) : (
@@ -454,7 +518,9 @@ const PropertyManagement = () => {
                   </button>
                 )}
               </div>
-              <div className="col-span-3 flex items-center text-gray-500">-</div>
+              <div className="col-span-3 flex items-center text-gray-500">
+                -
+              </div>
               <div className="col-span-2 flex items-center justify-between">
                 {renderPropertyActions(property)}
               </div>

@@ -27,7 +27,6 @@ const Dashboard = () => {
     endDate: "",
   });
 
-  // Move sidebarItems outside component to prevent recreation
   const sidebarItems = [
     { icon: <Inbox size={18} />, label: "Inbox" },
     { icon: <Calendar size={18} />, label: "Calendar", active: true },
@@ -42,15 +41,41 @@ const Dashboard = () => {
     { icon: <Globe size={18} />, label: "Booking Site" },
   ];
 
-  const getSourceColor = useCallback((source) => {
-    const colors = {
-      direct: "#3B82F6",
-      airbnb: "#FF5A5F",
-      "booking.com": "#003580",
-      vrbo: "#3D9B35",
-    };
-    return colors[source] || "#666666";
+  const getEventColor = useCallback((source) => {
+    const colors = [
+      '#9333EA', // Purple
+      '#EC4899', // Pink
+      '#EF4444', // Red
+      '#F97316', // Orange
+      '#84CC16', // Lime
+      '#06B6D4', // Cyan
+      '#6366F1', // Indigo
+      '#D946EF', // Fuchsia
+    ];
+    
+    const hashCode = source.split('').reduce((acc, char) => {
+      return char.charCodeAt(0) + ((acc << 5) - acc);
+    }, 0);
+    
+    return colors[Math.abs(hashCode) % colors.length];
   }, []);
+
+  const calculateNights = (start, end) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffTime = Math.abs(endDate - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
 
   const fetchProperties = useCallback(async () => {
     try {
@@ -86,10 +111,12 @@ const Dashboard = () => {
       const bookings = await response.json();
       const formattedEvents = bookings.map((booking) => ({
         id: booking._id,
-        title: `${booking.guestName} · ${booking.numberOfGuests} guests`,
+        title: `${booking.guestName}`,
         start: new Date(booking.startDate),
         end: new Date(booking.endDate),
-        backgroundColor: getSourceColor(booking.source),
+        backgroundColor: getEventColor(booking.source),
+        borderColor: getEventColor(booking.source),
+        className: 'rounded-lg',
         extendedProps: {
           propertyId: booking.property._id,
           guestName: booking.guestName,
@@ -106,10 +133,9 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [getSourceColor]);
+  }, [getEventColor]);
 
   useEffect(() => {
-    // Wrap initial fetches in setTimeout to avoid React 18 double mount issues
     const timeoutId = setTimeout(() => {
       fetchProperties();
       fetchBookings();
@@ -231,19 +257,39 @@ const Dashboard = () => {
     setShowEventModal(true);
   }, []);
 
-  const eventContent = useCallback((eventInfo) => (
-    <div className="flex items-center gap-1 p-1">
-      <Users size={14} />
-      <span>{eventInfo.event.extendedProps.numberOfGuests}</span>
-      <span className="ml-1">{eventInfo.event.title}</span>
-    </div>
-  ), []);
+  const eventContent = useCallback((eventInfo) => {
+    const nights = calculateNights(eventInfo.event.start, eventInfo.event.end);
+    const checkInDate = formatDate(eventInfo.event.start);
+    
+    return (
+      <div 
+        className="relative group flex items-center justify-between gap-1 p-1 py-2 rounded-lg h-full w-full"
+      >
+        {/* Main Content */}
+        <span className="truncate">{eventInfo.event.title}</span>
+        <div className="flex items-center gap-1 ml-auto">
+          <Users size={14} />
+          <span>{eventInfo.event.extendedProps.numberOfGuests}</span>
+        </div>
+
+        {/* Custom Tooltip */}
+        <div className="absolute invisible group-hover:visible bg-gray-900 text-white text-sm rounded px-2 py-1 left-1/2 transform -translate-x-1/2 -top-16 min-w-max z-50">
+          <div className="flex flex-col items-center">
+            <div>Check-in: {checkInDate}</div>
+            <div>Nights: {nights} {nights === 1 ? 'night' : 'nights'}</div>
+          </div>
+          {/* Arrow */}
+          <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full">
+            <div className="border-8 border-transparent border-t-gray-900"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }, []);
 
   const handleModalClick = useCallback((e) => {
     e.stopPropagation();
   }, []);
-
-  
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -314,14 +360,14 @@ const Dashboard = () => {
               dayMaxEvents={true}
               weekends={true}
               events={events}
-              eventContent={eventContent} // Add this line
+              eventContent={eventContent}
               select={handleDateSelect}
               eventClick={handleEventClick}
               height="100%"
             />
           </div>
 
-          {/* Modal with improved interaction handling */}
+          {/* Modal */}
           {showEventModal && (
             <div
               className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
@@ -356,143 +402,143 @@ const Dashboard = () => {
                           <option key={property._id} value={property._id}>
                             {property.title}
                           </option>
-                        ))}
-                      </select>
+                        ))}</select>
+                        </div>
+    
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Guest Name *
+                          </label>
+                          <input
+                            type="text"
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            value={newEvent.guestName}
+                            onChange={(e) =>
+                              setNewEvent({
+                                ...newEvent,
+                                guestName: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+    
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Number of Guests
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            value={newEvent.numberOfGuests}
+                            onChange={(e) =>
+                              setNewEvent({
+                                ...newEvent,
+                                numberOfGuests: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+    
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Price per Night *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            value={newEvent.pricePerNight}
+                            onChange={(e) =>
+                              setNewEvent({
+                                ...newEvent,
+                                pricePerNight: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+    
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Source
+                          </label>
+                          <select
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            value={newEvent.source}
+                            onChange={(e) =>
+                              setNewEvent({ ...newEvent, source: e.target.value })
+                            }
+                          >
+                            <option value="direct">Direct</option>
+                            <option value="airbnb">Airbnb</option>
+                            <option value="booking.com">Booking.com</option>
+                            <option value="vrbo">VRBO</option>
+                          </select>
+                        </div>
+    
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Start Date *
+                          </label>
+                          <input
+                            type="datetime-local"
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            value={newEvent.startDate}
+                            onChange={(e) =>
+                              setNewEvent({
+                                ...newEvent,
+                                startDate: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+    
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            End Date *
+                          </label>
+                          <input
+                            type="datetime-local"
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            value={newEvent.endDate}
+                            onChange={(e) =>
+                              setNewEvent({ ...newEvent, endDate: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+    
+                      <div className="mt-6 flex justify-end gap-4">
+                        <button
+                          type="button"
+                          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 bg-white"
+                          onClick={() => setShowEventModal(false)}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center ${
+                            loading ? "opacity-75 cursor-not-allowed" : ""
+                          }`}
+                          onClick={handleSaveEvent}
+                          disabled={loading}
+                        >
+                          {loading && (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          )}
+                          {newEvent.id ? "Update" : "Save"}
+                        </button>
+                      </div>
                     </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Guest Name *
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        value={newEvent.guestName}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            guestName: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    {/* Number of Guests */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Number of Guests *
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        value={newEvent.numberOfGuests}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            numberOfGuests: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    {/* Price per Night */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Price per Night *
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        value={newEvent.pricePerNight}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            pricePerNight: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Source
-                      </label>
-                      <select
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        value={newEvent.source}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, source: e.target.value })
-                        }
-                      >
-                        <option value="direct">Direct</option>
-                        <option value="airbnb">Airbnb</option>
-                        <option value="booking.com">Booking.com</option>
-                        <option value="vrbo">VRBO</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Start Date *
-                      </label>
-                      <input
-                        type="datetime-local"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        value={newEvent.startDate}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            startDate: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        End Date *
-                      </label>
-                      <input
-                        type="datetime-local"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        value={newEvent.endDate}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, endDate: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex justify-end gap-4">
-                    <button
-                      type="button"
-                      className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 bg-white"
-                      onClick={() => setShowEventModal(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center ${
-                        loading ? "opacity-75 cursor-not-allowed" : ""
-                      }`}
-                      onClick={handleSaveEvent}
-                      disabled={loading}
-                    >
-                      {loading && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      )}
-                      {newEvent.id ? "Update" : "Save"}
-                    </button>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
-    </div>
-  );
-};
-
-export default Dashboard;
+      );
+    };
+    
+    export default Dashboard;
