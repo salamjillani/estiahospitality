@@ -28,6 +28,7 @@ const Dashboard = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [dailyPrices, setDailyPrices] = useState({});
+  
   const [newEvent, setNewEvent] = useState({
     propertyId: "",
     guestName: "",
