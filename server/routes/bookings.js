@@ -52,7 +52,6 @@ router.post('/', auth, validateBooking, async (req, res) => {
       source
     } = req.body;
     
-
     // Validate required fields
     if (!property || !startDate || !endDate || !guestName || !numberOfGuests || !pricePerNight) {
       return res.status(400).json({
@@ -71,17 +70,14 @@ router.post('/', auth, validateBooking, async (req, res) => {
       return res.status(403).json({ message: 'Access denied to this property' });
     }
 
-    // Create new booking with all required fields
     const booking = new Booking({
       ...req.validatedBooking,
       createdBy: req.user._id,
       status: 'confirmed'
     });
 
-    // Save booking
     await booking.save();
 
-    // Return populated booking
     const populatedBooking = await Booking.findById(booking._id)
       .populate({
         path: 'property',
@@ -99,7 +95,86 @@ router.post('/', auth, validateBooking, async (req, res) => {
   }
 });
 
-// Update booking status
+// Add PUT route for updating bookings
+router.put('/:id', auth, validateBooking, async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    const {
+      property,
+      startDate,
+      endDate,
+      guestName,
+      numberOfGuests,
+      pricePerNight,
+      source
+    } = req.body;
+
+    // Check if booking exists
+    const existingBooking = await Booking.findById(bookingId)
+      .populate('property');
+
+    if (!existingBooking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Check property access
+    if (req.user.role !== 'admin' && !req.user.assignedProperties.includes(existingBooking.property._id)) {
+      return res.status(403).json({ message: 'Access denied to this booking' });
+    }
+
+    // Update booking
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      bookingId,
+      {
+        ...req.validatedBooking,
+        updatedBy: req.user._id,
+        updatedAt: new Date()
+      },
+      { new: true }
+    ).populate({
+      path: 'property',
+      select: 'title identifier type'
+    }).populate({
+      path: 'createdBy',
+      select: 'name email'
+    });
+
+    res.json(updatedBooking);
+  } catch (error) {
+    console.error('Booking update error:', error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Add DELETE route for removing bookings
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    
+    // Check if booking exists
+    const booking = await Booking.findById(bookingId)
+      .populate('property');
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Check property access
+    if (req.user.role !== 'admin' && !req.user.assignedProperties.includes(booking.property._id)) {
+      return res.status(403).json({ message: 'Access denied to this booking' });
+    }
+
+    // Delete booking
+    await Booking.findByIdAndDelete(bookingId);
+
+    res.json({ message: 'Booking deleted successfully' });
+  } catch (error) {
+    console.error('Booking deletion error:', error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Update booking status (keep existing route)
 router.patch('/:id/status', auth, async (req, res) => {
   try {
     const { status } = req.body;
@@ -122,7 +197,5 @@ router.patch('/:id/status', auth, async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
-
-
 
 module.exports = router;

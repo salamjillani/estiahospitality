@@ -4,7 +4,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { websocketService } from "../services/webSocketService";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./calendar-styles.css";
 import {
@@ -28,7 +28,9 @@ const Dashboard = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [dailyPrices, setDailyPrices] = useState({});
-  
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState(null);
+
   const [newEvent, setNewEvent] = useState({
     propertyId: "",
     guestName: "",
@@ -249,21 +251,114 @@ const Dashboard = () => {
 
   const handleEventClick = useCallback((clickInfo) => {
     const event = clickInfo.event;
+    setSelectedEventId(event.id);
+    setIsEditMode(true);
     setNewEvent({
+      id: event.id,
       propertyId: event.extendedProps.propertyId,
       guestName: event.extendedProps.guestName,
+      numberOfGuests: event.extendedProps.numberOfGuests.toString(),
+      pricePerNight: event.extendedProps.pricePerNight.toString(),
       source: event.extendedProps.source,
       startDate: event.start.toISOString().slice(0, 16),
       endDate: event.end.toISOString().slice(0, 16),
-      notes: event.extendedProps.notes,
     });
     setShowEventModal(true);
   }, []);
 
+  // Add handleDeleteBooking function
+  const handleDeleteBooking = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch(
+        `http://localhost:5000/api/bookings/${selectedEventId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete booking");
+      }
+
+      await fetchBookings();
+      setShowEventModal(false);
+      resetForm();
+    } catch (error) {
+      setError("Error deleting booking: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add handleUpdateBooking function
+  const handleUpdateBooking = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const validatedBooking = validateBooking(newEvent);
+
+      const bookingData = {
+        property: validatedBooking.propertyId,
+        guestName: validatedBooking.guestName,
+        numberOfGuests: validatedBooking.numberOfGuests,
+        pricePerNight: validatedBooking.pricePerNight,
+        source: validatedBooking.source,
+        startDate: new Date(validatedBooking.startDate).toISOString(),
+        endDate: new Date(validatedBooking.endDate).toISOString(),
+      };
+
+      const response = await fetch(
+        `http://localhost:5000/api/bookings/${selectedEventId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(bookingData),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update booking");
+      }
+
+      await fetchBookings();
+      setShowEventModal(false);
+      resetForm();
+    } catch (error) {
+      setError("Error updating booking: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add resetForm function
+  const resetForm = () => {
+    setNewEvent({
+      propertyId: "",
+      guestName: "",
+      numberOfGuests: "1",
+      pricePerNight: "0",
+      source: "direct",
+      startDate: "",
+      endDate: "",
+    });
+    setSelectedEventId(null);
+    setIsEditMode(false);
+  };
+
   const eventContent = useCallback((eventInfo) => {
     const nights = calculateNights(eventInfo.event.start, eventInfo.event.end);
     const checkInDate = formatDate(eventInfo.event.start);
-  
+
     return (
       <div className="relative group flex items-center justify-between p-1 py-2 rounded-lg h-full w-full hover:opacity-90 transition-opacity">
         <div className="flex-1 font-medium truncate">
@@ -275,7 +370,7 @@ const Dashboard = () => {
             {eventInfo.event.extendedProps.numberOfGuests}
           </span>
         </div>
-  
+
         <div className="absolute invisible group-hover:visible bg-gray-900 text-white text-sm rounded-lg px-3 py-2 left-1/2 transform -translate-x-1/2 -top-16 min-w-max z-50 shadow-lg">
           <div className="flex flex-col items-center space-y-1">
             <div className="font-medium">Check-in: {checkInDate}</div>
@@ -362,8 +457,6 @@ const Dashboard = () => {
       </>
     );
   };
-
-  
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -455,174 +548,240 @@ const Dashboard = () => {
           </div>
 
           {/* Modal */}
-     
-{showEventModal && (
-  <div 
-    className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-    style={{ zIndex: 9999 }}
-    onClick={() => setShowEventModal(false)}
-  >
-    <div 
-      className="bg-white rounded-xl w-full max-w-lg shadow-xl"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="p-6">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">
-            {newEvent.id ? "Edit Booking" : "New Booking"}
-          </h2>
-          <button
-            onClick={() => setShowEventModal(false)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
 
-        {/* Form Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Property Selection - Full Width */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Property *
-            </label>
-            <select
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              value={newEvent.propertyId}
-              onChange={(e) => setNewEvent({ ...newEvent, propertyId: e.target.value })}
+          {showEventModal && (
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+              style={{ zIndex: 9999 }}
+              onClick={() => {
+                setShowEventModal(false);
+                resetForm();
+              }}
             >
-              <option value="">Select Property</option>
-              {properties.map((property) => (
-                <option key={property._id} value={property._id}>
-                  {property.title}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div
+                className="bg-white rounded-xl w-full max-w-lg shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">
+                      {isEditMode ? "Edit Booking" : "New Booking"}
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setShowEventModal(false);
+                        resetForm();
+                      }}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
 
-          {/* Guest Name - Full Width */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Guest Name *
-            </label>
-            <input
-              type="text"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={newEvent.guestName}
-              onChange={(e) => setNewEvent({ ...newEvent, guestName: e.target.value })}
-              placeholder="Enter guest name"
-            />
-          </div>
+                  {/* Form Grid Layout */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Property Selection - Full Width */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Property *
+                      </label>
+                      <select
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        value={newEvent.propertyId}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            propertyId: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select Property</option>
+                        {properties.map((property) => (
+                          <option key={property._id} value={property._id}>
+                            {property.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-          {/* Number of Guests - Half Width */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Number of Guests *
-            </label>
-            <input
-              type="number"
-              min="1"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={newEvent.numberOfGuests}
-              onChange={(e) => setNewEvent({ ...newEvent, numberOfGuests: e.target.value })}
-            />
-          </div>
+                    {/* Guest Name - Full Width */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Guest Name *
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={newEvent.guestName}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            guestName: e.target.value,
+                          })
+                        }
+                        placeholder="Enter guest name"
+                      />
+                    </div>
 
-          {/* Price per Night - Half Width */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Price per Night *
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-2 text-gray-500">$</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={newEvent.pricePerNight}
-                onChange={(e) => setNewEvent({ ...newEvent, pricePerNight: e.target.value })}
-              />
+                    {/* Number of Guests - Half Width */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Number of Guests *
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={newEvent.numberOfGuests}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            numberOfGuests: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    {/* Price per Night - Half Width */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Price per Night *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-gray-500">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={newEvent.pricePerNight}
+                          onChange={(e) =>
+                            setNewEvent({
+                              ...newEvent,
+                              pricePerNight: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    {/* Start Date - Half Width */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Start Date *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={newEvent.startDate}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            startDate: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    {/* End Date - Half Width */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        End Date *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={newEvent.endDate}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, endDate: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    {/* Source Selection - Full Width */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Source
+                      </label>
+                      <select
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={newEvent.source}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, source: e.target.value })
+                        }
+                      >
+                        <option value="direct">Direct</option>
+                        <option value="airbnb">Airbnb</option>
+                        <option value="booking.com">Booking.com</option>
+                        <option value="vrbo">VRBO</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Error Message */}
+                  {error && (
+                    <div className="mt-4 text-red-600 text-sm">{error}</div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="mt-8 flex justify-between">
+            {/* Left side - Delete button (only shown in edit mode) */}
+            <div>
+              {isEditMode && (
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center"
+                  onClick={handleDeleteBooking}
+                  disabled={loading}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </button>
+              )}
+            </div>
+
+            {/* Right side - Cancel and Save/Update buttons */}
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                onClick={() => {
+                  setShowEventModal(false);
+                  resetForm();
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50"
+                onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
+                disabled={loading}
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditMode ? "Update" : "Save"}
+              </button>
             </div>
           </div>
-
-          {/* Start Date - Half Width */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Start Date *
-            </label>
-            <input
-              type="datetime-local"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={newEvent.startDate}
-              onChange={(e) => setNewEvent({ ...newEvent, startDate: e.target.value })}
-            />
-          </div>
-
-          {/* End Date - Half Width */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              End Date *
-            </label>
-            <input
-              type="datetime-local"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={newEvent.endDate}
-              onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
-            />
-          </div>
-
-          {/* Source Selection - Full Width */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Source
-            </label>
-            <select
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={newEvent.source}
-              onChange={(e) => setNewEvent({ ...newEvent, source: e.target.value })}
-            >
-              <option value="direct">Direct</option>
-              <option value="airbnb">Airbnb</option>
-              <option value="booking.com">Booking.com</option>
-              <option value="vrbo">VRBO</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mt-4 text-red-600 text-sm">
-            {error}
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="mt-8 flex justify-end space-x-3">
-          <button
-            type="button"
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-            onClick={() => setShowEventModal(false)}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50"
-            onClick={handleSaveEvent}
-            disabled={loading}
-          >
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {newEvent.id ? "Update" : "Save"}
-          </button>
         </div>
       </div>
     </div>
-  </div>
-)}
+  )}
         </div>
       </div>
     </div>
