@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import  { useState, useEffect, useCallback } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { websocketService } from "../services/webSocketService";
-import { Loader2, Trash2, Search } from "lucide-react";
+import { 
+  Loader2, Trash2, Search, Calendar, Home, Users, Building2, 
+   MapPin, Heart, Phone, Plane 
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import "./calendar-styles.css";
-import { Calendar, Home, Users } from "lucide-react";
 
 const Dashboard = () => {
   const [events, setEvents] = useState([]);
@@ -34,12 +36,12 @@ const Dashboard = () => {
 
   const getEventColor = useCallback((source) => {
     const colors = {
-      direct: "#4F46E5", // Indigo
-      airbnb: "#EC4899", // Pink
-      "booking.com": "#10B981", // Emerald
-      vrbo: "#F59E0B", // Amber
+      direct: "#4F46E5", 
+      airbnb: "#EC4899", 
+      "booking.com": "#10B981", 
+      vrbo: "#F59E0B", 
     };
-    return colors[source] || "#6B7280"; // Gray as default
+    return colors[source] || "#6B7280";
   }, []);
 
   const calculateNights = (start, end) => {
@@ -59,7 +61,6 @@ const Dashboard = () => {
     });
   };
 
-  // Modify fetchProperties to update filteredProperties
   const fetchProperties = useCallback(async () => {
     try {
       setError("");
@@ -84,7 +85,6 @@ const Dashboard = () => {
     }
   }, []);
 
-  // Add useEffect for property search
   useEffect(() => {
     const filtered = properties.filter((property) =>
       property.title.toLowerCase().includes(propertySearchQuery.toLowerCase())
@@ -92,10 +92,8 @@ const Dashboard = () => {
     setFilteredProperties(filtered);
   }, [propertySearchQuery, properties]);
 
-  // Add handler for property selection
   const handlePropertySelect = (property) => {
     setSelectedProperty(property);
-    // You can add additional logic here, like filtering calendar events for the selected property
   };
 
   const fetchBookings = useCallback(async () => {
@@ -351,24 +349,47 @@ const Dashboard = () => {
   const eventContent = useCallback((eventInfo) => {
     const nights = calculateNights(eventInfo.event.start, eventInfo.event.end);
     const checkInDate = formatDate(eventInfo.event.start);
-
+    const totalPrice = (eventInfo.event.extendedProps.pricePerNight * nights).toFixed(2);
+  
+    // Placeholder for additional booking details
+    const additionalDetails = [
+      { icon: Plane, text: "Early morning flight" },
+      { icon: Phone, text: "Prefers late check-in" }
+    ];
+  
     return (
-      <div className="relative group flex items-center justify-between p-1 py-2 rounded-lg h-full w-full hover:opacity-90 transition-opacity">
-        <div className="flex-1 font-medium truncate">
+      <div className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity" 
+           style={{ 
+             backgroundColor: eventInfo.event.backgroundColor, 
+             color: 'white' 
+           }}
+      >
+        <div className="flex-1 font-medium truncate pl-2">
           {eventInfo.event.title}
         </div>
-        <div className="flex items-center space-x-1 text-white/90 ml-2">
-          <Users size={14} />
+        <div className="flex items-center space-x-1 bg-white/20 rounded-full px-2 py-1 ml-2">
+          <Users size={14} className="text-white" />
           <span className="text-sm">
             {eventInfo.event.extendedProps.numberOfGuests}
           </span>
         </div>
-
-        <div className="absolute invisible group-hover:visible bg-gray-900 text-white text-sm rounded-lg px-3 py-2 left-1/2 transform -translate-x-1/2 -top-16 min-w-max z-50 shadow-lg">
-          <div className="flex flex-col items-center space-y-1">
+  
+        <div className="absolute invisible group-hover:visible bg-gray-900 text-white text-sm rounded-lg px-3 py-2 left-1/2 transform -translate-x-1/2 -top-32 min-w-max z-50 shadow-lg">
+          <div className="flex flex-col items-center space-y-2">
             <div className="font-medium">Check-in: {checkInDate}</div>
             <div>
               {nights} {nights === 1 ? "night" : "nights"}
+            </div>
+            <div className="font-semibold">
+              Total Price: ${totalPrice}
+            </div>
+            <div className="w-full border-t border-gray-700 pt-2">
+              {additionalDetails.map((detail, index) => (
+                <div key={index} className="flex items-center space-x-2 mb-1">
+                  <detail.icon size={14} className="text-gray-300" />
+                  <span>{detail.text}</span>
+                </div>
+              ))}
             </div>
           </div>
           <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full">
@@ -413,85 +434,96 @@ const Dashboard = () => {
 
   const dayCellContent = (arg) => {
     const dateKey = arg.date.toISOString().split("T")[0];
-
-    // Check if there's a booking for this date
+  
     const isDateBooked = events.some((event) => {
       const startDate = new Date(event.start);
       const endDate = new Date(event.end);
       const currentDate = new Date(arg.date);
-
-      // Reset time parts to compare only dates
+  
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(0, 0, 0, 0);
       currentDate.setHours(0, 0, 0, 0);
-
+  
       return currentDate >= startDate && currentDate < endDate;
     });
-
-    // Get or generate price
+  
     let price;
     if (!isDateBooked) {
-      price = dailyPrices[dateKey] || generateRandomPrice();
+      price = dailyPrices[dateKey] || Math.floor(Math.random() * (250 - 100 + 1)) + 100;
       if (!dailyPrices[dateKey]) {
         setDailyPrices((prev) => ({ ...prev, [dateKey]: price }));
       }
     }
-
+  
     return (
-      <>
-        <div className="fc-daygrid-day-top">
-          <div className="text-sm font-semibold">{arg.dayNumberText}</div>
-        </div>
+      <div className="flex justify-between items-center p-1">
         {!isDateBooked && (
-          <div className="price-display">
-            <div className="text-xs text-gray-600">${price}</div>
+          <div className="text-xs font-semibold text-black  px-2 rounded-full mr-20">
+            ${price}
           </div>
         )}
-      </>
+        <div className="flex-grow text-right">
+          <div className="text-sm font-semibold">{arg.dayNumberText}</div>
+        </div>
+      </div>
     );
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Simplified Sidebar */}
-      <div className="w-80 bg-white shadow-lg flex-shrink-0 flex flex-col">
-        {/* Logo */}
-        <div className="p-6 border-b">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Enhanced Sidebar */}
+      <div className="w-96 bg-white shadow-2xl border-r border-gray-100 flex flex-col">
+        {/* Logo and Branding */}
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-lg">
-              <div className="w-4 h-4 bg-white rounded-sm transform rotate-45"></div>
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
+              <Building2 className="text-white" size={20} />
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+            <span className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
               Estia Hospitality
             </span>
           </div>
-        </div>
-
-      
-
-        {/* Minimal Navigation */}
-        <div className="px-3 py-4 border-b">
-          <button className="mb-2 w-full flex items-center px-4 py-3 text-blue-600 bg-blue-50 font-semibold rounded-lg">
-            <Calendar size={18} />
-            <span className="ml-3">Calendar</span>
-          </button>
-          <Link
-            to="/properties"
-            className="mb-2 w-full flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-          >
-            <Home size={18} />
-            <span className="ml-3">Properties</span>
-          </Link>
-        </div>
-
-        {/* Properties List */}
-        <div className="flex-1 overflow-y-auto p-4">
-       
           
-          <h2 className="text-lg font-semibold mb-4">Properties</h2>
-          <div className="relative">
+        </div>
+
+        {/* Enhanced Navigation */}
+        <div className="px-4 py-6 border-b border-gray-100">
+          <div className="space-y-2">
+            <button className="w-full flex items-center justify-between px-4 py-3 bg-blue-50 text-blue-600 font-semibold rounded-xl hover:bg-blue-100 transition">
+              <div className="flex items-center">
+                <Calendar size={18} className="mr-3" />
+                Calendar
+              </div>
+              <div className="bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
+                12
+              </div>
+            </button>
+            <Link
+              to="/properties"
+              className="w-full flex items-center justify-between px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition"
+            >
+              <div className="flex items-center">
+                <Home size={18} className="mr-3" />
+                Properties
+              </div>
+              <div className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
+                {properties.length}
+              </div>
+            </Link>
+           
+          </div>
+        </div>
+
+        {/* Properties Search and List */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center justify-between">
+            Properties 
+            <Heart size={18} className="text-red-400" />
+          </h2>
+          
+          <div className="relative mb-4">
             <Search
-              className="absolute left-3 top-2.5 text-gray-400"
+              className="absolute left-3 top-4 text-gray-400"
               size={18}
             />
             <input
@@ -499,34 +531,37 @@ const Dashboard = () => {
               placeholder="Search properties..."
               value={propertySearchQuery}
               onChange={(e) => setPropertySearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
             />
           </div>
-          <br />
+
           <div className="space-y-3">
             {filteredProperties.map((property) => (
               <div
                 key={property._id}
                 onClick={() => handlePropertySelect(property)}
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                className={`p-4 border rounded-xl cursor-pointer transition-all group ${
                   selectedProperty?._id === property._id
-                    ? "border-blue-500 bg-blue-50"
-                    : "hover:border-gray-300"
+                    ? "border-blue-500 bg-blue-50 shadow-md"
+                    : "border-gray-200 hover:border-blue-300 hover:shadow-sm"
                 }`}
               >
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
                     <img
-                      src="/api/placeholder/48/48"
-                      alt=""
-                      className="w-full h-full object-cover rounded"
+                      src="/api/placeholder/64/64"
+                      alt={property.title}
+                      className="w-full h-full object-cover"
                     />
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition">
                       {property.title}
                     </h3>
-                    <p className="text-sm text-gray-500">{property.type}</p>
+                    <div className="flex items-center text-gray-500 text-sm">
+                      <MapPin size={14} className="mr-1" />
+                      {property.type}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -536,58 +571,49 @@ const Dashboard = () => {
       </div>
 
       {/* Main Calendar Content */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <div className="h-full flex flex-col relative p-6">
-          {error && (
-            <div
-              onClick={() => setError("")}
-              className="bg-red-50 border-l-4 border-red-400 text-red-700 p-4 rounded-lg mb-4 cursor-pointer shadow-sm"
-            >
-              <p className="font-medium">{error}</p>
-            </div>
-          )}
-
-          <div className="flex-1 bg-white rounded-xl shadow-sm p-6">
-            <FullCalendar
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
-              headerToolbar={{
-                left: "prev,next today",
-                center: "title",
-                right: "dayGridMonth,timeGridWeek,timeGridDay",
-              }}
-              events={
-                selectedProperty
-                  ? events.filter(
-                      (event) =>
-                        event.extendedProps.propertyId === selectedProperty._id
-                    )
-                  : events
-              }
-              editable={true}
-              selectable={true}
-              selectMirror={true}
-              dayMaxEvents={true}
-              weekends={true}
-              eventContent={eventContent}
-              dayCellContent={dayCellContent}
-              datesSet={handleDatesSet}
-              select={handleDateSelect}
-              eventClick={handleEventClick}
-              height="100%"
-              contentHeight="auto"
-              themeSystem="standard"
-              eventDisplay="block"
-              slotMinTime="06:00:00"
-              slotMaxTime="21:00:00"
-              slotDuration="01:00:00"
-              eventTimeFormat={{
-                hour: "2-digit",
-                minute: "2-digit",
-                meridiem: false,
-              }}
-            />
-          </div>
+      <div className="flex-1 overflow-hidden flex flex-col p-6">
+        <div className="h-full flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <FullCalendar
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            initialView="dayGridMonth"
+            headerToolbar={{
+              left: "prev,next today",
+              center: "title",
+              right: "dayGridMonth,timeGridWeek,timeGridDay",
+            }}
+            events={
+              selectedProperty
+                ? events.filter(
+                    (event) =>
+                      event.extendedProps.propertyId === selectedProperty._id
+                  )
+                : events
+            }
+            editable={true}
+            selectable={true}
+            selectMirror={true}
+            dayMaxEvents={true}
+            weekends={true}
+            eventContent={eventContent}
+            dayCellContent={dayCellContent}
+            datesSet={handleDatesSet}
+            select={handleDateSelect}
+            eventClick={handleEventClick}
+            height="100%"
+            contentHeight="auto"
+            themeSystem="standard"
+            eventDisplay="block"
+            slotMinTime="06:00:00"
+            slotMaxTime="21:00:00"
+            slotDuration="01:00:00"
+            eventTimeFormat={{
+              hour: "2-digit",
+              minute: "2-digit",
+              meridiem: false,
+            }}
+          />
+        </div>
+      </div>
 
           {/* Modal */}
           {showEventModal && (
@@ -828,8 +854,8 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-      </div>
-    </div>
+     
+ 
   );
 };
 
