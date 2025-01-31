@@ -1,84 +1,761 @@
 import { useState, useEffect, useCallback } from "react";
 import {
+  Map,
+  CreditCard,
+  Image,
   Plus,
   Search,
   MoreHorizontal,
   Loader2,
-  Link as LinkIcon,
   Trash2,
-  Edit,
+  Building,
+  Receipt,
+  Download,
+  X,
   AlertCircle,
   AlertTriangle,
-  X,
 } from "lucide-react";
 import PropTypes from "prop-types";
-import { websocketService } from "../services/webSocketService";
 import { useAuth } from "../context/AuthContext";
+import { api, setAuthToken } from "../utils/api";
+
+const propertyShape = PropTypes.shape({
+  _id: PropTypes.string.isRequired,
+  title: PropTypes.string.isRequired,
+  type: PropTypes.string.isRequired,
+  propertyType: PropTypes.string,
+  description: PropTypes.string,
+  vendorType: PropTypes.string,
+  location: PropTypes.shape({
+    city: PropTypes.string,
+    country: PropTypes.string,
+    address: PropTypes.string,
+    postalCode: PropTypes.string,
+    coordinates: PropTypes.shape({
+      lat: PropTypes.string,
+      lng: PropTypes.string,
+    }),
+  }),
+  photos: PropTypes.arrayOf(
+    PropTypes.shape({
+      url: PropTypes.string,
+      caption: PropTypes.string,
+      isPrimary: PropTypes.bool,
+    })
+  ),
+  managers: PropTypes.arrayOf(
+    PropTypes.shape({
+      _id: PropTypes.string.isRequired,
+    })
+  ),
+  bankDetails: PropTypes.shape({
+    accountHolder: PropTypes.string,
+    accountNumber: PropTypes.string,
+    bankName: PropTypes.string,
+    swiftCode: PropTypes.string,
+    iban: PropTypes.string,
+    currency: PropTypes.string,
+  }),
+  taxDetails: PropTypes.shape({
+    airbnb: PropTypes.shape({
+      vatNumber: PropTypes.string,
+      taxId: PropTypes.string,
+      taxRate: PropTypes.string,
+    }),
+    booking: PropTypes.shape({
+      vatNumber: PropTypes.string,
+      taxId: PropTypes.string,
+      taxRate: PropTypes.string,
+    }),
+  }),
+}).isRequired;
+
+const PropertyFormModal = ({ onClose, onSubmit, formData, setFormData, loading, mode, property, setError }) => {
+  useEffect(() => {
+    if (mode === "edit" && property) {
+      setFormData({
+        title: property.title || "",
+        type: property.type || "villa",
+        vendorType: property.vendorType || "individual",
+        description: property.description || "",
+        location: {
+          address: property.location?.address || "",
+          city: property.location?.city || "",
+          country: property.location?.country || "",
+          postalCode: property.location?.postalCode || "",
+        },
+        photos: property.photos || [],
+        bankDetails: {
+          accountHolder: property.bankDetails?.accountHolder || "",
+          accountNumber: property.bankDetails?.accountNumber || "",
+          bankName: property.bankDetails?.bankName || "",
+          swiftCode: property.bankDetails?.swiftCode || "",
+          iban: property.bankDetails?.iban || "",
+          currency: property.bankDetails?.currency || "USD",
+        },
+      });
+    }
+  }, [mode, property, setFormData]);
+  const handleImageUpload = (e) => {
+    try {
+      const files = Array.from(e.target.files);
+      const maxFileSize = 5 * 1024 * 1024; // 5MB limit
+      
+      // Validate file size and type
+      const invalidFiles = files.filter(file => {
+        const isValidSize = file.size <= maxFileSize;
+        const isValidType = file.type.startsWith('image/');
+        return !isValidSize || !isValidType;
+      });
+
+      if (invalidFiles.length > 0) {
+        setError('Some files were not added. Files must be images under 5MB.');
+        return;
+      }
+
+      const newPhotos = files.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+        caption: "",
+        isPrimary: false,
+      }));
+
+      setFormData((prev) => ({
+        ...prev,
+        photos: [...prev.photos, ...newPhotos],
+      }));
+    } catch(error) {
+      console.error('Error uploading images:', error);
+      setError('Failed to upload images');
+    }
+  }
+  
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+      <div className="sticky top-0 bg-white px-6 py-4 border-b flex items-center justify-between">
+        <h2 className="text-xl font-bold">
+          {mode === "add" ? "Add New Property" : `Edit ${property?.title || 'Property'}`}
+        </h2>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+        <form onSubmit={onSubmit} className="p-6 space-y-8">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Image size={20} />
+              Property Images
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              {formData.photos.map((photo, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={photo.url}
+                    alt={photo.caption || `Property ${index + 1}`}
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          photos: prev.photos.filter((_, i) => i !== index),
+                        }));
+                      }}
+                      className="text-white bg-red-500 p-2 rounded-full"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <label className="border-2 border-dashed border-gray-300 rounded-lg h-48 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors">
+                <Image size={24} className="text-gray-400" />
+                <span className="mt-2 text-sm text-gray-500">Add Photos</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Building size={20} />
+              Basic Information
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Property Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Property Type *
+                </label>
+                <select
+                  value={formData.type}
+                  onChange={(e) =>
+                    setFormData({ ...formData, type: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                  required
+                >
+                  <option value="villa">Villa</option>
+                  <option value="holiday_apartment">Holiday Apartment</option>
+                  <option value="hotel">Hotel</option>
+                  <option value="cottage">Cottage</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  description: e.target.value,
+                })
+              }
+              rows={4}
+              className="w-full px-3 py-2 border rounded-md"
+              placeholder="Describe your property..."
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Map size={20} />
+              Location
+            </h3>
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Street Address"
+                value={formData.location.address}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    location: {
+                      ...formData.location,
+                      address: e.target.value,
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md"
+              />
+              <div className="grid grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  placeholder="City"
+                  value={formData.location.city}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      location: {
+                        ...formData.location,
+                        city: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <input
+                  type="text"
+                  placeholder="Country"
+                  value={formData.location.country}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      location: {
+                        ...formData.location,
+                        country: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <input
+                  type="text"
+                  placeholder="Postal Code"
+                  value={formData.location.postalCode}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      location: {
+                        ...formData.location,
+                        postalCode: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <CreditCard size={20} />
+              Banking Details
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                placeholder="Account Holder"
+                value={formData.bankDetails.accountHolder}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    bankDetails: {
+                      ...formData.bankDetails,
+                      accountHolder: e.target.value,
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md"
+              />
+              <input
+                type="text"
+                placeholder="Account Number"
+                value={formData.bankDetails.accountNumber}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    bankDetails: {
+                      ...formData.bankDetails,
+                      accountNumber: e.target.value,
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md"
+              />
+              <input
+                type="text"
+                placeholder="Bank Name"
+                value={formData.bankDetails.bankName}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    bankDetails: {
+                      ...formData.bankDetails,
+                      bankName: e.target.value,
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md"
+              />
+              <input
+                type="text"
+                placeholder="SWIFT Code"
+                value={formData.bankDetails.swiftCode}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    bankDetails: {
+                      ...formData.bankDetails,
+                      swiftCode: e.target.value,
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md"
+              />
+              <input
+                type="text"
+                placeholder="IBAN"
+                value={formData.bankDetails.iban}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    bankDetails: {
+                      ...formData.bankDetails,
+                      iban: e.target.value,
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md"
+              />
+              <select
+                value={formData.bankDetails.currency}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    bankDetails: {
+                      ...formData.bankDetails,
+                      currency: e.target.value,
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="sticky bottom-0 bg-white pt-4 pb-6 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+              disabled={loading}
+            >
+              {loading && <Loader2 className="animate-spin" size={18} />}
+              {mode === "add" ? "Add Property" : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+PropertyFormModal.propTypes = {
+  onClose: PropTypes.func.isRequired,
+  onSubmit: PropTypes.func.isRequired,
+  formData: PropTypes.object.isRequired,
+  setFormData: PropTypes.func.isRequired,
+  setError: PropTypes.func.isRequired,
+  loading: PropTypes.bool.isRequired,
+  mode: PropTypes.oneOf(["add", "edit"]).isRequired,
+  property: propertyShape,
+  handleImageUpload: PropTypes.func.isRequired,
+};
 
 const PropertyManagement = () => {
+  const { token } = useAuth();
   const [properties, setProperties] = useState([]);
-  const [activeTab, setActiveTab] = useState("properties");
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewPropertyModal, setShowNewPropertyModal] = useState(false);
-  const [showEditPropertyModal, setShowEditPropertyModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedProperties, setSelectedProperties] = useState([]);
-  const [editingProperty, setEditingProperty] = useState(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState(null);
-  const { user, token } = useAuth(); // Added token from auth context
-
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [activeProperty, setActiveProperty] = useState(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    type: "separate_room",
-    identifier: "",
-    listingUrls: [],
+    type: "villa",
+    vendorType: "individual",
+    description: "",
+    location: {
+      address: "",
+      city: "",
+      country: "",
+      postalCode: "",
+    },
+    photos: [],
+    bankDetails: {
+      accountHolder: "",
+      accountNumber: "",
+      bankName: "",
+      swiftCode: "",
+      iban: "",
+      currency: "USD",
+    },
   });
+
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      setAuthToken(token);
+      fetchProperties();
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found');
+          return;
+        }
+        
+        setAuthToken(token);
+        await fetchProperties();
+      } catch (err) {
+        console.error('Initial load error:', err);
+      }
+    };
+    loadData();
+  }, []);
+
+  const resetFormData = () => {
+    setFormData({
+      title: "",
+      type: "villa",
+      vendorType: "individual",
+      description: "",
+      location: { address: "", city: "", country: "", postalCode: "" },
+      photos: [],
+      bankDetails: {
+        accountHolder: "",
+        accountNumber: "",
+        bankName: "",
+        swiftCode: "",
+        iban: "",
+        currency: "USD",
+      },
+    });
+  };
+// Add this in the PropertyManagement component's functions
+const handleImageUpload = (e) => {
+  try {
+    const files = Array.from(e.target.files);
+    const maxFileSize = 5 * 1024 * 1024;
+    
+    // Filter invalid files
+    const validFiles = files.filter(file => 
+      file.size <= maxFileSize && 
+      file.type.startsWith('image/')
+    );
+
+    if (validFiles.length !== files.length) {
+      setError('Some files were rejected (max 5MB, images only)');
+    }
+
+    const newPhotos = validFiles.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+      caption: "",
+      isPrimary: false,
+    }));
+
+    setFormData(prev => ({
+      ...prev,
+      photos: [...prev.photos, ...newPhotos],
+    }));
+  } catch (error) {
+    setError('Image upload failed', error);
+  }
+};
+  const handleDelete = async () => {
+    if (!propertyToDelete) return;
+
+    try {
+      setLoading(true);
+      await api.delete(`/api/properties/${propertyToDelete._id}`);
+      setProperties((prev) =>
+        prev.filter((p) => p._id !== propertyToDelete._id)
+      );
+      setShowDeleteDialog(false);
+      setPropertyToDelete(null);
+    } catch (err) {
+      setError(err.message || "Failed to delete property");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePropertyDelete = (property) => {
+    setPropertyToDelete(property);
+    setShowDeleteDialog(true);
+  };
+  const uploadImages = async (propertyId, photos) => {
+    try {
+      const formData = new FormData();
+      photos.forEach((photo, index) => {
+        formData.append(`photos`, photo.file);
+        formData.append(`captions[${index}]`, photo.caption);
+        formData.append(`isPrimary[${index}]`, photo.isPrimary);
+      });
+
+      const data = await api.post(
+        `/properties/${propertyId}/photos`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return data.photos;
+    } catch (error) {
+      console.error("Error uploading images:", error);
+      throw error;
+    }
+  };
+
+  const EditPropertyModal = ({ property, onClose, onSave, loading }) => {
+    const [editForm, setEditForm] = useState({
+      title: property.title || "",
+      type: property.type || "villa",
+      vendorType: property.vendorType || "individual",
+      identifier: property.identifier || "",
+    });
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      onSave(e, editForm);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Edit Property</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, title: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type *
+                </label>
+                <select
+                  value={editForm.type}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, type: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="villa">Villa</option>
+                  <option value="holiday_apartment">Holiday Apartment</option>
+                  <option value="hotel">Hotel</option>
+                  <option value="cottage">Cottage</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Vendor Type *
+                </label>
+                <select
+                  value={editForm.vendorType}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, vendorType: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="individual">Individual</option>
+                  <option value="company">Company</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Identifier
+                </label>
+                <input
+                  type="text"
+                  value={editForm.identifier}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, identifier: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Unique identifier for the property"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+                disabled={loading}
+              >
+                {loading && <Loader2 className="animate-spin" size={18} />}
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+  EditPropertyModal.propTypes = {
+    property: propertyShape,
+    onClose: PropTypes.func.isRequired,
+    onSave: PropTypes.func.isRequired,
+    loading: PropTypes.bool.isRequired,
+  };
+
 
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
-      setError("");
-      const response = await fetch("http://localhost:5000/api/properties", {
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`, // Use token from context
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch properties");
-      }
-
-      const data = await response.json();
-      setProperties(data.properties || []);
+      const response = await api.get("/api/properties"); // Add /api prefix
+      setProperties(response.properties || []); // Access response.properties directly
     } catch (err) {
-      setError(err.message);
-      console.error("Error fetching properties:", err);
+      console.error("Fetch error:", err);
+      setError(err.message || "Failed to fetch properties");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
-    fetchProperties();
-    const unsubscribe = websocketService.subscribe(
-      "property_created",
-      (newProperty) => {
-        setProperties((prev) => {
-          if (prev.some((p) => p._id === newProperty._id)) {
-            return prev;
-          }
-          return [...prev, newProperty];
-        });
-      }
-    );
+    if (token) {
+      api.setAuthToken(token); 
+      fetchProperties();
+    }
+  }, [token, fetchProperties]);
 
-    return () => unsubscribe();
-  }, [fetchProperties]);
+  console.log("Token from useAuth:", token);
+  console.log("Token from localStorage:", localStorage.getItem("token"));
 
   const handlePropertySelect = (property) => {
     setSelectedProperties((prev) => {
@@ -93,176 +770,803 @@ const PropertyManagement = () => {
   const handleNewProperty = async (e) => {
     e.preventDefault();
     try {
-      setLoading(true);
-      setError("");
+      console.log('Starting form submission');
+      const formPayload = new FormData();
+      
+      // Log the form data to see what we're working with
+      console.log('Form data:', formData);
+      
+      if (!formData.title || !formData.type) {
+        setError('Property name and type are required');
+        return;
+      }
+  
+      formPayload.append("title", formData.title);
+      formPayload.append("type", formData.type);
+      formPayload.append("description", formData.description || '');
+      formPayload.append("vendorType", formData.vendorType || 'individual');
+  
+      console.log('Location data:', formData.location);
+      console.log('Bank details:', formData.bankDetails);
 
-      if (!formData.title || !formData.type || !formData.identifier) {
-        throw new Error("Please fill in all required fields");
+      if (formData.location) {
+        formPayload.append("location", JSON.stringify(formData.location));
+      }
+      
+      if (formData.bankDetails) {
+        formPayload.append("bankDetails", JSON.stringify(formData.bankDetails));
+      }
+  
+      console.log('Photos:', formData.photos);
+      if (formData.photos && formData.photos.length > 0) {
+        formData.photos.forEach((photo, index) => {
+          if (photo.file) {
+            console.log('Appending photo:', photo.file.name);
+            formPayload.append("photos", photo.file);
+          }
+        });
       }
 
-      const response = await fetch("http://localhost:5000/api/properties", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`, // Use token from context
-        },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to add property");
-      }
-
-      const newProperty = await response.json();
-      setProperties((prev) => [...prev, newProperty]);
+      console.log('Making API request...');
+      const response = await api.post("/api/properties", formPayload);
+      console.log('API response:', response);
+  
+      setProperties(prev => [...prev, response.property]);
       setShowNewPropertyModal(false);
-      setFormData({
-        title: "",
-        type: "separate_room",
-        identifier: "",
-        listingUrls: [],
+      resetFormData();
+    } catch (err) {
+      console.error("Create property error:", err);
+      console.error("Error details:", {
+        message: err.message,
+        stack: err.stack
       });
-    } catch (err) {
-      setError(err.message);
-      console.error("Error adding property:", err);
+      setError(err.message || "Failed to add property");
     } finally {
       setLoading(false);
     }
-  };
+};
+  const PropertyProfileModal = ({
+    property,
+    onClose,
+    onSave,
+    loading,
+    token,
+  }) => {
+    const [formData, setFormData] = useState({
+      title: property?.title || "",
+      description: property?.profile?.description || "",
+      propertyType: property?.type || "villa",
+      vendorType: property?.vendorType || "individual",
+      location: {
+        address: property?.profile?.location?.address || "",
+        city: property?.profile?.location?.city || "",
+        country: property?.profile?.location?.country || "",
+        postalCode: property?.profile?.location?.postalCode || "",
+      },
+      bankDetails: {
+        accountHolder: property?.bankDetails?.accountHolder || "",
+        accountNumber: property?.bankDetails?.accountNumber || "",
+        bankName: property?.bankDetails?.bankName || "",
+        swiftCode: property?.bankDetails?.swiftCode || "",
+        iban: property?.bankDetails?.iban || "",
+        currency: property?.bankDetails?.currency || "USD",
+      },
+      photos: property?.profile?.photos || [],
+    });
 
-  const handleEditProperty = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      setError("");
+    const handleImageUpload = (e) => {
+      try{
+        const files = Array.from(e.target.files);
+        const newPhotos = files.map((file) => ({
+          file,
+          url: URL.createObjectURL(file),
+          caption: "",
+          isPrimary: false,
+        }));
+      
+        setFormData((prev) => ({
+          ...prev,
+          photos: [...prev.photos, ...newPhotos],
+        }));
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      setError('Failed to upload images');
+    }
+    };
 
-      if (!editingProperty.title || !editingProperty.type || !editingProperty.identifier) {
-        throw new Error("Please fill in all required fields");
+    const uploadImages = async (propertyId, photos) => {
+      try {
+        const formData = new FormData();
+        photos.forEach((photo, index) => {
+          formData.append(`photos`, photo.file);
+          formData.append(`captions[${index}]`, photo.caption);
+          formData.append(`isPrimary[${index}]`, photo.isPrimary);
+        });
+
+        const data = await api.post(
+          `/api/properties/${propertyId}/photos`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        return data.photos;
+      } catch (error) {
+        console.error("Error uploading images:", error);
+        throw error;
       }
+    };
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      try {
 
-      const response = await fetch(
-        `http://localhost:5000/api/properties/${editingProperty._id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`, // Use token from context
-          },
-          credentials: "include",
-          body: JSON.stringify(editingProperty),
+        await onSave(property._id, formData, token);
+
+
+        const newPhotos = formData.photos.filter((photo) => photo.file);
+        if (newPhotos.length > 0) {
+          await uploadImages(property._id, newPhotos);
         }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update property");
+      } catch (error) {
+        console.error("Submission error:", error);
       }
+    };
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+          <div className="sticky top-0 bg-white px-6 py-4 border-b flex items-center justify-between">
+            <h2 className="text-xl font-bold">Property Profile</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+          </div>
 
-      const updatedProperty = await response.json();
-      setProperties((prev) =>
-        prev.map((p) => (p._id === updatedProperty._id ? updatedProperty : p))
-      );
-      setShowEditPropertyModal(false);
-      setEditingProperty(null);
-    } catch (err) {
-      setError(err.message);
-      console.error("Error updating property:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+          <form onSubmit={handleSubmit} className="p-6 space-y-8">
+     
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Image size={20} />
+                Property Images
+              </h3>
+              <div className="grid grid-cols-3 gap-4">
+                {formData.photos.map((photo, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={photo.url}
+                      alt={photo.caption || `Property ${index + 1}`}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            photos: prev.photos.filter((_, i) => i !== index),
+                          }));
+                        }}
+                        className="text-white bg-red-500 p-2 rounded-full"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <label className="border-2 border-dashed border-gray-300 rounded-lg h-48 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 transition-colors">
+                  <Image size={24} className="text-gray-400" />
+                  <span className="mt-2 text-sm text-gray-500">Add Photos</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
 
-  const handleDeleteProperty = async () => {
-    try {
-      setLoading(true);
-      setError("");
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Building size={20} />
+                Basic Information
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Property Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Property Type
+                  </label>
+                  <select
+                    value={formData.propertyType}
+                    onChange={(e) =>
+                      setFormData({ ...formData, propertyType: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-md"
+                  >
+                    <option value="villa">Villa</option>
+                    <option value="holiday_apartment">Holiday Apartment</option>
+                    <option value="hotel">Hotel</option>
+                    <option value="cottage">Cottage</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  rows={4}
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="Describe your property..."
+                />
+              </div>
+            </div>
 
-      const response = await fetch(
-        `http://localhost:5000/api/properties/${propertyToDelete._id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`, // Use token from context
-          },
-          credentials: "include",
-        }
-      );
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Map size={20} />
+                Location
+              </h3>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Street Address"
+                  value={formData.location.address}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      location: {
+                        ...formData.location,
+                        address: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <div className="grid grid-cols-3 gap-4">
+                  <input
+                    type="text"
+                    placeholder="City"
+                    value={formData.location.city}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        location: {
+                          ...formData.location,
+                          city: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Country"
+                    value={formData.location.country}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        location: {
+                          ...formData.location,
+                          country: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Postal Code"
+                    value={formData.location.postalCode}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        location: {
+                          ...formData.location,
+                          postalCode: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+              </div>
+            </div>
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete property");
-      }
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <CreditCard size={20} />
+                Banking Details
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  placeholder="Account Holder"
+                  value={formData.bankDetails.accountHolder}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bankDetails: {
+                        ...formData.bankDetails,
+                        accountHolder: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <input
+                  type="text"
+                  placeholder="Account Number"
+                  value={formData.bankDetails.accountNumber}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bankDetails: {
+                        ...formData.bankDetails,
+                        accountNumber: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <input
+                  type="text"
+                  placeholder="Bank Name"
+                  value={formData.bankDetails.bankName}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bankDetails: {
+                        ...formData.bankDetails,
+                        bankName: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <input
+                  type="text"
+                  placeholder="SWIFT Code"
+                  value={formData.bankDetails.swiftCode}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bankDetails: {
+                        ...formData.bankDetails,
+                        swiftCode: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <input
+                  type="text"
+                  placeholder="IBAN"
+                  value={formData.bankDetails.iban}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bankDetails: {
+                        ...formData.bankDetails,
+                        iban: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+                <select
+                  value={formData.bankDetails.currency}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      bankDetails: {
+                        ...formData.bankDetails,
+                        currency: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full px-3 py-2 border rounded-md"
+                >
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                </select>
+              </div>
+            </div>
 
-      setProperties((prev) =>
-        prev.filter((p) => p._id !== propertyToDelete._id)
-      );
-      setShowDeleteDialog(false);
-      setPropertyToDelete(null);
-    } catch (err) {
-      setError(err.message);
-      console.error("Error deleting property:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const hasPermission = (property) => {
-    return user && (
-      user.role === 'admin' ||
-      user.role === 'manager' ||
-      (property.managers && property.managers.some(manager => manager._id === user._id))
+            <div className="sticky bottom-0 bg-white pt-4 pb-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+                disabled={loading}
+              >
+                {loading && <Loader2 className="animate-spin" size={18} />}
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     );
   };
 
-  const openEditModal = (property) => {
-    setEditingProperty({ ...property });
-    setShowEditPropertyModal(true);
+  PropertyProfileModal.propTypes = {
+    property: propertyShape,
+    onClose: PropTypes.func.isRequired,
+    onSave: PropTypes.func.isRequired,
+    loading: PropTypes.bool.isRequired,
+    token: PropTypes.string.isRequired,
   };
 
-  const openDeleteDialog = (property) => {
-    setPropertyToDelete(property);
-    setShowDeleteDialog(true);
+  const InvoiceModal = ({ property, onClose }) => {
+    const [generatedInvoice, setGeneratedInvoice] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const { token } = useAuth();
+
+    const generateInvoice = async (propertyId, platform) => {
+      if (!token) {
+        setError("Authentication token is missing");
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(
+          `http://localhost:5000/api/properties/${propertyId}/invoice`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            credentials: "include",
+            body: JSON.stringify({ platform }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Failed to generate invoice");
+        }
+
+        const invoice = await response.json();
+        setGeneratedInvoice(invoice);
+
+        if (invoice.downloadUrl) {
+          const link = document.createElement("a");
+          link.href = invoice.downloadUrl;
+          link.download = `${platform}-invoice-${property.title}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Generate Invoice</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
+              {error}
+            </div>
+          )}
+
+          {generatedInvoice ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+                <h3 className="font-medium text-green-800">
+                  Invoice Generated Successfully
+                </h3>
+                <p className="text-sm text-green-600 mt-1">
+                  Invoice #{generatedInvoice.invoiceNumber}
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Amount:</span>
+                  <span className="font-medium">{generatedInvoice.amount}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Date:</span>
+                  <span className="font-medium">
+                    {new Date(generatedInvoice.date).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+
+              {generatedInvoice.downloadUrl && (
+                <button
+                  onClick={() =>
+                    window.open(generatedInvoice.downloadUrl, "_blank")
+                  }
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center gap-2"
+                >
+                  <Download size={18} />
+                  Download Invoice
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <button
+                onClick={() => generateInvoice(property._id, "airbnb")}
+                disabled={loading}
+                className="w-full px-4 py-3 text-left bg-white border rounded-md hover:bg-gray-50 flex items-center gap-3"
+              >
+                <Receipt className="text-blue-600" size={20} />
+                <div>
+                  <div className="font-medium">Airbnb Invoice</div>
+                  <div className="text-sm text-gray-500">
+                    Generate invoice with Airbnb tax details
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => generateInvoice(property._id, "booking")}
+                disabled={loading}
+                className="w-full px-4 py-3 text-left bg-white border rounded-md hover:bg-gray-50 flex items-center gap-3"
+              >
+                <Receipt className="text-blue-600" size={20} />
+                <div>
+                  <div className="font-medium">Booking.com Invoice</div>
+                  <div className="text-sm text-gray-500">
+                    Generate invoice with Booking.com tax details
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {loading && (
+            <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center">
+              <Loader2 className="animate-spin text-blue-600" size={24} />
+            </div>
+          )}
+
+          <div className="mt-6">
+            <button
+              onClick={onClose}
+              className="w-full px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              {generatedInvoice ? "Close" : "Cancel"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
-  // Added PropTypes for renderPropertyActions
+  InvoiceModal.propTypes = {
+    property: propertyShape,
+    onClose: PropTypes.func.isRequired,
+  };
 
-  const PropertyActions = ({ property }) => (
-    <div className="flex items-center space-x-2">
-      {hasPermission(property) && (
-        <>
-          <button
-            onClick={() => openEditModal(property)}
-            className="p-1 text-gray-400 hover:text-blue-600"
-            title="Edit property"
-          >
-            <Edit size={18} />
-          </button>
-          <button
-            onClick={() => openDeleteDialog(property)}
-            className="p-1 text-gray-400 hover:text-red-600"
-            title="Delete property"
-          >
-            <Trash2 size={18} />
-          </button>
-        </>
-      )}
-      <button className="p-1 text-gray-400 hover:text-gray-600">
-        <MoreHorizontal size={18} />
-      </button>
-    </div>
-  );
+  const handleProfileUpdate = async (propertyId, updatedData) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const formData = new FormData();
+
+       // Add all necessary form data
+    formData.append("title", updatedData.title);
+    formData.append("type", updatedData.propertyType);
+    formData.append("description", updatedData.description);
+    formData.append("location", JSON.stringify(updatedData.location));
+    formData.append("bankDetails", JSON.stringify(updatedData.bankDetails));
+
+
+    const newPhotos = updatedData.photos.filter(photo => photo.file);
+    if (newPhotos.length > 0) {
+      await uploadImages(propertyId, newPhotos);
+    }
+   
+
+    const response = await api.put(`/properties/${propertyId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+
+    setProperties(prev => 
+      prev.map(p => p._id === propertyId ? response.data : p)
+    );
+
+    setShowProfileModal(false);
+    setActiveProperty(null);
+  } catch (err) {
+    setError(err.message || "Failed to update property");
+  } finally {
+    setLoading(false);
+  }
+};
+
+ 
+
+  const PropertyActions = ({ property, onDelete, onProfile, onInvoice }) => {
+    const { user } = useAuth();
+
+    const hasPermission = (property) => {
+      return (
+        user &&
+        (user.role === "admin" ||
+          user.role === "manager" ||
+          (property.managers &&
+            property.managers.some((manager) => manager._id === user._id)))
+      );
+    };
+
+    return (
+      <div className="flex items-center space-x-2">
+        {hasPermission(property) && (
+          <>
+            <button
+              onClick={() => onProfile(property)}
+              className="p-1 text-gray-400 hover:text-green-600"
+              title="Edit profile"
+            >
+              <Building size={18} />
+            </button>
+            <button
+              onClick={() => onInvoice(property)}
+              className="p-1 text-gray-400 hover:text-blue-600"
+              title="Generate invoice"
+            >
+              <Receipt size={18} />
+            </button>
+            <button
+              onClick={() => onDelete(property)}
+              className="p-1 text-gray-400 hover:text-red-600"
+              title="Delete property"
+            >
+              <Trash2 size={18} />
+            </button>
+          </>
+        )}
+        <button className="p-1 text-gray-400 hover:text-gray-600">
+          <MoreHorizontal size={18} />
+        </button>
+      </div>
+    );
+  };
 
   PropertyActions.propTypes = {
-    property: PropTypes.shape({
-      _id: PropTypes.string.isRequired,
-      managers: PropTypes.arrayOf(PropTypes.shape({
-        _id: PropTypes.string.isRequired,
-      })),
-    }).isRequired,
+    property: propertyShape,
+    onDelete: PropTypes.func.isRequired,
+    onProfile: PropTypes.func.isRequired,
+    onInvoice: PropTypes.func.isRequired,
+  };
+
+  const PropertyCard = ({
+    property,
+    onSelect,
+    isSelected,
+    onDelete,
+    onProfile,
+    onInvoice,
+  }) => {
+    const getPropertyImage = () => {
+      return (
+        property.profile?.photos?.[0]?.url || "https://via.placeholder.com/150"
+      );
+    };
+
+    return (
+      <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b hover:bg-gray-50">
+        <div className="col-span-1">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onSelect(property)}
+            className="rounded border-gray-300"
+          />
+        </div>
+        <div className="col-span-4 flex items-center gap-3">
+          <div className="w-12 h-8 relative bg-gray-200 rounded group">
+            <img
+              src={getPropertyImage()}
+              alt={property.title}
+              className="w-full h-full object-cover rounded"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "https://via.placeholder.com/48x32";
+              }}
+            />
+            <button className="absolute inset-0 bg-black bg-opacity-50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+              <Image size={16} />
+            </button>
+          </div>
+          <div>
+            <div className="font-medium text-gray-900">{property.title}</div>
+            <div className="text-sm text-gray-500">
+              {property.propertyType || property.type}
+            </div>
+          </div>
+        </div>
+        <div className="col-span-5 flex items-center space-x-2">
+          {property.location?.address && (
+            <Map size={18} className="text-gray-400" />
+          )}
+          <div className="text-sm text-gray-500">
+            {property.location?.city && property.location?.country
+              ? `${property.location.city}, ${property.location.country}`
+              : "-"}
+          </div>
+        </div>
+        <div className="col-span-2 flex items-center justify-end space-x-2">
+          <PropertyActions
+            property={property}
+            onDelete={onDelete}
+            onProfile={onProfile}
+            onInvoice={onInvoice}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  
+
+  const filteredProperties = properties.filter(property =>
+    property.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  PropertyCard.propTypes = {
+    property: propertyShape,
+    onSelect: PropTypes.func.isRequired,
+    isSelected: PropTypes.bool.isRequired,
+    onDelete: PropTypes.func.isRequired,
+    onProfile: PropTypes.func.isRequired,
+    onInvoice: PropTypes.func.isRequired,
   };
 
   const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
@@ -309,423 +1613,149 @@ const PropertyManagement = () => {
     propertyTitle: PropTypes.string,
   };
 
-  const canAddProperty = user && ["admin", "manager"].includes(user.role);
-
-  const filteredProperties = properties.filter((property) =>
-    property.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
 
-// Add function to check if user has permission
-
-// Update renderPropertyActions to check permissions
-const renderPropertyActions = (property) => (
-  <div className="flex items-center space-x-2">
-    {hasPermission(property) && (
-      <>
-        <button
-          onClick={() => openEditModal(property)}
-          className="p-1 text-gray-400 hover:text-blue-600"
-          title="Edit property"
-        >
-          <Edit size={18} />
-        </button>
-        <button
-          onClick={() => openDeleteDialog(property)}
-          className="p-1 text-gray-400 hover:text-red-600"
-          title="Delete property"
-        >
-          <Trash2 size={18} />
-        </button>
-      </>
-    )}
-    <button className="p-1 text-gray-400 hover:text-gray-600">
-      <MoreHorizontal size={18} />
-    </button>
-  </div>
-);
-
-  return (
-    <div className="p-6">
-      {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded relative">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            <span className="block sm:inline">{error}</span>
-          </div>
-          <button
-            className="absolute top-0 bottom-0 right-0 px-4 py-3"
-            onClick={() => setError("")}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      )}
-
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Properties</h1>
-        <div className="flex items-center space-x-2">
-          <button className="text-blue-600 px-4 py-2 border rounded-md hover:bg-blue-50">
-            Subscribe
-          </button>
-        </div>
-      </div>
-
-      <div className="border-b mb-6">
-        <div className="flex space-x-8">
-          <button
-            className={`pb-4 px-1 ${
-              activeTab === "properties"
-                ? "border-b-2 border-blue-600 text-blue-600"
-                : "text-gray-500"
-            }`}
-            onClick={() => setActiveTab("properties")}
-          >
-            Properties
-          </button>
-          <button
-            className={`pb-4 px-1 ${
-              activeTab === "roomTypes"
-                ? "border-b-2 border-blue-600 text-blue-600"
-                : "text-gray-500"
-            }`}
-            onClick={() => setActiveTab("roomTypes")}
-          >
-            Room Types
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex-1 max-w-md relative">
-          <input
-            type="text"
-            placeholder="Search properties..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-        </div>
-        {canAddProperty && (
-          <button
-            onClick={() => setShowNewPropertyModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 ml-auto flex items-center gap-2"
-          >
-            <Plus size={18} />
-            New property
-          </button>
-        )}
-        <button className="px-4 py-2 text-gray-700 border rounded-md hover:bg-gray-50">
-          Groups
-        </button>
-        <button className="px-4 py-2 text-gray-700 border rounded-md hover:bg-gray-50">
-          Room Types
-        </button>
-        <button className="px-4 py-2 text-gray-700 border rounded-md hover:bg-gray-50">
-          Tag
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b text-sm font-medium text-gray-500">
-          <div className="col-span-1">
-            <input
-              type="checkbox"
-              className="rounded border-gray-300"
-              onChange={() => {
-                if (selectedProperties.length === properties.length) {
-                  setSelectedProperties([]);
-                } else {
-                  setSelectedProperties([...properties]);
-                }
-              }}
-              checked={
-                selectedProperties.length === properties.length &&
-                properties.length > 0
-              }
-            />
-          </div>
-          <div className="col-span-3">Name</div>
-          <div className="col-span-3">Linked Listings</div>
-          <div className="col-span-3">Groups</div>
-          <div className="col-span-2">Actions</div>
-        </div>
-
-        {loading && (
-          <div className="px-6 py-8 text-center text-gray-500">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p>Loading properties...</p>
+    return (
+      <div className="p-6">
+        {error && (
+          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg flex items-center gap-2">
+            <AlertCircle size={20} />
+            <span>{error}</span>
+            <button onClick={() => setError("")} className="ml-auto">
+              <X size={20} />
+            </button>
           </div>
         )}
-
-        {!loading && filteredProperties.length === 0 && (
-          <div className="px-6 py-8 text-center text-gray-500">
-            <p className="font-medium">No properties found</p>
-            <p className="mt-1">Get started by adding a new property</p>
-          </div>
-        )}
-
-        {!loading &&
-          filteredProperties.map((property) => (
-            <div
-              key={property._id}
-              className="grid grid-cols-12 gap-4 px-6 py-4 border-b hover:bg-gray-50"
+  
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-semibold">Properties</h1>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={20}
+              />
+              <input
+                type="text"
+                placeholder="Search properties..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2 border rounded-md"
+              />
+            </div>
+            <button
+              onClick={() => setShowNewPropertyModal(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
             >
-              <div className="col-span-1">
-                <input
-                  type="checkbox"
-                  checked={selectedProperties.some(
+              <Plus size={20} />
+              Add Property
+            </button>
+          </div>
+        </div>
+  
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b text-sm font-medium text-gray-500">
+            <div className="col-span-1">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300"
+                onChange={() => {
+                  if (selectedProperties.length === properties.length) {
+                    setSelectedProperties([]);
+                  } else {
+                    setSelectedProperties([...properties]);
+                  }
+                }}
+                checked={
+                  selectedProperties.length === properties.length &&
+                  properties.length > 0
+                }
+              />
+            </div>
+            <div className="col-span-4">Name</div>
+            <div className="col-span-5">Location</div>
+            <div className="col-span-2">Actions</div>
+          </div>
+  
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="animate-spin text-blue-600" size={40} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProperties.map((property) => (
+                <PropertyCard
+                  key={property._id}
+                  property={property}
+                  isSelected={selectedProperties.some(
                     (p) => p._id === property._id
                   )}
-                  onChange={() => handlePropertySelect(property)}
-                  className="rounded border-gray-300"
-                />
-              </div>
-              <div className="col-span-3 flex items-center gap-3">
-                <div className="w-12 h-8 bg-gray-200 rounded">
-                  <img
-                    src="/api/placeholder/48/32"
-                    alt=""
-                    className="w-full h-full object-cover rounded"
-                  />
-                </div>
-                <div>
-                  <div className="font-medium text-gray-900">
-                    {property.title}
-                  </div>
-                  <div className="text-sm text-gray-500">{property.type}</div>
-                </div>
-              </div>
-              <div className="col-span-3 flex items-center">
-                {property.listingUrls && property.listingUrls.length > 0 ? (
-                  <div className="flex gap-2">
-                    {property.listingUrls.map((url, index) => (
-                      <a
-                        key={index}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700"
-                      >
-                        <LinkIcon size={18} />
-                      </a>
-                    ))}
-                  </div>
-                ) : (
-                  <button className="text-blue-600 hover:text-blue-700">
-                    <Plus size={18} />
-                  </button>
-                )}
-              </div>
-              <div className="col-span-3 flex items-center text-gray-500">
-                -
-              </div>
-              <div className="col-span-2 flex items-center justify-between">
-                {renderPropertyActions(property)}
-              </div>
-            </div>
-          ))}
-      </div>
-
-      {/* Edit Property Modal */}
-      {showEditPropertyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Edit Property</h2>
-              <button
-                onClick={() => {
-                  setShowEditPropertyModal(false);
-                  setEditingProperty(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleEditProperty}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProperty.title}
-                    onChange={(e) =>
-                      setEditingProperty({
-                        ...editingProperty,
-                        title: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type *
-                  </label>
-                  <select
-                    value={editingProperty.type}
-                    onChange={(e) =>
-                      setEditingProperty({
-                        ...editingProperty,
-                        type: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="separate_room">Separate Room</option>
-                    <option value="entire_property">Entire Property</option>
-                    <option value="cottage">Cottage</option>
-                    <option value="apartment">Apartment</option>
-                    <option value="villa">Villa</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Identifier *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProperty.identifier}
-                    onChange={(e) =>
-                      setEditingProperty({
-                        ...editingProperty,
-                        identifier: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEditPropertyModal(false);
-                    setEditingProperty(null);
+                  onSelect={handlePropertySelect}
+                  onDelete={handlePropertyDelete}
+                  onProfile={(p) => {
+                    setActiveProperty(p);
+                    setShowProfileModal(true);
                   }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-                  disabled={loading}
-                >
-                  {loading && <Loader2 className="animate-spin" size={18} />}
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* New Property Modal */}
-      {showNewPropertyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Add New Property</h2>
-              <button
-                onClick={() => setShowNewPropertyModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={20} />
-              </button>
+                  onInvoice={(p) => {
+                    setActiveProperty(p);
+                    setShowInvoiceModal(true);
+                  }}
+                />
+              ))}
             </div>
-            <form onSubmit={handleNewProperty}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type *
-                  </label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) =>
-                      setFormData({ ...formData, type: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="separate_room">Separate Room</option>
-                    <option value="entire_property">Entire Property</option>
-                    <option value="cottage">Cottage</option>
-                    <option value="apartment">Apartment</option>
-                    <option value="villa">Villa</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Identifier *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.identifier}
-                    onChange={(e) =>
-                      setFormData({ ...formData, identifier: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    placeholder="Unique identifier for the property"
-                  />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowNewPropertyModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-                  disabled={loading}
-                >
-                  {loading && <Loader2 className="animate-spin" size={18} />}
-                  Add Property
-                </button>
-              </div>
-            </form>
-          </div>
+          )}
+  
+          {showNewPropertyModal && (
+            <PropertyFormModal
+              onClose={() => setShowNewPropertyModal(false)}
+              onSubmit={handleNewProperty}
+              formData={formData}
+              setFormData={setFormData}
+              loading={loading}
+              setError={setError}
+              mode="add"
+              handleImageUpload={handleImageUpload}
+            />
+          )}
+  
+          {showProfileModal && activeProperty && (
+            <PropertyFormModal
+              onClose={() => {
+                setShowProfileModal(false);
+                setActiveProperty(null);
+              }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleProfileUpdate(activeProperty._id, formData);
+              }}
+              formData={formData}
+              setFormData={setFormData}
+              loading={loading}
+              mode="edit"
+              property={activeProperty}
+            />
+          )}
+  
+          {showInvoiceModal && activeProperty && (
+            <InvoiceModal
+              property={activeProperty}
+              onClose={() => setShowInvoiceModal(false)}
+            />
+          )}
+  
+          {showDeleteDialog && (
+            <DeleteDialog
+              isOpen={showDeleteDialog}
+              onClose={() => {
+                setShowDeleteDialog(false);
+                setPropertyToDelete(null);
+              }}
+              onConfirm={handleDelete}
+              propertyTitle={propertyToDelete?.title}
+            />
+          )}
         </div>
-      )}
-
-      {/* Delete Dialog */}
-      <DeleteDialog
-        isOpen={showDeleteDialog}
-        onClose={() => {
-          setShowDeleteDialog(false);
-          setPropertyToDelete(null);
-        }}
-        onConfirm={handleDeleteProperty}
-        propertyTitle={propertyToDelete?.title}
-      />
-    </div>
-  );
-};
-
-export default PropertyManagement;
+      </div>
+    );
+  };
+  export default PropertyManagement;

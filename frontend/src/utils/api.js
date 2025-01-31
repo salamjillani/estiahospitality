@@ -1,21 +1,41 @@
 // frontend/src/utils/api.js
-export const BASE_URL = 'http://localhost:5000';
+
+const BASE_URL = 'http://localhost:5000';
+
+let authToken = null;
+
+export const setAuthToken = (token) => {
+  authToken = token;
+};
+
+export const getAuthToken = () => {
+  return authToken;
+};
 
 export const api = {
+  getHeaders: () => {
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+  
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`; // Ensure token is sent
+    }
+    
+    return headers;
+  },
+
   get: async (endpoint) => {
     try {
       console.log('Making GET request to:', `${BASE_URL}${endpoint}`);
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: api.getHeaders(),
       });
-      console.log('Response status:', response.status);
       
       if (!response.ok) {
         const error = await response.json();
-        console.error('API error:', error);
         throw new Error(error.message || 'API request failed');
       }
       return response.json();
@@ -25,50 +45,67 @@ export const api = {
     }
   },
 
-  post: async (endpoint, data) => {
+  post: async (endpoint, data, options = {}) => {
     try {
-      console.log('Making POST request to:', `${BASE_URL}${endpoint}`);
-      console.log('With data:', data);
+      console.log('API POST Request:', {
+        url: `${BASE_URL}${endpoint}`,
+        data: data instanceof FormData ? 'FormData' : data,
+      });
+
+      const headers = options.headers || api.getHeaders();
+      
+      if (data instanceof FormData) {
+        delete headers['Content-Type'];
+        console.log('Using FormData, removed Content-Type header');
+      }
+
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include',
-        body: JSON.stringify(data),
+        body: data instanceof FormData ? data : JSON.stringify(data),
       });
-      console.log('Response status:', response.status);
       
-      if (!response.ok) {
-        const error = await response.json();
-        console.error('API error:', error);
-        throw new Error(error.message || 'API request failed');
+      console.log('Raw response:', response);
+      console.log('Response headers:', Object.fromEntries(response.headers));
+      
+      const contentType = response.headers.get('content-type');
+      console.log('Content-Type:', contentType);
+
+      let responseData;
+      try {
+        responseData = contentType?.includes('application/json') 
+          ? await response.json()
+          : await response.text();
+        console.log('Parsed response data:', responseData);
+      } catch (parseError) {
+        console.error('Response parsing error:', parseError);
+        console.log('Raw response text:', await response.text());
+        throw parseError;
       }
-      return response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.message || 'API request failed');
+      }
+
+      return responseData;
     } catch (err) {
       console.error('API call failed:', err);
       throw err;
     }
-  },
+},
 
-  // Add PUT method for updating bookings
   put: async (endpoint, data) => {
     try {
-      console.log('Making PUT request to:', `${BASE_URL}${endpoint}`);
-      console.log('With data:', data);
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: api.getHeaders(),
         credentials: 'include',
         body: JSON.stringify(data),
       });
-      console.log('Response status:', response.status);
       
       if (!response.ok) {
         const error = await response.json();
-        console.error('API error:', error);
         throw new Error(error.message || 'API request failed');
       }
       return response.json();
@@ -78,22 +115,16 @@ export const api = {
     }
   },
 
-  // Add DELETE method for removing bookings
   delete: async (endpoint) => {
     try {
-      console.log('Making DELETE request to:', `${BASE_URL}${endpoint}`);
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: api.getHeaders(),
       });
-      console.log('Response status:', response.status);
       
       if (!response.ok) {
         const error = await response.json();
-        console.error('API error:', error);
         throw new Error(error.message || 'API request failed');
       }
       return response.json();

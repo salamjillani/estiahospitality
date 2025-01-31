@@ -1,5 +1,7 @@
+//server
 // server/server.js
 const path = require('path');
+const multer = require('multer');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const express = require('express');
 const mongoose = require('mongoose');
@@ -7,6 +9,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const http = require('http');
 const WebSocket = require('ws');
+const fs = require('fs');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -18,6 +21,8 @@ const server = http.createServer(app);
 
 // WebSocket setup
 const wss = new WebSocket.Server({ server });
+
+
 
 // Broadcast function for WebSocket
 const broadcast = (type, data) => {
@@ -54,9 +59,20 @@ wss.on('connection', (ws) => {
 app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With',
+    'Accept',
+    'Content-Disposition' 
+  ]
 }));
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Internal Server Error', error: err.message });
+});
 
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
@@ -80,6 +96,50 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
+
+
+const uploadDir = path.join(__dirname, 'uploads/properties');
+// Create upload directory if it doesn't exist
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+app.use('/uploads/properties', express.static(uploadDir));
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir) // Use absolute path
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname))
+  }
+});
+
+
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Not an image! Please upload an image.'), false);
+    }
+  }
+});
+
+// Add the upload route
+app.post('/api/properties/upload', upload.array('photos', 10), async (req, res) => {
+  try {
+    const photoUrls = req.files.map(file => `/uploads/properties/${file.filename}`);
+    res.json({ photoUrls });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))

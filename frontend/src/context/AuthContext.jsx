@@ -1,65 +1,100 @@
-// frontend/src/context/AuthContext.jsx
-import { createContext, useContext, useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import { api } from '../utils/api';
-import { useNavigate } from 'react-router-dom';
+import { createContext, useContext, useState, useEffect } from "react";
+import PropTypes from "prop-types";
+import { api, setAuthToken } from "../utils/api"; 
+import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
+  const [loading, setLoading] = useState(true); // Add loading state
   const navigate = useNavigate();
 
+  // Check authentication status on mount
   useEffect(() => {
     const checkAuthStatus = async () => {
+      setLoading(true);
       try {
-        console.log('Checking auth status...');
-        const userData = await api.get('/api/auth/me');
-        console.log('Auth status:', userData);
+        const userData = await api.get("/api/auth/me");
         setUser(userData);
+        setToken(userData.token);
+        setAuthToken(userData.token); // Set auth token for API calls
       } catch (error) {
-        console.error('Auth check failed:', error);
-        setUser(null);
+        console.error("Auth check failed:", error.message);
+        logout();
       } finally {
         setLoading(false);
       }
     };
+    if (token) {
+      setAuthToken(token); // Initialize with existing token
+      checkAuthStatus();
+    } else {
+      setLoading(false);
+    }
+  }, [token]);
 
-    checkAuthStatus();
-  }, []);
+  const login = async (credentials) => {
+    try {
+      const response = await api.post("/api/auth/login", credentials);
+      const { token, user } = response;
+      
+      localStorage.setItem("token", token);
+      setAuthToken(token); // Set the token for API headers
+      setUser(user);
+      setToken(token);
+      navigate("/dashboard");
+    } catch (error) {
+      console.error('Login error:', error);
+      setAuthError(error.message || "Failed to log in");
+      throw error;
+    }
+  };
 
-  // Add logging in frontend/src/context/AuthContext.jsx
-const login = async (credentials) => {
-  const response = await api.post('/api/auth/login', credentials);
-  console.log('Login response data:', response);
-  console.log('Setting user with role:', response.user.role);
-  setUser(response.user);
-  navigate('/dashboard');
-};
 
-  const register = async (userData) => {
-    const response = await api.post('/api/auth/register', userData);
-    setUser(response.user);
-    navigate('/dashboard');
+  const register = async (data) => {
+    try {
+      setAuthError(null);
+      const response = await api.post("/api/auth/register", data);
+      setUser(response.user);
+      setToken(response.token);
+      localStorage.setItem("token", response.token);
+      navigate("/dashboard");
+    } catch (error) {
+      setAuthError(error.message || "Failed to register");
+    }
   };
 
   const logout = async () => {
     try {
-      await api.post('/api/auth/logout');
-      setUser(null);
-      navigate('/auth');
+      await api.post("/api/auth/logout");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error.message);
+    } finally {
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem("token");
+      navigate("/auth");
     }
   };
 
-  const hasAccess = (requiredRoles) => {
-    return user && requiredRoles.includes(user.role);
-  };
+  const clearAuthError = () => setAuthError(null);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, hasAccess }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        authError,
+        loading,
+        login,
+        register,
+        logout,
+        clearAuthError,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -72,7 +107,7 @@ AuthProvider.propTypes = {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

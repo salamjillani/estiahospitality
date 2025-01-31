@@ -1,251 +1,262 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { auth, checkRole } = require('../middleware/auth');
-const Property = require('../models/Property');
-const User = require('../models/User');
+const propertyController = require("../controllers/propertyController");
+const { auth, checkRole } = require("../middleware/auth");
+const Property = require("../models/Property");
+const User = require("../models/User");
+const multer = require("multer");
+const path = require("path");
+const sanitize = require("sanitize-filename");
+const fs = require("fs");
 
-// Get all properties
-router.get('/', auth, async (req, res) => {
+// Configure absolute paths for uploads
+const uploadDir = path.join(__dirname, "../../uploads/properties");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Improved Multer configuration with absolute paths
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const cleanName = sanitize(file.originalname);
+    const ext = path.extname(cleanName);
+    const baseName = path.basename(cleanName, ext);
+    cb(null, `property-${Date.now()}-${baseName}${ext}`);
+  },
+});
+
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  allowedTypes.includes(file.mimetype)
+    ? cb(null, true)
+    : cb(
+        new Error("Invalid file type. Only JPEG, PNG, and WEBP are allowed!"),
+        false
+      );
+};
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter,
+});
+
+// Unified error handling middleware
+const handleErrors = (res, error, defaultMessage = "An error occurred") => {
+  console.error(error);
+  res.status(500).json({
+    success: false,
+    message: error.message || defaultMessage,
+    error: process.env.NODE_ENV === "development" ? error.stack : undefined,
+  });
+};
+
+// Create property with enhanced validation
+// In your propertyRoutes.js
+router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), async (req, res) => {
   try {
-    let query = {};
-    
-    // If user is not admin, only return assigned properties
-    if (req.user.role !== 'admin') {
-      query._id = { $in: req.user.assignedProperties };
+    console.log('Received property creation request');
+    console.log('Body:', req.body);
+    console.log('Files:', req.files);
+    console.log('User:', req.user);
+    if (!req.body.title || !req.body.type) {
+      return res.status(400).json({
+        success: false,
+        message: "Title and type are required"
+      });
     }
-    
-    const properties = await Property.find(query)
-      .populate('owner', 'name email')
-      .populate('managers', 'name email')
-      .sort({ createdAt: -1 });
-    
-    res.json({ properties });
+
+    // Parse JSON strings
+    let location = {}, bankDetails = {};
+    try {
+      if (req.body.location) {
+        location = JSON.parse(req.body.location);
+      }
+      if (req.body.bankDetails) {
+        bankDetails = JSON.parse(req.body.bankDetails);
+      }
+    } catch (parseError) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid JSON in location or bank details"
+      });
+    }
+
+    // Create property object
+    const propertyData = {
+      title: req.body.title,
+      type: req.body.type,
+      description: req.body.description || "",
+      vendorType: req.body.vendorType || "individual",
+      location,
+      bankDetails,
+      photos: req.files ? req.files.map(file => ({
+        url: `/uploads/properties/${file.filename}`,
+        caption: "",
+        isPrimary: false
+      })) : [],
+      createdBy: req.user._id,
+      managers: [req.user._id]
+    };
+
+    const property = new Property(propertyData);
+    await property.save();
+
+    res.status(201).json({
+      success: true,
+      property
+    });
   } catch (error) {
-    console.error('Error in GET /properties:', error);
-    res.status(500).json({ 
-      message: 'Error fetching properties', 
-      error: error.message 
+    console.error("Property creation error:", {
+      message: error.message,
+      stack: error.stack,
+      body: req.body,
+      files: req.files
+    });
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create property"
     });
   }
 });
 
-// Create new property
-router.post('/', auth, checkRole(['admin', 'manager']), async (req, res) => {
+// Update property with proper validation
+router.put("/:id", auth, checkRole(["admin", "manager"]), async (req, res) => {
   try {
-    console.log('User attempting to create property:', {
-      userId: req.user._id,
-      role: req.user.role
-    }); 
-    const { title, type, identifier } = req.body;
+    const { id } = req.params;
+    const updates = req.body;
 
-    if (!title || !type || !identifier) {
-      return res.status(400).json({ 
-        message: 'Title, type, and identifier are required' 
-      });
+    const property = await Property.findById(id);
+    if (!property) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Property not found" });
     }
 
-    const existingProperty = await Property.findOne({ identifier });
-    if (existingProperty) {
-      return res.status(400).json({ 
-        message: 'Property identifier already exists' 
-      });
+    const isAuthorized =
+      req.user.role === "admin" ||
+      property.managers.some((m) => m.toString() === req.user._id.toString());
+    if (!isAuthorized) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Unauthorized access" });
     }
 
-    const property = new Property({
-      title,
-      type,
-      identifier,
-      owner: req.user._id,
-      managers: [req.user._id] 
-    });
-
-    await property.save();
-    await User.findByIdAndUpdate(
-      req.user._id,
-      { $addToSet: { assignedProperties: property._id } }
+    const allowedUpdates = [
+      "title",
+      "type",
+      "description",
+      "location",
+      "amenities",
+      "pricing",
+      "vendor",
+    ];
+    const validUpdates = Object.keys(updates).filter((key) =>
+      allowedUpdates.includes(key)
     );
 
-    const populatedProperty = await Property.findById(property._id)
-      .populate('owner', 'name email')
-      .populate('managers', 'name email');
+    validUpdates.forEach((update) => (property[update] = updates[update]));
 
-      console.log('Saved property:', {
-        propertyId: populatedProperty._id,
-        managers: populatedProperty.managers.map(m => ({
-          id: m._id,
-          name: m.name,
-          email: m.email
-        }))
-      });
+    const updatedProperty = await property.save();
+    req.app.locals.broadcast("property_profile_updated", updatedProperty);
 
-    // Broadcast to WebSocket clients
-    req.app.locals.broadcast('property_created', populatedProperty);
-
-    res.status(201).json(populatedProperty);
+    res.json({ success: true, property: updatedProperty });
   } catch (error) {
-    console.error('Error in POST /properties:', error);
-    res.status(500).json({ 
-      message: 'Error creating property', 
-      error: error.message 
-    });
+    handleErrors(res, error, "Error updating property");
   }
 });
 
-router.put('/:id', auth, checkRole(['admin', 'manager']), async (req, res) => {
-  try {
-    console.log('Update property request:', {
-      userId: req.user._id,
-      userRole: req.user.role,
-      propertyId: req.params.id
-    });
+// Enhanced invoice generation
+router.post(
+  "/:propertyId/invoice",
+  auth,
+  checkRole(["admin", "manager"]),
+  async (req, res) => {
+    try {
+      const { propertyId } = req.params;
+      const { platform } = req.body;
 
-    const { title, type, identifier } = req.body;
-    
-    // Validate required fields
-    if (!title || !type || !identifier) {
-      return res.status(400).json({ message: 'All fields are required' });
+      if (!platform) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Platform is required" });
+      }
+
+      const property = await Property.findById(propertyId);
+      if (!property) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Property not found" });
+      }
+
+      // Add actual invoice generation logic here
+      const invoice = {
+        invoiceNumber: `INV-${Date.now()}`,
+        property: property._id,
+        platform,
+        amount: 1000, // Replace with actual calculation
+        date: new Date(),
+        generatedBy: req.user._id,
+      };
+
+      req.app.locals.broadcast("invoice_generated", invoice);
+      res.json({ success: true, invoice });
+    } catch (error) {
+      handleErrors(res, error, "Error generating invoice");
     }
-    
-    // Check if property exists
-    const property = await Property.findById(req.params.id);
-    console.log('Found property:', {
-      property: property?._id,
-      managers: property?.managers,
-      owner: property?.owner
-    });
-
-    if (!property) {
-      return res.status(404).json({ message: 'Property not found' });
-    }
-    
-    // Debug manager check
-    const managerIds = property.managers.map(id => id.toString());
-    const userId = req.user._id.toString();
-    const isManager = managerIds.includes(userId);
-    
-    console.log('Access check:', {
-      userRole: req.user.role,
-      userId: userId,
-      managerIds: managerIds,
-      isManager: isManager,
-      isAdmin: req.user.role === 'admin'
-    });
-
-    // Allow access if user is admin or manager of the property
-    if (req.user.role === 'admin' || isManager) {
-      // Update the property
-      const updatedProperty = await Property.findByIdAndUpdate(
-        req.params.id,
-        { title, type, identifier },
-        { new: true }
-      ).populate('owner', 'name email')
-       .populate('managers', 'name email');
-      
-      console.log('Property updated:', {
-        propertyId: updatedProperty._id,
-        managers: updatedProperty.managers.map(m => m._id)
-      });
-
-      // Broadcast update via WebSocket
-      req.app.locals.broadcast('property_updated', updatedProperty);
-      
-      return res.json(updatedProperty);
-    } else {
-      console.log('Access denied:', {
-        userRole: req.user.role,
-        userId: userId,
-        isManager: isManager
-      });
-      return res.status(403).json({ 
-        message: 'Access denied',
-        details: {
-          userRole: req.user.role,
-          isManager: isManager,
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error in PUT /properties/:id:', error);
-    res.status(500).json({ 
-      message: 'Error updating property', 
-      error: error.message 
-    });
   }
-});
+);
 
-// Delete property
-router.delete('/:id', auth, checkRole(['admin', 'manager']), async (req, res) => {
-  try {
-    console.log('Delete property request:', {
-      userId: req.user._id,
-      userRole: req.user.role,
-      propertyId: req.params.id
-    });
+// Photo upload with proper handling
+router.post(
+  "/:propertyId/photos",
+  auth,
+  checkRole(["admin", "manager"]),
+  upload.array("photos", 10),
+  async (req, res) => {
+    try {
+      const { propertyId } = req.params;
 
-    // Check if property exists
-    const property = await Property.findById(req.params.id);
-    console.log('Found property:', {
-      property: property?._id,
-      managers: property?.managers,
-      owner: property?.owner
-    });
+      if (!req.files?.length) {
+        return res
+          .status(400)
+          .json({ success: false, message: "No photos uploaded" });
+      }
 
-    if (!property) {
-      return res.status(404).json({ message: 'Property not found' });
+      const property = await Property.findById(propertyId);
+      if (!property) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Property not found" });
+      }
+
+      const newPhotos = req.files.map((file) => ({
+        url: `/uploads/properties/${file.filename}`,
+        filename: file.filename,
+        caption: "",
+        isPrimary: false,
+      }));
+
+      property.photos.push(...newPhotos);
+      await property.save();
+
+      req.app.locals.broadcast("photos_uploaded", {
+        propertyId,
+        photos: newPhotos,
+      });
+
+      res.json({
+        success: true,
+        message: "Photos uploaded successfully",
+        photos: newPhotos,
+      });
+    } catch (error) {
+      handleErrors(res, error, "Error uploading photos");
     }
-    
-    // Debug manager check
-    const managerIds = property.managers.map(id => id.toString());
-    const userId = req.user._id.toString();
-    const isManager = managerIds.includes(userId);
-    
-    console.log('Access check:', {
-      userRole: req.user.role,
-      userId: userId,
-      managerIds: managerIds,
-      isManager: isManager,
-      isAdmin: req.user.role === 'admin'
-    });
-
-    // Allow access if user is admin or manager of the property
-    if (req.user.role === 'admin' || isManager) {
-      // Delete the property
-      await Property.findByIdAndDelete(req.params.id);
-      
-      // Remove property reference from users' assignedProperties
-      await User.updateMany(
-        { assignedProperties: req.params.id },
-        { $pull: { assignedProperties: req.params.id } }
-      );
-      
-      console.log('Property deleted successfully:', {
-        propertyId: req.params.id
-      });
-
-      // Broadcast deletion via WebSocket
-      req.app.locals.broadcast('property_deleted', { _id: req.params.id });
-      
-      return res.json({ message: 'Property deleted successfully' });
-    } else {
-      console.log('Access denied:', {
-        userRole: req.user.role,
-        userId: userId,
-        isManager: isManager
-      });
-      return res.status(403).json({ 
-        message: 'Access denied',
-        details: {
-          userRole: req.user.role,
-          isManager: isManager,
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error in DELETE /properties/:id:', error);
-    res.status(500).json({ 
-      message: 'Error deleting property', 
-      error: error.message 
-    });
   }
-});
+);
+
 module.exports = router;

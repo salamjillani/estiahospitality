@@ -16,8 +16,18 @@ class WebSocketService {
     this.socket.onmessage = (event) => {
       try {
         const { type, data } = JSON.parse(event.data);
-        if (this.subscribers.has(type)) {
-          this.subscribers.get(type).forEach(callback => callback(data));
+        switch (type) {
+          case 'property_profile_updated':
+          case 'invoice_generated':
+          case 'vendor_updated':
+            if (this.subscribers.has(type)) {
+              this.subscribers.get(type).forEach(callback => callback(data));
+            }
+            break;
+          default:
+            if (this.subscribers.has(type)) {
+              this.subscribers.get(type).forEach(callback => callback(data));
+            }
         }
       } catch (error) {
         console.error('WebSocket message error:', error);
@@ -47,5 +57,8 @@ class WebSocketService {
     };
   }
 }
+
+
+
 
 export const websocketService = new WebSocketService();

@@ -1,4 +1,4 @@
-import  { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -6,7 +6,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { websocketService } from "../services/webSocketService";
 import { 
   Loader2, Trash2, Search, Calendar, Home, Users, Building2, 
-   MapPin, Heart, Phone, Plane 
+  MapPin,  Phone, Plane 
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./calendar-styles.css";
@@ -433,9 +433,9 @@ const Dashboard = () => {
   };
 
   const dayCellContent = (arg) => {
-    const dateKey = arg.date.toISOString().split("T")[0];
-  
-    const isDateBooked = events.some((event) => {
+    const dateKey = arg.date.toISOString().split('T')[0];
+    
+    const bookingEvent = events.find((event) => {
       const startDate = new Date(event.start);
       const endDate = new Date(event.end);
       const currentDate = new Date(arg.date);
@@ -448,7 +448,7 @@ const Dashboard = () => {
     });
   
     let price;
-    if (!isDateBooked) {
+    if (!bookingEvent) {
       price = dailyPrices[dateKey] || Math.floor(Math.random() * (250 - 100 + 1)) + 100;
       if (!dailyPrices[dateKey]) {
         setDailyPrices((prev) => ({ ...prev, [dateKey]: price }));
@@ -456,25 +456,28 @@ const Dashboard = () => {
     }
   
     return (
-      <div className="flex justify-between items-center p-1">
-        {!isDateBooked && (
-          <div className="text-xs font-semibold text-black  px-2 rounded-full mr-20">
-            ${price}
+      <div className="h-full flex flex-col p-1">
+        <div className="flex justify-between items-center">
+          {!bookingEvent && (
+            <div className="text-md font-medium text-green-600">
+              ${price}
+            </div>
+          )}
+          <div className="text-sm font-semibold text-gray-800">
+            {arg.dayNumberText}
           </div>
-        )}
-        <div className="flex-grow text-right">
-          <div className="text-sm font-semibold">{arg.dayNumberText}</div>
         </div>
+        {bookingEvent && (
+          <div className="mt-1 w-full h-1 bg-blue-500 rounded-full"></div>
+        )}
       </div>
     );
   };
-
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Enhanced Sidebar */}
-      <div className="w-96 bg-white shadow-2xl border-r border-gray-100 flex flex-col">
-        {/* Logo and Branding */}
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+      {/* Navigation Bar */}
+      <nav className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
               <Building2 className="text-white" size={20} />
@@ -483,44 +486,29 @@ const Dashboard = () => {
               Estia Hospitality
             </span>
           </div>
-          
-        </div>
-
-        {/* Enhanced Navigation */}
-        <div className="px-4 py-6 border-b border-gray-100">
-          <div className="space-y-2">
-            <button className="w-full flex items-center justify-between px-4 py-3 bg-blue-50 text-blue-600 font-semibold rounded-xl hover:bg-blue-100 transition">
-              <div className="flex items-center">
-                <Calendar size={18} className="mr-3" />
-                Calendar
-              </div>
-              <div className="bg-blue-100 text-blue-600 px-2 py-1 rounded-full text-xs">
-                12
-              </div>
-            </button>
-            <Link
-              to="/properties"
-              className="w-full flex items-center justify-between px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition"
+          <div className="flex items-center space-x-4">
+            <Link 
+              to="/calendar" 
+              className="flex items-center text-gray-600 hover:text-blue-600 transition"
             >
-              <div className="flex items-center">
-                <Home size={18} className="mr-3" />
-                Properties
-              </div>
-              <div className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
-                {properties.length}
-              </div>
+              <Calendar size={18} className="mr-2" />
+              Calendar
             </Link>
-           
+            <Link 
+              to="/properties" 
+              className="flex items-center text-gray-600 hover:text-blue-600 transition"
+            >
+              <Home size={18} className="mr-2" />
+              Properties
+            </Link>
           </div>
         </div>
+      </nav>
 
-        {/* Properties Search and List */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center justify-between">
-            Properties 
-            <Heart size={18} className="text-red-400" />
-          </h2>
-          
+      {/* Main Content Area */}
+      <div className="flex mt-16 h-[calc(100vh-4rem)] w-full">
+        {/* Properties Section */}
+        <div className="w-96 bg-white border-r border-gray-100 overflow-y-auto p-4 space-y-4">
           <div className="relative mb-4">
             <Search
               className="absolute left-3 top-4 text-gray-400"
@@ -568,50 +556,50 @@ const Dashboard = () => {
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Main Calendar Content */}
-      <div className="flex-1 overflow-hidden flex flex-col p-6">
-        <div className="h-full flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden">
-          <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay",
-            }}
-            events={
-              selectedProperty
-                ? events.filter(
-                    (event) =>
-                      event.extendedProps.propertyId === selectedProperty._id
-                  )
-                : events
-            }
-            editable={true}
-            selectable={true}
-            selectMirror={true}
-            dayMaxEvents={true}
-            weekends={true}
-            eventContent={eventContent}
-            dayCellContent={dayCellContent}
-            datesSet={handleDatesSet}
-            select={handleDateSelect}
-            eventClick={handleEventClick}
-            height="100%"
-            contentHeight="auto"
-            themeSystem="standard"
-            eventDisplay="block"
-            slotMinTime="06:00:00"
-            slotMaxTime="21:00:00"
-            slotDuration="01:00:00"
-            eventTimeFormat={{
-              hour: "2-digit",
-              minute: "2-digit",
-              meridiem: false,
-            }}
-          />
+        {/* Calendar Section */}
+        <div className="flex-1 p-4 bg-white">
+          <div className="h-full bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <FullCalendar
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              headerToolbar={{
+                left: "prev,next today",
+                center: "title",
+                right: "dayGridMonth,timeGridWeek,timeGridDay",
+              }}
+              events={
+                selectedProperty
+                  ? events.filter(
+                      (event) =>
+                        event.extendedProps.propertyId === selectedProperty._id
+                    )
+                  : events
+              }
+              editable={true}
+              selectable={true}
+              selectMirror={true}
+              dayMaxEvents={true}
+              weekends={true}
+              eventContent={eventContent}
+              dayCellContent={dayCellContent}
+              datesSet={handleDatesSet}
+              select={handleDateSelect}
+              eventClick={handleEventClick}
+              height="100%"
+              contentHeight="auto"
+              themeSystem="standard"
+              eventDisplay="block"
+              slotMinTime="06:00:00"
+              slotMaxTime="21:00:00"
+              slotDuration="01:00:00"
+              eventTimeFormat={{
+                hour: "2-digit",
+                minute: "2-digit",
+                meridiem: false,
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -783,7 +771,7 @@ const Dashboard = () => {
                     {/* Source Selection */}
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Source
+                        Channel
                       </label>
                       <select
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
