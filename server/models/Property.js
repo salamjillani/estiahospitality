@@ -9,8 +9,8 @@ const propertySchema = new mongoose.Schema({
   },
   identifier: {
     type: String,
-    unique: false, 
-    required: false, 
+    unique: true,
+    sparse: true
   },
   type: {
     type: String,

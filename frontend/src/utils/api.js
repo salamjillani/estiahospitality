@@ -34,6 +34,13 @@ export const api = {
         headers: api.getHeaders(),
       });
       
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Invalid content type. Received: ${contentType}. Response: ${text}`);
+      }
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'API request failed');

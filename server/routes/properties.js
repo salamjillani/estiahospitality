@@ -56,118 +56,146 @@ const handleErrors = (res, error, defaultMessage = "An error occurred") => {
 
 // Create property with enhanced validation
 // In your propertyRoutes.js
-router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), async (req, res) => {
-  try {
-    console.log('Received property creation request');
-    console.log('Body:', req.body);
-    console.log('Files:', req.files);
-    console.log('User:', req.user);
-    if (!req.body.title || !req.body.type) {
-      return res.status(400).json({
-        success: false,
-        message: "Title and type are required"
-      });
-    }
-
-    // Parse JSON strings
-    let location = {}, bankDetails = {};
+router.post(
+  "/",
+  auth,
+  checkRole(["admin", "manager"]),
+  upload.array("photos"),
+  async (req, res) => {
     try {
-      if (req.body.location) {
-        location = JSON.parse(req.body.location);
+      console.log("Received property creation request");
+      console.log("Body:", req.body);
+      console.log("Files:", req.files);
+      console.log("User:", req.user);
+      if (!req.body.title || !req.body.type) {
+        return res.status(400).json({
+          success: false,
+          message: "Title and type are required",
+        });
       }
-      if (req.body.bankDetails) {
-        bankDetails = JSON.parse(req.body.bankDetails);
+
+      // Parse JSON strings
+      let location = {},
+        bankDetails = {};
+      try {
+        if (req.body.location) {
+          location = JSON.parse(req.body.location);
+        }
+        if (req.body.bankDetails) {
+          bankDetails = JSON.parse(req.body.bankDetails);
+        }
+      } catch (parseError) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid JSON in location or bank details",
+        });
       }
-    } catch (parseError) {
-      return res.status(400).json({
+  // Inside POST handler
+  const generateUniqueIdentifier = () => {
+    return (
+      "PROP-" +
+      Date.now().toString(36).toUpperCase() +
+      Math.floor(1000 + Math.random() * 9000)
+    );
+  };
+      // Create property object
+      const propertyData = {
+        title: req.body.title,
+        type: req.body.type,
+        identifier: generateUniqueIdentifier(),
+        description: req.body.description || "",
+        vendorType: req.body.vendorType || "individual",
+        location,
+        bankDetails,
+        photos: req.files
+          ? req.files.map((file) => ({
+              url: `/uploads/properties/${file.filename}`,
+              caption: "",
+              isPrimary: false,
+            }))
+          : [],
+        createdBy: req.user._id,
+        managers: [req.user._id],
+      };
+
+      const property = new Property(propertyData);
+      await property.save();
+    
+
+
+      res.status(201).json({
+        success: true,
+        property,
+      });
+    } catch (error) {
+      console.error("Property creation error:", {
+        message: error.message,
+        stack: error.stack,
+        body: req.body,
+        files: req.files,
+      });
+      res.status(500).json({
         success: false,
-        message: "Invalid JSON in location or bank details"
+        message: error.message || "Failed to create property",
       });
     }
-
-    // Create property object
-    const propertyData = {
-      title: req.body.title,
-      type: req.body.type,
-      description: req.body.description || "",
-      vendorType: req.body.vendorType || "individual",
-      location,
-      bankDetails,
-      photos: req.files ? req.files.map(file => ({
-        url: `/uploads/properties/${file.filename}`,
-        caption: "",
-        isPrimary: false
-      })) : [],
-      createdBy: req.user._id,
-      managers: [req.user._id]
-    };
-
-    const property = new Property(propertyData);
-    await property.save();
-
-    res.status(201).json({
-      success: true,
-      property
-    });
-  } catch (error) {
-    console.error("Property creation error:", {
-      message: error.message,
-      stack: error.stack,
-      body: req.body,
-      files: req.files
-    });
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to create property"
-    });
   }
-});
+);
 
 // Update property with proper validation
-router.put("/:id", auth, checkRole(["admin", "manager"]), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
+router.put(
+  "/:id",
+  auth,
+  checkRole(["admin", "manager"]),
+  upload.none(), // Handle multipart without files
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
 
-    const property = await Property.findById(id);
-    if (!property) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Property not found" });
+      // Parse JSON fields
+      if (updates.location) updates.location = JSON.parse(updates.location);
+      if (updates.bankDetails)
+        updates.bankDetails = JSON.parse(updates.bankDetails);
+
+      const property = await Property.findByIdAndUpdate(id, updates, {
+        new: true,
+      });
+
+      const isAuthorized =
+        req.user.role === "admin" ||
+        property.managers.some((m) => m.toString() === req.user._id.toString());
+      if (!isAuthorized) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Unauthorized access" });
+      }
+
+      const allowedUpdates = [
+        "title",
+        "type",
+        "description",
+        "location",
+        "bankDetails",
+        "photos",
+        "vendorType",
+        "identifier"
+      ];
+      
+      const validUpdates = Object.keys(updates).filter((key) =>
+        allowedUpdates.includes(key)
+      );
+
+      validUpdates.forEach((update) => (property[update] = updates[update]));
+
+      const updatedProperty = await property.save();
+      req.app.locals.broadcast("property_profile_updated", property);
+      res.json({ success: true, property });
+    } catch (error) {
+      handleErrors(res, error, "Error updating property");
     }
-
-    const isAuthorized =
-      req.user.role === "admin" ||
-      property.managers.some((m) => m.toString() === req.user._id.toString());
-    if (!isAuthorized) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Unauthorized access" });
-    }
-
-    const allowedUpdates = [
-      "title",
-      "type",
-      "description",
-      "location",
-      "amenities",
-      "pricing",
-      "vendor",
-    ];
-    const validUpdates = Object.keys(updates).filter((key) =>
-      allowedUpdates.includes(key)
-    );
-
-    validUpdates.forEach((update) => (property[update] = updates[update]));
-
-    const updatedProperty = await property.save();
-    req.app.locals.broadcast("property_profile_updated", updatedProperty);
-
-    res.json({ success: true, property: updatedProperty });
-  } catch (error) {
-    handleErrors(res, error, "Error updating property");
   }
-});
+);
 
 // Enhanced invoice generation
 router.post(
@@ -258,5 +286,37 @@ router.post(
     }
   }
 );
+router.delete(
+  "/:id",
+  auth,
+  checkRole(["admin", "manager"]),
+  async (req, res) => {
+    try {
+      const property = await Property.findByIdAndDelete(req.params.id);
+      if (!property) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Property not found" });
+      }
+      res.json({ success: true, message: "Property deleted" });
+    } catch (error) {
+      handleErrors(res, error, "Error deleting property");
+    }
+  }
+);
+
+router.get("/", auth, async (req, res) => {
+  try {
+    const properties = await Property.find()
+      .populate("createdBy", "name email")
+      .populate("managers", "name email");
+    res.json({ success: true, properties });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching properties" });
+  }
+});
+
 
 module.exports = router;

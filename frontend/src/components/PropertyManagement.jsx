@@ -25,6 +25,7 @@ const propertyShape = PropTypes.shape({
   type: PropTypes.string.isRequired,
   propertyType: PropTypes.string,
   description: PropTypes.string,
+  identifier: PropTypes.string,
   vendorType: PropTypes.string,
   location: PropTypes.shape({
     city: PropTypes.string,
@@ -70,7 +71,16 @@ const propertyShape = PropTypes.shape({
   }),
 }).isRequired;
 
-const PropertyFormModal = ({ onClose, onSubmit, formData, setFormData, loading, mode, property, setError }) => {
+const PropertyFormModal = ({
+  onClose,
+  onSubmit,
+  formData,
+  setFormData,
+  loading,
+  mode,
+  property,
+  setError,
+}) => {
   useEffect(() => {
     if (mode === "edit" && property) {
       setFormData({
@@ -78,6 +88,7 @@ const PropertyFormModal = ({ onClose, onSubmit, formData, setFormData, loading, 
         type: property.type || "villa",
         vendorType: property.vendorType || "individual",
         description: property.description || "",
+        identifier: property.identifier || "",
         location: {
           address: property.location?.address || "",
           city: property.location?.city || "",
@@ -100,16 +111,16 @@ const PropertyFormModal = ({ onClose, onSubmit, formData, setFormData, loading, 
     try {
       const files = Array.from(e.target.files);
       const maxFileSize = 5 * 1024 * 1024; // 5MB limit
-      
+
       // Validate file size and type
-      const invalidFiles = files.filter(file => {
+      const invalidFiles = files.filter((file) => {
         const isValidSize = file.size <= maxFileSize;
-        const isValidType = file.type.startsWith('image/');
+        const isValidType = file.type.startsWith("image/");
         return !isValidSize || !isValidType;
       });
 
       if (invalidFiles.length > 0) {
-        setError('Some files were not added. Files must be images under 5MB.');
+        setError("Some files were not added. Files must be images under 5MB.");
         return;
       }
 
@@ -124,27 +135,28 @@ const PropertyFormModal = ({ onClose, onSubmit, formData, setFormData, loading, 
         ...prev,
         photos: [...prev.photos, ...newPhotos],
       }));
-    } catch(error) {
-      console.error('Error uploading images:', error);
-      setError('Failed to upload images');
+    } catch (error) {
+      console.error("Error uploading images:", error);
+      setError("Failed to upload images");
     }
-  }
-  
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
-      <div className="sticky top-0 bg-white px-6 py-4 border-b flex items-center justify-between">
-        <h2 className="text-xl font-bold">
-          {mode === "add" ? "Add New Property" : `Edit ${property?.title || 'Property'}`}
-        </h2>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600"
-        >
-          <X size={20} />
-        </button>
-      </div>
+      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
+        <div className="sticky top-0 bg-white px-6 py-4 border-b flex items-center justify-between">
+          <h2 className="text-xl font-bold">
+            {mode === "add"
+              ? "Add New Property"
+              : `Edit ${property?.title || "Property"}`}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
         <form onSubmit={onSubmit} className="p-6 space-y-8">
           <div className="space-y-4">
@@ -441,8 +453,8 @@ const PropertyFormModal = ({ onClose, onSubmit, formData, setFormData, loading, 
         </form>
       </div>
     </div>
-  )
-}
+  );
+};
 
 PropertyFormModal.propTypes = {
   onClose: PropTypes.func.isRequired,
@@ -491,9 +503,8 @@ const PropertyManagement = () => {
     },
   });
 
-
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (token) {
       setAuthToken(token);
       fetchProperties();
@@ -503,16 +514,16 @@ const PropertyManagement = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem("token");
         if (!token) {
-          console.error('No token found');
+          console.error("No token found");
           return;
         }
-        
+
         setAuthToken(token);
         await fetchProperties();
       } catch (err) {
-        console.error('Initial load error:', err);
+        console.error("Initial load error:", err);
       }
     };
     loadData();
@@ -536,48 +547,46 @@ const PropertyManagement = () => {
       },
     });
   };
-// Add this in the PropertyManagement component's functions
-const handleImageUpload = (e) => {
-  try {
-    const files = Array.from(e.target.files);
-    const maxFileSize = 5 * 1024 * 1024;
-    
-    // Filter invalid files
-    const validFiles = files.filter(file => 
-      file.size <= maxFileSize && 
-      file.type.startsWith('image/')
-    );
+  // Add this in the PropertyManagement component's functions
+  const handleImageUpload = (e) => {
+    try {
+      const files = Array.from(e.target.files);
+      const maxFileSize = 5 * 1024 * 1024;
 
-    if (validFiles.length !== files.length) {
-      setError('Some files were rejected (max 5MB, images only)');
+      // Filter invalid files
+      const validFiles = files.filter(
+        (file) => file.size <= maxFileSize && file.type.startsWith("image/")
+      );
+
+      if (validFiles.length !== files.length) {
+        setError("Some files were rejected (max 5MB, images only)");
+      }
+
+      const newPhotos = validFiles.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+        caption: "",
+        isPrimary: false,
+      }));
+
+      setFormData((prev) => ({
+        ...prev,
+        photos: [...prev.photos, ...newPhotos],
+      }));
+    } catch (error) {
+      setError("Image upload failed", error);
     }
+  };
 
-    const newPhotos = validFiles.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      caption: "",
-      isPrimary: false,
-    }));
-
-    setFormData(prev => ({
-      ...prev,
-      photos: [...prev.photos, ...newPhotos],
-    }));
-  } catch (error) {
-    setError('Image upload failed', error);
-  }
-};
+  
   const handleDelete = async () => {
     if (!propertyToDelete) return;
-
+  
     try {
       setLoading(true);
       await api.delete(`/api/properties/${propertyToDelete._id}`);
-      setProperties((prev) =>
-        prev.filter((p) => p._id !== propertyToDelete._id)
-      );
+      await fetchProperties(); // Refresh the list
       setShowDeleteDialog(false);
-      setPropertyToDelete(null);
     } catch (err) {
       setError(err.message || "Failed to delete property");
     } finally {
@@ -589,23 +598,17 @@ const handleImageUpload = (e) => {
     setPropertyToDelete(property);
     setShowDeleteDialog(true);
   };
+
   const uploadImages = async (propertyId, photos) => {
     try {
       const formData = new FormData();
-      photos.forEach((photo, index) => {
-        formData.append(`photos`, photo.file);
-        formData.append(`captions[${index}]`, photo.caption);
-        formData.append(`isPrimary[${index}]`, photo.isPrimary);
+      photos.forEach((photo) => {
+        formData.append("photos", photo.file);
       });
 
       const data = await api.post(
-        `/properties/${propertyId}/photos`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        `/api/properties/${propertyId}/photos`,
+        formData
       );
       return data.photos;
     } catch (error) {
@@ -733,15 +736,18 @@ const handleImageUpload = (e) => {
     loading: PropTypes.bool.isRequired,
   };
 
-
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/properties"); // Add /api prefix
-      setProperties(response.properties || []); // Access response.properties directly
+      const response = await api.get("/api/properties");
+      setProperties(response.properties || []);
     } catch (err) {
-      console.error("Fetch error:", err);
-      setError(err.message || "Failed to fetch properties");
+      // Handle 404 specifically
+      if (err.message.includes("404")) {
+        setError("Properties endpoint not found");
+      } else {
+        setError(err.message || "Failed to fetch properties");
+      }
     } finally {
       setLoading(false);
     }
@@ -749,7 +755,7 @@ const handleImageUpload = (e) => {
 
   useEffect(() => {
     if (token) {
-      api.setAuthToken(token); 
+      api.setAuthToken(token);
       fetchProperties();
     }
   }, [token, fetchProperties]);
@@ -770,61 +776,71 @@ const handleImageUpload = (e) => {
   const handleNewProperty = async (e) => {
     e.preventDefault();
     try {
-      console.log('Starting form submission');
+      console.log("Starting form submission");
       const formPayload = new FormData();
-      
+
       // Log the form data to see what we're working with
-      console.log('Form data:', formData);
-      
+      console.log("Form data:", formData);
+
       if (!formData.title || !formData.type) {
-        setError('Property name and type are required');
+        setError("Property name and type are required");
         return;
       }
-  
+
       formPayload.append("title", formData.title);
       formPayload.append("type", formData.type);
-      formPayload.append("description", formData.description || '');
-      formPayload.append("vendorType", formData.vendorType || 'individual');
-  
-      console.log('Location data:', formData.location);
-      console.log('Bank details:', formData.bankDetails);
+      formPayload.append("description", formData.description);
+      formPayload.append("vendorType", formData.vendorType);
+      formPayload.append("location", JSON.stringify(formData.location));
+      formPayload.append("bankDetails", JSON.stringify(formData.bankDetails));
+
+      console.log("Location data:", formData.location);
+      console.log("Bank details:", formData.bankDetails);
+
+      // Add photos
+      formData.photos.forEach((photo) => {
+        if (photo.file) {
+          formPayload.append("photos", photo.file);
+        }
+      });
 
       if (formData.location) {
         formPayload.append("location", JSON.stringify(formData.location));
       }
-      
+
       if (formData.bankDetails) {
         formPayload.append("bankDetails", JSON.stringify(formData.bankDetails));
       }
-  
-      console.log('Photos:', formData.photos);
+
+      console.log("Photos:", formData.photos);
       if (formData.photos && formData.photos.length > 0) {
         formData.photos.forEach((photo, index) => {
           if (photo.file) {
-            console.log('Appending photo:', photo.file.name);
+            console.log("Appending photo:", photo.file.name);
             formPayload.append("photos", photo.file);
           }
         });
       }
 
-      console.log('Making API request...');
+      console.log("Making API request...");
       const response = await api.post("/api/properties", formPayload);
-      console.log('API response:', response);
-  
-      setProperties(prev => [...prev, response.property]);
+      console.log("API response:", response);
+
+      setProperties((prev) => [...prev, response.property]);
       setShowNewPropertyModal(false);
       resetFormData();
+      await fetchProperties();
     } catch (err) {
       console.error("Create property error:", err);
       console.error("Error details:", {
         message: err.message,
-        stack: err.stack
+        stack: err.stack,
       });
       setError(err.message || "Failed to add property");
     } finally {
       setLoading(false);
     }
-};
+  };
   const PropertyProfileModal = ({
     property,
     onClose,
@@ -855,7 +871,7 @@ const handleImageUpload = (e) => {
     });
 
     const handleImageUpload = (e) => {
-      try{
+      try {
         const files = Array.from(e.target.files);
         const newPhotos = files.map((file) => ({
           file,
@@ -863,15 +879,15 @@ const handleImageUpload = (e) => {
           caption: "",
           isPrimary: false,
         }));
-      
+
         setFormData((prev) => ({
           ...prev,
           photos: [...prev.photos, ...newPhotos],
         }));
-    } catch (error) {
-      console.error('Error uploading images:', error);
-      setError('Failed to upload images');
-    }
+      } catch (error) {
+        console.error("Error uploading images:", error);
+        setError("Failed to upload images");
+      }
     };
 
     const uploadImages = async (propertyId, photos) => {
@@ -901,9 +917,7 @@ const handleImageUpload = (e) => {
     const handleSubmit = async (e) => {
       e.preventDefault();
       try {
-
         await onSave(property._id, formData, token);
-
 
         const newPhotos = formData.photos.filter((photo) => photo.file);
         if (newPhotos.length > 0) {
@@ -927,7 +941,6 @@ const handleImageUpload = (e) => {
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-8">
-     
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Image size={20} />
@@ -1397,40 +1410,39 @@ const handleImageUpload = (e) => {
 
       const formData = new FormData();
 
-       // Add all necessary form data
-    formData.append("title", updatedData.title);
-    formData.append("type", updatedData.propertyType);
-    formData.append("description", updatedData.description);
-    formData.append("location", JSON.stringify(updatedData.location));
-    formData.append("bankDetails", JSON.stringify(updatedData.bankDetails));
+      // Add all necessary form data
+      formData.append("title", updatedData.title);
+      formData.append("type", updatedData.propertyType);
+      formData.append("description", updatedData.description);
+      formData.append("location", JSON.stringify(updatedData.location));
+      formData.append("bankDetails", JSON.stringify(updatedData.bankDetails));
 
-
-    const newPhotos = updatedData.photos.filter(photo => photo.file);
-    if (newPhotos.length > 0) {
-      await uploadImages(propertyId, newPhotos);
-    }
-   
-
-    const response = await api.put(`/properties/${propertyId}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
+      const newPhotos = updatedData.photos.filter((photo) => photo.file);
+      if (newPhotos.length > 0) {
+        await uploadImages(propertyId, newPhotos);
       }
-    });
 
-    setProperties(prev => 
-      prev.map(p => p._id === propertyId ? response.data : p)
-    );
+      const response = await api.put(
+        `/api/properties/${propertyId}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data", // Let browser set content-type
+          },
+        }
+      );
 
-    setShowProfileModal(false);
-    setActiveProperty(null);
-  } catch (err) {
-    setError(err.message || "Failed to update property");
-  } finally {
-    setLoading(false);
-  }
-};
-
- 
+      setProperties((prev) =>
+        prev.map((p) => (p._id === propertyId ? response.data : p))
+      );
+      setShowProfileModal(false);
+      setActiveProperty(null);
+    } catch (err) {
+      setError(err.message || "Failed to update property");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const PropertyActions = ({ property, onDelete, onProfile, onInvoice }) => {
     const { user } = useAuth();
@@ -1554,12 +1566,10 @@ const handleImageUpload = (e) => {
     );
   };
 
-  
-
-  const filteredProperties = properties.filter(property =>
+  const filteredProperties = properties.filter((property) =>
     property.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
+
   PropertyCard.propTypes = {
     property: propertyShape,
     onSelect: PropTypes.func.isRequired,
@@ -1613,149 +1623,147 @@ const handleImageUpload = (e) => {
     propertyTitle: PropTypes.string,
   };
 
-
-
-    return (
-      <div className="p-6">
-        {error && (
-          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg flex items-center gap-2">
-            <AlertCircle size={20} />
-            <span>{error}</span>
-            <button onClick={() => setError("")} className="ml-auto">
-              <X size={20} />
-            </button>
-          </div>
-        )}
-  
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold">Properties</h1>
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={20}
-              />
-              <input
-                type="text"
-                placeholder="Search properties..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 border rounded-md"
-              />
-            </div>
-            <button
-              onClick={() => setShowNewPropertyModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Plus size={20} />
-              Add Property
-            </button>
-          </div>
+  return (
+    <div className="p-6">
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg flex items-center gap-2">
+          <AlertCircle size={20} />
+          <span>{error}</span>
+          <button onClick={() => setError("")} className="ml-auto">
+            <X size={20} />
+          </button>
         </div>
-  
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b text-sm font-medium text-gray-500">
-            <div className="col-span-1">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                onChange={() => {
-                  if (selectedProperties.length === properties.length) {
-                    setSelectedProperties([]);
-                  } else {
-                    setSelectedProperties([...properties]);
-                  }
-                }}
-                checked={
-                  selectedProperties.length === properties.length &&
-                  properties.length > 0
-                }
-              />
-            </div>
-            <div className="col-span-4">Name</div>
-            <div className="col-span-5">Location</div>
-            <div className="col-span-2">Actions</div>
+      )}
+
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Properties</h1>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={20}
+            />
+            <input
+              type="text"
+              placeholder="Search properties..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2 border rounded-md"
+            />
           </div>
-  
-          {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <Loader2 className="animate-spin text-blue-600" size={40} />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProperties.map((property) => (
-                <PropertyCard
-                  key={property._id}
-                  property={property}
-                  isSelected={selectedProperties.some(
-                    (p) => p._id === property._id
-                  )}
-                  onSelect={handlePropertySelect}
-                  onDelete={handlePropertyDelete}
-                  onProfile={(p) => {
-                    setActiveProperty(p);
-                    setShowProfileModal(true);
-                  }}
-                  onInvoice={(p) => {
-                    setActiveProperty(p);
-                    setShowInvoiceModal(true);
-                  }}
-                />
-              ))}
-            </div>
-          )}
-  
-          {showNewPropertyModal && (
-            <PropertyFormModal
-              onClose={() => setShowNewPropertyModal(false)}
-              onSubmit={handleNewProperty}
-              formData={formData}
-              setFormData={setFormData}
-              loading={loading}
-              setError={setError}
-              mode="add"
-              handleImageUpload={handleImageUpload}
-            />
-          )}
-  
-          {showProfileModal && activeProperty && (
-            <PropertyFormModal
-              onClose={() => {
-                setShowProfileModal(false);
-                setActiveProperty(null);
-              }}
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleProfileUpdate(activeProperty._id, formData);
-              }}
-              formData={formData}
-              setFormData={setFormData}
-              loading={loading}
-              mode="edit"
-              property={activeProperty}
-            />
-          )}
-  
-          {showInvoiceModal && activeProperty && (
-            <InvoiceModal
-              property={activeProperty}
-              onClose={() => setShowInvoiceModal(false)}
-            />
-          )}
-  
-          {showDeleteDialog && (
-            <DeleteDialog
-              isOpen={showDeleteDialog}
-              onClose={() => {
-                setShowDeleteDialog(false);
-                setPropertyToDelete(null);
-              }}
-              onConfirm={handleDelete}
-              propertyTitle={propertyToDelete?.title}
-            />
-          )}
+          <button
+            onClick={() => setShowNewPropertyModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+          >
+            <Plus size={20} />
+            Add Property
+          </button>
         </div>
       </div>
-    );
-  };
-  export default PropertyManagement;
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="grid grid-cols-12 gap-4 px-6 py-3 border-b text-sm font-medium text-gray-500">
+          <div className="col-span-1">
+            <input
+              type="checkbox"
+              className="rounded border-gray-300"
+              onChange={() => {
+                if (selectedProperties.length === properties.length) {
+                  setSelectedProperties([]);
+                } else {
+                  setSelectedProperties([...properties]);
+                }
+              }}
+              checked={
+                selectedProperties.length === properties.length &&
+                properties.length > 0
+              }
+            />
+          </div>
+          <div className="col-span-4">Name</div>
+          <div className="col-span-5">Location</div>
+          <div className="col-span-2">Actions</div>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="animate-spin text-blue-600" size={40} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProperties.map((property) => (
+              <PropertyCard
+                key={property._id}
+                property={property}
+                isSelected={selectedProperties.some(
+                  (p) => p._id === property._id
+                )}
+                onSelect={handlePropertySelect}
+                onDelete={handlePropertyDelete}
+                onProfile={(p) => {
+                  setActiveProperty(p);
+                  setShowProfileModal(true);
+                }}
+                onInvoice={(p) => {
+                  setActiveProperty(p);
+                  setShowInvoiceModal(true);
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {showNewPropertyModal && (
+          <PropertyFormModal
+            onClose={() => setShowNewPropertyModal(false)}
+            onSubmit={handleNewProperty}
+            formData={formData}
+            setFormData={setFormData}
+            loading={loading}
+            setError={setError}
+            mode="add"
+            handleImageUpload={handleImageUpload}
+          />
+        )}
+
+        {showProfileModal && activeProperty && (
+          <PropertyFormModal
+            onClose={() => {
+              setShowProfileModal(false);
+              setActiveProperty(null);
+            }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleProfileUpdate(activeProperty._id, formData);
+            }}
+            formData={formData}
+            setFormData={setFormData}
+            loading={loading}
+            mode="edit"
+            property={activeProperty}
+          />
+        )}
+
+        {showInvoiceModal && activeProperty && (
+          <InvoiceModal
+            property={activeProperty}
+            onClose={() => setShowInvoiceModal(false)}
+          />
+        )}
+
+        {showDeleteDialog && (
+          <DeleteDialog
+            isOpen={showDeleteDialog}
+            onClose={() => {
+              setShowDeleteDialog(false);
+              setPropertyToDelete(null);
+            }}
+            onConfirm={handleDelete}
+            propertyTitle={propertyToDelete?.title}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+export default PropertyManagement;
