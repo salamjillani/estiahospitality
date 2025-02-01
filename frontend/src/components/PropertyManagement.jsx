@@ -468,6 +468,205 @@ PropertyFormModal.propTypes = {
   handleImageUpload: PropTypes.func.isRequired,
 };
 
+const PropertyDetailsModal = ({ property, onClose }) => {
+  if (!property) return null;
+
+  const getPropertyImages = () => {
+    return property.photos || [];
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg w-full max-w-4xl m-4 min-h-[200px]">
+        <div className="sticky top-0 bg-white px-6 py-4 border-b flex items-center justify-between">
+          <h2 className="text-xl font-bold">{property.title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-8">
+          {/* Property Images */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Image size={20} />
+              Property Images
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              {getPropertyImages().map((photo, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={photo.url}
+                    alt={photo.caption || `Property ${index + 1}`}
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                  {photo.caption && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2 text-sm rounded-b-lg">
+                      {photo.caption}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Building size={20} />
+              Basic Information
+            </h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-500">Property Type</label>
+                <div className="mt-1">{property.type}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500">Vendor Type</label>
+                <div className="mt-1">{property.vendorType}</div>
+              </div>
+              {property.identifier && (
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-500">Identifier</label>
+                  <div className="mt-1">{property.identifier}</div>
+                </div>
+              )}
+              {property.description && (
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-500">Description</label>
+                  <div className="mt-1">{property.description}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Location */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Map size={20} />
+              Location
+            </h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              {property.location?.address && (
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-500">Address</label>
+                  <div className="mt-1">{property.location.address}</div>
+                </div>
+              )}
+              {property.location?.city && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">City</label>
+                  <div className="mt-1">{property.location.city}</div>
+                </div>
+              )}
+              {property.location?.country && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Country</label>
+                  <div className="mt-1">{property.location.country}</div>
+                </div>
+              )}
+              {property.location?.postalCode && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Postal Code</label>
+                  <div className="mt-1">{property.location.postalCode}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Banking Details */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <CreditCard size={20} />
+              Banking Details
+            </h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              {property.bankDetails?.accountHolder && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Account Holder</label>
+                  <div className="mt-1">{property.bankDetails.accountHolder}</div>
+                </div>
+              )}
+              {property.bankDetails?.accountNumber && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Account Number</label>
+                  <div className="mt-1">{property.bankDetails.accountNumber}</div>
+                </div>
+              )}
+              {property.bankDetails?.bankName && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Bank Name</label>
+                  <div className="mt-1">{property.bankDetails.bankName}</div>
+                </div>
+              )}
+              {property.bankDetails?.swiftCode && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">SWIFT Code</label>
+                  <div className="mt-1">{property.bankDetails.swiftCode}</div>
+                </div>
+              )}
+              {property.bankDetails?.iban && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">IBAN</label>
+                  <div className="mt-1">{property.bankDetails.iban}</div>
+                </div>
+              )}
+              {property.bankDetails?.currency && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-500">Currency</label>
+                  <div className="mt-1">{property.bankDetails.currency}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 bg-white px-6 py-4 border-t flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// PropTypes validation
+PropertyDetailsModal.propTypes = {
+  property: PropTypes.shape({
+    title: PropTypes.string.isRequired,
+    type: PropTypes.string.isRequired,
+    vendorType: PropTypes.string.isRequired,
+    identifier: PropTypes.string,
+    description: PropTypes.string,
+    photos: PropTypes.arrayOf(
+      PropTypes.shape({
+        url: PropTypes.string.isRequired,
+        caption: PropTypes.string,
+      })
+    ),
+    location: PropTypes.shape({
+      address: PropTypes.string,
+      city: PropTypes.string,
+      country: PropTypes.string,
+      postalCode: PropTypes.string,
+    }),
+    bankDetails: PropTypes.shape({
+      accountHolder: PropTypes.string,
+      accountNumber: PropTypes.string,
+      bankName: PropTypes.string,
+      swiftCode: PropTypes.string,
+      iban: PropTypes.string,
+      currency: PropTypes.string,
+    }),
+  }),
+  onClose: PropTypes.func.isRequired,
+};
+
+
 const PropertyManagement = () => {
   const { token } = useAuth();
   const [properties, setProperties] = useState([]);
@@ -481,6 +680,7 @@ const PropertyManagement = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [activeProperty, setActiveProperty] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     type: "villa",
@@ -813,16 +1013,16 @@ const PropertyManagement = () => {
     e.preventDefault();
     try {
       setLoading(true);
-  
+
       // Validate type before sending
       const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
       if (!validTypes.includes(formData.type)) {
         setError("Invalid property type selection");
         return;
       }
-  
+
       const formPayload = new FormData();
-      
+
       // Append basic fields
       formPayload.append("type", formData.type.toLowerCase().trim());
       formPayload.append("title", formData.title);
@@ -830,41 +1030,44 @@ const PropertyManagement = () => {
       formPayload.append("vendorType", formData.vendorType);
       formPayload.append("location", JSON.stringify(formData.location));
       formPayload.append("bankDetails", JSON.stringify(formData.bankDetails));
-  
+
       // Handle photos correctly
       if (formData.photos && formData.photos.length > 0) {
         formData.photos.forEach((photo, index) => {
           if (photo.file) {
             // Append each photo with a unique field name
-            formPayload.append('photos', photo.file);
+            formPayload.append("photos", photo.file);
             // Append additional photo metadata if needed
-            formPayload.append(`photoData[${index}]`, JSON.stringify({
-              caption: photo.caption || '',
-              isPrimary: photo.isPrimary || false
-            }));
+            formPayload.append(
+              `photoData[${index}]`,
+              JSON.stringify({
+                caption: photo.caption || "",
+                isPrimary: photo.isPrimary || false,
+              })
+            );
           }
         });
       }
-  
+
       // Validate required fields
       if (!formData.title || !formData.type) {
         setError("Property name and type are required");
         return;
       }
-  
+
       console.log("Location data:", formData.location);
       console.log("Bank details:", formData.bankDetails);
-  
+
       const response = await api.post("/api/properties", formPayload, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-        }
+          "Content-Type": "multipart/form-data",
+        },
       });
-  
+
       if (!response?.property) {
         throw new Error("Invalid response from server");
       }
-  
+
       setProperties((prev) => [...prev, response.property]);
       setShowNewPropertyModal(false);
       resetFormData();
@@ -1550,13 +1753,19 @@ const PropertyManagement = () => {
   }) => {
     const getPropertyImage = () => {
       return (
-        property.photos?.[0]?.url || property.profile?.photos?.[0]?.url || "" // Local fallback
+        property.photos?.[0]?.url || property.profile?.photos?.[0]?.url || ""
       );
     };
 
     return (
-      <div className="grid grid-cols-12 gap-4 px-6 py-4 border-b hover:bg-gray-50">
-        <div className="col-span-1">
+      <div
+        className="grid grid-cols-12 gap-4 px-6 py-4 border-b hover:bg-gray-50 cursor-pointer"
+        onClick={() => {
+          setActiveProperty(property);
+          setShowDetailsModal(true);
+        }}
+      >
+        <div className="col-span-1" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
             checked={isSelected}
@@ -1564,6 +1773,7 @@ const PropertyManagement = () => {
             className="rounded border-gray-300"
           />
         </div>
+
         <div className="col-span-4 flex items-center gap-3">
           <div className="w-12 h-8 relative bg-gray-200 rounded group">
             <img
@@ -1721,7 +1931,6 @@ const PropertyManagement = () => {
             />
           </div>
           <div className="col-span-4">Name</div>
-          
           <div className="col-span-2">Actions</div>
         </div>
 
@@ -1767,7 +1976,15 @@ const PropertyManagement = () => {
             handleImageUpload={handleImageUpload}
           />
         )}
-
+        {showDetailsModal && activeProperty && (
+          <PropertyDetailsModal
+            property={activeProperty}
+            onClose={() => {
+              setShowDetailsModal(false);
+              setActiveProperty(null);
+            }}
+          />
+        )}
         {showProfileModal && activeProperty && (
           <PropertyFormModal
             onClose={() => {
