@@ -33,14 +33,7 @@ const propertySchema = new mongoose.Schema({
   },
   profile: {
     description: String,
-    amenities: [String],
-    rules: [String],
-    photos: [{
-      url: String,
-      caption: String,
-      isPrimary: Boolean
-    }],
-    location: {
+    location: { 
       address: String,
       city: String,
       country: String,
@@ -49,7 +42,13 @@ const propertySchema = new mongoose.Schema({
         latitude: Number,
         longitude: Number
       }
-    }
+    },
+    photos: [{
+      url: String,
+      caption: String,
+      isPrimary: Boolean
+    }],
+    
   },
   bankDetails: {
     accountHolder: String,

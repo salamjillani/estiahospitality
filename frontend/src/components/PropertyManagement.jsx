@@ -26,6 +26,15 @@ const propertyShape = PropTypes.shape({
   description: PropTypes.string,
   identifier: PropTypes.string,
   vendorType: PropTypes.string,
+  profile: PropTypes.shape({
+    description: PropTypes.string,
+    location: PropTypes.shape({
+      address: PropTypes.string,
+      city: PropTypes.string,
+      country: PropTypes.string,
+      postalCode: PropTypes.string,
+    }),
+  }),
   location: PropTypes.shape({
     city: PropTypes.string,
     country: PropTypes.string,
@@ -80,33 +89,40 @@ const PropertyFormModal = ({
   property,
   setError,
 }) => {
+
   useEffect(() => {
-    if (mode === "edit" && property) {
-      setFormData({
-        title: property.title || "",
-        type: property.type || "villa",
-        // Add all necessary fields with proper fallbacks
-        description: property.description || "",
-        identifier: property.identifier || "",
-        vendorType: property.vendorType || "individual",
-        location: {
-          address: property.location?.address || "",
-          city: property.location?.city || "",
-          country: property.location?.country || "",
-          postalCode: property.location?.postalCode || "",
-        },
-        photos: property.photos || [],
-        bankDetails: {
-          accountHolder: property.bankDetails?.accountHolder || "",
-          accountNumber: property.bankDetails?.accountNumber || "",
-          bankName: property.bankDetails?.bankName || "",
-          swiftCode: property.bankDetails?.swiftCode || "",
-          iban: property.bankDetails?.iban || "",
-          currency: property.bankDetails?.currency || "USD",
-        },
-      });
-    }
-  }, [mode, property, setFormData]);
+  if (mode === "edit" && property) {
+    // Access location data from profile.location
+    const profileData = property.profile || {};
+    const locationData = property?.profile?.location || {};
+    const bankDetailsData = property.bankDetails || {};
+
+    setFormData({
+      title: property.title || "",
+      type: property.type || "villa",
+      identifier: property.identifier || "",
+      vendorType: property.vendorType || "individual",
+      description: profileData.description || "",
+      location: {
+        address: locationData.address || "",
+        city: locationData.city || "",
+        country: locationData.country || "",
+        postalCode: locationData.postalCode || "",
+      },
+      photos: property.photos || [],
+      bankDetails: {
+        accountHolder: bankDetailsData.accountHolder || "",
+        accountNumber: bankDetailsData.accountNumber || "",
+        bankName: bankDetailsData.bankName || "",
+        swiftCode: bankDetailsData.swiftCode || "",
+        iban: bankDetailsData.iban || "",
+        currency: bankDetailsData.currency || "USD",
+      },
+    });
+  }
+}, [mode, property, setFormData]);
+
+
   const handleImageUpload = (e) => {
     try {
       const files = Array.from(e.target.files);
@@ -471,6 +487,13 @@ PropertyFormModal.propTypes = {
 const PropertyDetailsModal = ({ property, onClose }) => {
   if (!property) return null;
 
+ 
+  const getNestedValue = (obj, path) => {
+    return path.split(".").reduce((acc, part) => {
+      return acc && acc[part] ? acc[part] : "-";
+    }, obj);
+  };
+
   const getPropertyImages = () => {
     return property.photos || [];
   };
@@ -480,7 +503,10 @@ const PropertyDetailsModal = ({ property, onClose }) => {
       <div className="bg-white rounded-lg w-full max-w-4xl m-4 min-h-[200px]">
         <div className="sticky top-0 bg-white px-6 py-4 border-b flex items-center justify-between">
           <h2 className="text-xl font-bold">{property.title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
             <X size={20} />
           </button>
         </div>
@@ -518,60 +544,68 @@ const PropertyDetailsModal = ({ property, onClose }) => {
             </h3>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-500">Property Type</label>
+                <label className="block text-sm font-medium text-gray-500">
+                  Property Name
+                </label>
+                <div className="mt-1">{property?.title || "-"}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500">
+                  Property Type
+                </label>
                 <div className="mt-1">{property.type}</div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-500">Vendor Type</label>
-                <div className="mt-1">{property.vendorType}</div>
+                <label className="block text-sm font-medium text-gray-500">
+                  Description
+                </label>
+                <div className="mt-1">
+                  {getNestedValue(property, "profile.description")}
+                </div>
               </div>
-              {property.identifier && (
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-500">Identifier</label>
-                  <div className="mt-1">{property.identifier}</div>
-                </div>
-              )}
-              {property.description && (
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-500">Description</label>
-                  <div className="mt-1">{property.description}</div>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Location */}
+          {/* Location Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <Map size={20} />
               Location
             </h3>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-              {property.location?.address && (
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-500">Address</label>
-                  <div className="mt-1">{property.location.address}</div>
-                </div>
-              )}
-              {property.location?.city && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">City</label>
-                  <div className="mt-1">{property.location.city}</div>
-                </div>
-              )}
-              {property.location?.country && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Country</label>
-                  <div className="mt-1">{property.location.country}</div>
-                </div>
-              )}
-              {property.location?.postalCode && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-500">Postal Code</label>
-                  <div className="mt-1">{property.location.postalCode}</div>
-                </div>
-              )}
-            </div>
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-500">
+            Address
+          </label>
+          <div className="mt-1">
+            {getNestedValue(property, "profile.location.address")}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-500">
+            City
+          </label>
+          <div className="mt-1">
+            {getNestedValue(property, "profile.location.city")}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-500">
+            Country
+          </label>
+          <div className="mt-1">
+            {getNestedValue(property, "profile.location.country")}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-500">
+            Postal Code
+          </label>
+          <div className="mt-1">
+            {getNestedValue(property, "profile.location.postalCode")}
+          </div>
+        </div>
+      </div>
           </div>
 
           {/* Banking Details */}
@@ -583,37 +617,53 @@ const PropertyDetailsModal = ({ property, onClose }) => {
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               {property.bankDetails?.accountHolder && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">Account Holder</label>
-                  <div className="mt-1">{property.bankDetails.accountHolder}</div>
+                  <label className="block text-sm font-medium text-gray-500">
+                    Account Holder
+                  </label>
+                  <div className="mt-1">
+                    {property.bankDetails.accountHolder}
+                  </div>
                 </div>
               )}
               {property.bankDetails?.accountNumber && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">Account Number</label>
-                  <div className="mt-1">{property.bankDetails.accountNumber}</div>
+                  <label className="block text-sm font-medium text-gray-500">
+                    Account Number
+                  </label>
+                  <div className="mt-1">
+                    {property.bankDetails.accountNumber}
+                  </div>
                 </div>
               )}
               {property.bankDetails?.bankName && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">Bank Name</label>
+                  <label className="block text-sm font-medium text-gray-500">
+                    Bank Name
+                  </label>
                   <div className="mt-1">{property.bankDetails.bankName}</div>
                 </div>
               )}
               {property.bankDetails?.swiftCode && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">SWIFT Code</label>
+                  <label className="block text-sm font-medium text-gray-500">
+                    SWIFT Code
+                  </label>
                   <div className="mt-1">{property.bankDetails.swiftCode}</div>
                 </div>
               )}
               {property.bankDetails?.iban && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">IBAN</label>
+                  <label className="block text-sm font-medium text-gray-500">
+                    IBAN
+                  </label>
                   <div className="mt-1">{property.bankDetails.iban}</div>
                 </div>
               )}
               {property.bankDetails?.currency && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">Currency</label>
+                  <label className="block text-sm font-medium text-gray-500">
+                    Currency
+                  </label>
                   <div className="mt-1">{property.bankDetails.currency}</div>
                 </div>
               )}
@@ -634,25 +684,24 @@ const PropertyDetailsModal = ({ property, onClose }) => {
   );
 };
 
-// PropTypes validation
 PropertyDetailsModal.propTypes = {
   property: PropTypes.shape({
     title: PropTypes.string.isRequired,
     type: PropTypes.string.isRequired,
-    vendorType: PropTypes.string.isRequired,
-    identifier: PropTypes.string,
-    description: PropTypes.string,
     photos: PropTypes.arrayOf(
       PropTypes.shape({
         url: PropTypes.string.isRequired,
         caption: PropTypes.string,
       })
     ),
-    location: PropTypes.shape({
-      address: PropTypes.string,
-      city: PropTypes.string,
-      country: PropTypes.string,
-      postalCode: PropTypes.string,
+    profile: PropTypes.shape({
+      description: PropTypes.string,
+      location: PropTypes.shape({
+        address: PropTypes.string,
+        city: PropTypes.string,
+        country: PropTypes.string,
+        postalCode: PropTypes.string,
+      }),
     }),
     bankDetails: PropTypes.shape({
       accountHolder: PropTypes.string,
@@ -665,7 +714,6 @@ PropertyDetailsModal.propTypes = {
   }),
   onClose: PropTypes.func.isRequired,
 };
-
 
 const PropertyManagement = () => {
   const { token } = useAuth();
@@ -1655,17 +1703,20 @@ const PropertyManagement = () => {
       formPayload.append("vendorType", updatedData.vendorType);
       formPayload.append("identifier", updatedData.identifier || "");
 
-      // 2. Stringify nested objects
-      formPayload.append("location", JSON.stringify(updatedData.location));
-      formPayload.append(
-        "bankDetails",
-        JSON.stringify(updatedData.bankDetails)
-      );
+        // Stringify nested objects under the correct structure
+    formPayload.append(
+      "profile",
+      JSON.stringify({
+        description: updatedData.description,
+        location: updatedData.location,
+      })
+    );
+    formPayload.append("bankDetails", JSON.stringify(updatedData.bankDetails));
 
-      // 3. Single photo handling
-      updatedData.photos.forEach((photo) => {
-        if (photo.file) formPayload.append("photos", photo.file);
-      });
+    // Handle photos
+    updatedData.photos.forEach((photo) => {
+      if (photo.file) formPayload.append("photos", photo.file);
+    });
 
       const response = await api.put(
         `/api/properties/${propertyId}`,
@@ -1681,7 +1732,9 @@ const PropertyManagement = () => {
       setProperties((prev) =>
         prev.map((p) => (p._id === propertyId ? response.property : p))
       );
+      
       setShowProfileModal(false);
+      await fetchProperties();
     } catch (err) {
       setError(err.message || "Failed to update property");
     } finally {
@@ -1799,8 +1852,9 @@ const PropertyManagement = () => {
             <Map size={18} className="text-gray-400" />
           )}
           <div className="text-sm text-gray-500">
-            {property.location?.city && property.location?.country
-              ? `${property.location.city}, ${property.location.country}`
+            {property.profile?.location?.city &&
+            property.profile?.location?.country
+              ? `${property.profile.location.city}, ${property.profile.location.country}`
               : "-"}
           </div>
         </div>

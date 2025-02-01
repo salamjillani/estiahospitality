@@ -54,23 +54,28 @@ const handleErrors = (res, error, defaultMessage = "An error occurred") => {
   });
 };
 
-router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), async (req, res) => {
-  try {
-    
-
-    if (typeof req.body.type !== 'string') {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid type format - must be a string"
-      });
-    }
-    const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
+router.post(
+  "/",
+  auth,
+  checkRole(["admin", "manager"]),
+  upload.array("photos"),
+  async (req, res) => {
+    try {
+      if (typeof req.body.type !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid type format - must be a string",
+        });
+      }
+      const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
       const receivedType = req.body.type?.trim().toLowerCase();
-      
+
       if (!receivedType || !validTypes.includes(receivedType)) {
         return res.status(400).json({
           success: false,
-          message: `Invalid property type. Valid types are: ${validTypes.join(", ")}`,
+          message: `Invalid property type. Valid types are: ${validTypes.join(
+            ", "
+          )}`,
         });
       }
       console.log("Received type:", req.body.type);
@@ -80,16 +85,20 @@ router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), 
       if (
         !req.body.type ||
         typeof req.body.type !== "string" ||
-        !['villa', 'holiday_apartment', 'hotel', 'cottage'].includes(req.body.type.trim().toLowerCase())
+        !["villa", "holiday_apartment", "hotel", "cottage"].includes(
+          req.body.type.trim().toLowerCase()
+        )
       ) {
-        return res.status(400).json({ message: "Invalid or missing property type" });
+        return res
+          .status(400)
+          .json({ message: "Invalid or missing property type" });
       }
-      
+
       console.log("Received type:", receivedType);
 
       let location = {};
       let bankDetails = {};
-      
+
       try {
         location = req.body.location ? JSON.parse(req.body.location) : {};
         bankDetails = req.body.bankDetails ? JSON.parse(req.body.bankDetails) : {};
@@ -101,40 +110,51 @@ router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), 
         });
       }
 
-       // Process uploaded photos
-    const photos = req.files ? req.files.map((file, index) => {
-      // Get the corresponding photo metadata if it exists
-      let photoData = {};
-      try {
-        photoData = req.body.photoData ? JSON.parse(req.body.photoData[index]) : {};
-      } catch (e) {
-        photoData = {};
-      }
+      // Process uploaded photos
+      const photos = req.files
+        ? req.files.map((file, index) => {
+            // Get the corresponding photo metadata if it exists
+            let photoData = {};
+            try {
+              photoData = req.body.photoData
+                ? JSON.parse(req.body.photoData[index])
+                : {};
+            } catch (e) {
+              photoData = {};
+            }
 
-      return {
-        url: `/uploads/properties/${file.filename}`,
-        filename: file.filename,
-        caption: photoData.caption || '',
-        isPrimary: photoData.isPrimary || false
+            return {
+              url: `/uploads/properties/${file.filename}`,
+              filename: file.filename,
+              caption: photoData.caption || "",
+              isPrimary: photoData.isPrimary || false,
+            };
+          })
+        : [];
+
+      const generateUniqueIdentifier = () => {
+        return (
+          "PROP-" +
+          Date.now().toString(36).toUpperCase() +
+          Math.floor(1000 + Math.random() * 9000)
+        );
       };
-    }) : [];
-
-  
-  const generateUniqueIdentifier = () => {
-    return (
-      "PROP-" +
-      Date.now().toString(36).toUpperCase() +
-      Math.floor(1000 + Math.random() * 9000)
-    );
-  };
       // Create property object
       const propertyData = {
         title: req.body.title,
         type: receivedType,
         identifier: generateUniqueIdentifier(),
-        description: req.body.description || "",
+        profile: {
+          description: req.body.description,
+          location: {
+            address: location.address,
+            city: location.city,
+            country: location.country,
+            postalCode: location.postalCode,
+          },
+        },
         vendorType: req.body.vendorType || "individual",
-        location,
+
         bankDetails,
         photos: req.files
           ? req.files.map((file) => ({
@@ -150,24 +170,23 @@ router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), 
       const property = new Property(propertyData);
       await property.save();
 
-    // Send successful response with the created property
-    res.status(201).json({
-      success: true,
-      property,
-    });
+      // Send successful response with the created property
+      res.status(201).json({
+        success: true,
+        property,
+      });
     } catch (error) {
-    console.error("Property creation error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to create property",
-    });
+      console.error("Property creation error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Failed to create property",
+      });
     }
   }
 );
 
 // Update property with proper validation
 router.put(
-  
   "/:id",
   auth,
   checkRole(["admin", "manager"]),
@@ -176,8 +195,24 @@ router.put(
     try {
       const { id } = req.params;
       let updates = { ...req.body };
-      
-      // Ensure type field is preserved if not explicitly updated
+
+      try {
+        if (updates.profile) {
+          updates.profile = JSON.parse(updates.profile);
+        }
+        if (updates.bankDetails) {
+          updates.bankDetails = JSON.parse(updates.bankDetails);
+        }
+      } catch (parseError) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid JSON in profile or bank details",
+          error: parseError.message,
+        });
+      }
+
+
+    
       if (!updates.type) {
         const existingProperty = await Property.findById(id);
         if (existingProperty) {
@@ -186,35 +221,62 @@ router.put(
       }
 
       // Validate type enum value
-      if (updates.type && !['villa', 'holiday_apartment', 'hotel', 'cottage'].includes(updates.type)) {
+      if (
+        updates.type &&
+        !["villa", "holiday_apartment", "hotel", "cottage"].includes(
+          updates.type
+        )
+      ) {
         return res.status(400).json({
           success: false,
-          message: "Invalid property type. Must be one of: villa, holiday_apartment, hotel, cottage"
+          message:
+            "Invalid property type. Must be one of: villa, holiday_apartment, hotel, cottage",
         });
       }
 
-      // Parse JSON fields if they exist and are strings
+
       try {
-        if (typeof updates.location === 'string') {
-          updates.location = JSON.parse(updates.location);
+        if (typeof updates.location === "string") {
+          const locationData = JSON.parse(updates.location);
+          
+         
+          updates.profile = {
+            ...(updates.profile || {}),
+            location: {
+              address: locationData.address,
+              city: locationData.city,
+              country: locationData.country,
+              postalCode: locationData.postalCode
+            }
+          };
         }
-        if (typeof updates.bankDetails === 'string') {
+
+        if (updates.location) {
+          updateData.profile = {
+            ...(property.profile?.toObject() || {}),
+            location: updates.location,
+          };
+        }
+
+        if (typeof updates.bankDetails === "string") {
           updates.bankDetails = JSON.parse(updates.bankDetails);
         }
+
+
       } catch (parseError) {
         return res.status(400).json({
           success: false,
           message: "Invalid JSON in location or bank details",
-          error: parseError.message
+          error: parseError.message,
         });
       }
 
       // Handle new photos if any were uploaded
       if (req.files?.length) {
-        const newPhotos = req.files.map(file => ({
+        const newPhotos = req.files.map((file) => ({
           url: `/uploads/properties/${file.filename}`,
           caption: "",
-          isPrimary: false
+          isPrimary: false,
         }));
         updates.photos = newPhotos;
       }
@@ -224,18 +286,18 @@ router.put(
       if (!property) {
         return res.status(404).json({
           success: false,
-          message: "Property not found"
+          message: "Property not found",
         });
       }
 
       const isAuthorized =
         req.user.role === "admin" ||
         property.managers.some((m) => m.toString() === req.user._id.toString());
-      
+
       if (!isAuthorized) {
         return res.status(403).json({
           success: false,
-          message: "Unauthorized access"
+          message: "Unauthorized access",
         });
       }
 
@@ -248,31 +310,33 @@ router.put(
         "bankDetails",
         "photos",
         "vendorType",
-        "identifier"
+        "identifier",
       ];
 
-      const updateData = {};
-      Object.keys(updates).forEach(key => {
-        if (allowedUpdates.includes(key)) {
-          updateData[key] = updates[key];
-        }
-      });
+     
 
-      // Perform the update with validation
+       const updateData = {
+        ...updates,
+        profile: {
+          ...(updates.profile || {}),
+        },
+        bankDetails: {
+          ...(updates.bankDetails || {}),
+        },
+      };
+
       const updatedProperty = await Property.findByIdAndUpdate(
         id,
         { $set: updateData },
-        { 
-          new: true,
-          runValidators: true,
-          context: 'query'
-        }
+        { new: true, runValidators: true }
       );
+
+  
 
       if (!updatedProperty) {
         return res.status(404).json({
           success: false,
-          message: "Property not found after update"
+          message: "Property not found after update",
         });
       }
 
@@ -280,23 +344,21 @@ router.put(
       if (req.app.locals.broadcast) {
         req.app.locals.broadcast("property_updated", updatedProperty);
       }
-
+      console.log("Updated property:", updatedProperty);
       res.json({
         success: true,
-        property: updatedProperty
+        property: updatedProperty,
       });
-
     } catch (error) {
       console.error("Property update error:", error);
       res.status(500).json({
         success: false,
         message: error.message || "Error updating property",
-        error: process.env.NODE_ENV === "development" ? error.stack : undefined
+        error: process.env.NODE_ENV === "development" ? error.stack : undefined,
       });
     }
     console.log("Received update payload:", req.body);
   }
-  
 );
 
 // Enhanced invoice generation
@@ -411,15 +473,50 @@ router.get("/", auth, async (req, res) => {
   try {
     const properties = await Property.find()
       .populate("createdBy", "name email")
-      .populate("managers", "name email");
-      console.log('Properties from DB:', properties);
-    res.json({ success: true, properties });
+      .populate("managers", "name email")
+      .lean(); // Convert to plain JavaScript objects
+
+    // Format properties to ensure consistent structure
+    const formattedProperties = properties.map((property) => ({
+      ...property,
+      profile: {
+        description: property.profile?.description || "",
+        location: {
+          address: property.profile?.location?.address || "",
+          city: property.profile?.location?.city || "",
+          country: property.profile?.location?.country || "",
+          postalCode: property.profile?.location?.postalCode || "",
+        },
+        photos:
+          property.photos?.map((photo) => ({
+            url: photo.url || "",
+            caption: photo.caption || "",
+            isPrimary: photo.isPrimary || false,
+          })) || [],
+      },
+      bankDetails: property.bankDetails || {
+        accountHolder: "",
+        accountNumber: "",
+        bankName: "",
+        swiftCode: "",
+        iban: "",
+        currency: "USD",
+      },
+    }));
+
+    console.log("Formatted properties:", formattedProperties);
+    res.json({
+      success: true,
+      properties: formattedProperties,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Error fetching properties" });
+    console.error("Error fetching properties:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching properties",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 });
-
 
 module.exports = router;
