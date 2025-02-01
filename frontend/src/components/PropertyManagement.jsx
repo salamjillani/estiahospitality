@@ -812,68 +812,59 @@ const PropertyManagement = () => {
   const handleNewProperty = async (e) => {
     e.preventDefault();
     try {
-      
       setLoading(true);
-
-       // Validate type before sending
-    const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
-    if (!validTypes.includes(formData.type)) {
-      setError("Invalid property type selection");
-      return;
-    }
-
-    const formPayload = new FormData();
-    
-
-    
+  
+      // Validate type before sending
+      const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
+      if (!validTypes.includes(formData.type)) {
+        setError("Invalid property type selection");
+        return;
+      }
+  
+      const formPayload = new FormData();
+      
+      // Append basic fields
       formPayload.append("type", formData.type.toLowerCase().trim());
       formPayload.append("title", formData.title);
       formPayload.append("description", formData.description);
       formPayload.append("vendorType", formData.vendorType);
       formPayload.append("location", JSON.stringify(formData.location));
       formPayload.append("bankDetails", JSON.stringify(formData.bankDetails));
-
-      // Add photos
-      formData.photos.forEach((photo) => {
-        if (photo.file) {
-          formPayload.append("photos", photo.file);
-        }
-      });
-
+  
+      // Handle photos correctly
+      if (formData.photos && formData.photos.length > 0) {
+        formData.photos.forEach((photo, index) => {
+          if (photo.file) {
+            // Append each photo with a unique field name
+            formPayload.append('photos', photo.file);
+            // Append additional photo metadata if needed
+            formPayload.append(`photoData[${index}]`, JSON.stringify({
+              caption: photo.caption || '',
+              isPrimary: photo.isPrimary || false
+            }));
+          }
+        });
+      }
+  
+      // Validate required fields
       if (!formData.title || !formData.type) {
         setError("Property name and type are required");
         return;
       }
-
-      if (
-        !formData.type ||
-        !["villa", "holiday_apartment", "hotel", "cottage"].includes(
-          formData.type
-        )
-      ) {
-        setError("Valid property type is required");
-        return;
-      }
-
+  
       console.log("Location data:", formData.location);
       console.log("Bank details:", formData.bankDetails);
-
-      console.log("Photos:", formData.photos);
-      if (formData.photos && formData.photos.length > 0) {
-        formData.photos.forEach((photo, index) => {
-          if (photo.file) {
-            console.log("Appending photo:", photo.file.name);
-            formPayload.append("photos", photo.file);
-          }
-        });
-      }
-      console.log('Submitting property type:', formData.type);
-      const response = await api.post("/api/properties", formPayload);
-
+  
+      const response = await api.post("/api/properties", formPayload, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+  
       if (!response?.property) {
         throw new Error("Invalid response from server");
       }
-
+  
       setProperties((prev) => [...prev, response.property]);
       setShowNewPropertyModal(false);
       resetFormData();

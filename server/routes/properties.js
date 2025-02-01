@@ -86,6 +86,7 @@ router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), 
       }
       
       console.log("Received type:", receivedType);
+
       let location = {};
       let bankDetails = {};
       
@@ -99,7 +100,26 @@ router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), 
           error: parseError.message,
         });
       }
-  // Inside POST handler
+
+       // Process uploaded photos
+    const photos = req.files ? req.files.map((file, index) => {
+      // Get the corresponding photo metadata if it exists
+      let photoData = {};
+      try {
+        photoData = req.body.photoData ? JSON.parse(req.body.photoData[index]) : {};
+      } catch (e) {
+        photoData = {};
+      }
+
+      return {
+        url: `/uploads/properties/${file.filename}`,
+        filename: file.filename,
+        caption: photoData.caption || '',
+        isPrimary: photoData.isPrimary || false
+      };
+    }) : [];
+
+  
   const generateUniqueIdentifier = () => {
     return (
       "PROP-" +
@@ -129,24 +149,18 @@ router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), 
 
       const property = new Property(propertyData);
       await property.save();
-    
 
-
-      res.status(201).json({
-        success: true,
-        property,
-      });
+    // Send successful response with the created property
+    res.status(201).json({
+      success: true,
+      property,
+    });
     } catch (error) {
-      console.error("Property creation error:", {
-        message: error.message,
-        stack: error.stack,
-        body: req.body,
-        files: req.files,
-      });
-      res.status(500).json({
-        success: false,
-        message: error.message || "Failed to create property",
-      });
+    console.error("Property creation error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create property",
+    });
     }
   }
 );
