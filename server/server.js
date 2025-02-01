@@ -84,7 +84,7 @@ app.use((err, req, res, next) => {
 
 app.use(cookieParser());
 app.use(express.json());
-
+app.use(express.urlencoded({ extended: true }));
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);

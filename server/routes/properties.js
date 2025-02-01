@@ -54,40 +54,49 @@ const handleErrors = (res, error, defaultMessage = "An error occurred") => {
   });
 };
 
-// Create property with enhanced validation
-// In your propertyRoutes.js
-router.post(
-  "/",
-  auth,
-  checkRole(["admin", "manager"]),
-  upload.array("photos"),
-  async (req, res) => {
-    try {
-      console.log("Received property creation request");
+router.post("/", auth, checkRole(["admin", "manager"]), upload.array("photos"), async (req, res) => {
+  try {
+    
+
+    if (typeof req.body.type !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid type format - must be a string"
+      });
+    }
+    const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
+      const receivedType = req.body.type?.trim().toLowerCase();
+      
+      if (!receivedType || !validTypes.includes(receivedType)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid property type. Valid types are: ${validTypes.join(", ")}`,
+        });
+      }
+      console.log("Received type:", req.body.type);
       console.log("Body:", req.body);
       console.log("Files:", req.files);
       console.log("User:", req.user);
-      if (!req.body.title || !req.body.type) {
-        return res.status(400).json({
-          success: false,
-          message: "Title and type are required",
-        });
+      if (
+        !req.body.type ||
+        typeof req.body.type !== "string" ||
+        !['villa', 'holiday_apartment', 'hotel', 'cottage'].includes(req.body.type.trim().toLowerCase())
+      ) {
+        return res.status(400).json({ message: "Invalid or missing property type" });
       }
-
-      // Parse JSON strings
-      let location = {},
-        bankDetails = {};
+      
+      console.log("Received type:", receivedType);
+      let location = {};
+      let bankDetails = {};
+      
       try {
-        if (req.body.location) {
-          location = JSON.parse(req.body.location);
-        }
-        if (req.body.bankDetails) {
-          bankDetails = JSON.parse(req.body.bankDetails);
-        }
+        location = req.body.location ? JSON.parse(req.body.location) : {};
+        bankDetails = req.body.bankDetails ? JSON.parse(req.body.bankDetails) : {};
       } catch (parseError) {
         return res.status(400).json({
           success: false,
           message: "Invalid JSON in location or bank details",
+          error: parseError.message,
         });
       }
   // Inside POST handler
@@ -101,7 +110,7 @@ router.post(
       // Create property object
       const propertyData = {
         title: req.body.title,
-        type: req.body.type,
+        type: receivedType,
         identifier: generateUniqueIdentifier(),
         description: req.body.description || "",
         vendorType: req.body.vendorType || "individual",
@@ -144,33 +153,79 @@ router.post(
 
 // Update property with proper validation
 router.put(
+  
   "/:id",
   auth,
   checkRole(["admin", "manager"]),
-  upload.none(), // Handle multipart without files
+  upload.array("photos"),
   async (req, res) => {
     try {
       const { id } = req.params;
-      const updates = req.body;
+      let updates = { ...req.body };
+      
+      // Ensure type field is preserved if not explicitly updated
+      if (!updates.type) {
+        const existingProperty = await Property.findById(id);
+        if (existingProperty) {
+          updates.type = existingProperty.type;
+        }
+      }
 
-      // Parse JSON fields
-      if (updates.location) updates.location = JSON.parse(updates.location);
-      if (updates.bankDetails)
-        updates.bankDetails = JSON.parse(updates.bankDetails);
+      // Validate type enum value
+      if (updates.type && !['villa', 'holiday_apartment', 'hotel', 'cottage'].includes(updates.type)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid property type. Must be one of: villa, holiday_apartment, hotel, cottage"
+        });
+      }
 
-      const property = await Property.findByIdAndUpdate(id, updates, {
-        new: true,
-      });
+      // Parse JSON fields if they exist and are strings
+      try {
+        if (typeof updates.location === 'string') {
+          updates.location = JSON.parse(updates.location);
+        }
+        if (typeof updates.bankDetails === 'string') {
+          updates.bankDetails = JSON.parse(updates.bankDetails);
+        }
+      } catch (parseError) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid JSON in location or bank details",
+          error: parseError.message
+        });
+      }
+
+      // Handle new photos if any were uploaded
+      if (req.files?.length) {
+        const newPhotos = req.files.map(file => ({
+          url: `/uploads/properties/${file.filename}`,
+          caption: "",
+          isPrimary: false
+        }));
+        updates.photos = newPhotos;
+      }
+
+      // Find and verify authorization
+      const property = await Property.findById(id);
+      if (!property) {
+        return res.status(404).json({
+          success: false,
+          message: "Property not found"
+        });
+      }
 
       const isAuthorized =
         req.user.role === "admin" ||
         property.managers.some((m) => m.toString() === req.user._id.toString());
+      
       if (!isAuthorized) {
-        return res
-          .status(403)
-          .json({ success: false, message: "Unauthorized access" });
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized access"
+        });
       }
 
+      // Update only allowed fields
       const allowedUpdates = [
         "title",
         "type",
@@ -181,20 +236,53 @@ router.put(
         "vendorType",
         "identifier"
       ];
-      
-      const validUpdates = Object.keys(updates).filter((key) =>
-        allowedUpdates.includes(key)
+
+      const updateData = {};
+      Object.keys(updates).forEach(key => {
+        if (allowedUpdates.includes(key)) {
+          updateData[key] = updates[key];
+        }
+      });
+
+      // Perform the update with validation
+      const updatedProperty = await Property.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { 
+          new: true,
+          runValidators: true,
+          context: 'query'
+        }
       );
 
-      validUpdates.forEach((update) => (property[update] = updates[update]));
+      if (!updatedProperty) {
+        return res.status(404).json({
+          success: false,
+          message: "Property not found after update"
+        });
+      }
 
-      const updatedProperty = await property.save();
-      req.app.locals.broadcast("property_profile_updated", property);
-      res.json({ success: true, property });
+      // Broadcast update event if needed
+      if (req.app.locals.broadcast) {
+        req.app.locals.broadcast("property_updated", updatedProperty);
+      }
+
+      res.json({
+        success: true,
+        property: updatedProperty
+      });
+
     } catch (error) {
-      handleErrors(res, error, "Error updating property");
+      console.error("Property update error:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Error updating property",
+        error: process.env.NODE_ENV === "development" ? error.stack : undefined
+      });
     }
+    console.log("Received update payload:", req.body);
   }
+  
 );
 
 // Enhanced invoice generation
@@ -310,6 +398,7 @@ router.get("/", auth, async (req, res) => {
     const properties = await Property.find()
       .populate("createdBy", "name email")
       .populate("managers", "name email");
+      console.log('Properties from DB:', properties);
     res.json({ success: true, properties });
   } catch (error) {
     res

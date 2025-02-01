@@ -104,11 +104,19 @@ export const api = {
 
   put: async (endpoint, data) => {
     try {
+      const headers = data instanceof FormData 
+        ? {} // Let browser set Content-Type
+        : { 'Content-Type': 'application/json' };
+  
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+  
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: 'PUT',
-        headers: api.getHeaders(),
+        headers,
         credentials: 'include',
-        body: JSON.stringify(data),
+        body: data instanceof FormData ? data : JSON.stringify(data)
       });
       
       if (!response.ok) {

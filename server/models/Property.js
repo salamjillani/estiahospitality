@@ -15,7 +15,8 @@ const propertySchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['villa', 'holiday_apartment', 'hotel', 'cottage']
+    enum: ['villa', 'holiday_apartment', 'hotel', 'cottage'],
+    default: 'villa',
   },
   vendorType: {
     type: String,

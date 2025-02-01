@@ -23,7 +23,6 @@ const propertyShape = PropTypes.shape({
   _id: PropTypes.string.isRequired,
   title: PropTypes.string.isRequired,
   type: PropTypes.string.isRequired,
-  propertyType: PropTypes.string,
   description: PropTypes.string,
   identifier: PropTypes.string,
   vendorType: PropTypes.string,
@@ -86,9 +85,10 @@ const PropertyFormModal = ({
       setFormData({
         title: property.title || "",
         type: property.type || "villa",
-        vendorType: property.vendorType || "individual",
+        // Add all necessary fields with proper fallbacks
         description: property.description || "",
         identifier: property.identifier || "",
+        vendorType: property.vendorType || "individual",
         location: {
           address: property.location?.address || "",
           city: property.location?.city || "",
@@ -506,8 +506,12 @@ const PropertyManagement = () => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      setAuthToken(token);
-      fetchProperties();
+      try {
+        setAuthToken(token);
+        fetchProperties();
+      } catch (err) {
+        console.error("Token setup failed:", err);
+      }
     }
   }, []);
 
@@ -578,10 +582,9 @@ const PropertyManagement = () => {
     }
   };
 
-  
   const handleDelete = async () => {
     if (!propertyToDelete) return;
-  
+
     try {
       setLoading(true);
       await api.delete(`/api/properties/${propertyToDelete._id}`);
@@ -599,35 +602,45 @@ const PropertyManagement = () => {
     setShowDeleteDialog(true);
   };
 
-  const uploadImages = async (propertyId, photos) => {
-    try {
-      const formData = new FormData();
-      photos.forEach((photo) => {
-        formData.append("photos", photo.file);
-      });
-
-      const data = await api.post(
-        `/api/properties/${propertyId}/photos`,
-        formData
-      );
-      return data.photos;
-    } catch (error) {
-      console.error("Error uploading images:", error);
-      throw error;
-    }
-  };
-
   const EditPropertyModal = ({ property, onClose, onSave, loading }) => {
     const [editForm, setEditForm] = useState({
-      title: property.title || "",
-      type: property.type || "villa",
-      vendorType: property.vendorType || "individual",
-      identifier: property.identifier || "",
+      title: property?.title || "",
+      type: property?.type || "villa",
+      vendorType: property?.vendorType || "individual",
+      identifier: property?.identifier || "",
+      description: property?.description || "",
+      location: {
+        address: property?.location?.address || "",
+        city: property?.location?.city || "",
+        country: property?.location?.country || "",
+        postalCode: property?.location?.postalCode || "",
+      },
+      bankDetails: {
+        accountHolder: property?.bankDetails?.accountHolder || "",
+        accountNumber: property?.bankDetails?.accountNumber || "",
+        bankName: property?.bankDetails?.bankName || "",
+        swiftCode: property?.bankDetails?.swiftCode || "",
+        iban: property?.bankDetails?.iban || "",
+        currency: property?.bankDetails?.currency || "USD",
+      },
     });
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
       e.preventDefault();
-      onSave(e, editForm);
+
+      // Create a proper payload that includes all necessary fields
+      const payload = {
+        ...editForm,
+        type: editForm.type, // Ensure type is included
+        location: JSON.stringify(editForm.location),
+        bankDetails: JSON.stringify(editForm.bankDetails),
+      };
+
+      try {
+        await onSave(payload);
+      } catch (error) {
+        console.error("Error updating property:", error);
+      }
     };
 
     return (
@@ -642,71 +655,86 @@ const PropertyManagement = () => {
               <X size={20} />
             </button>
           </div>
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  value={editForm.title}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, title: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type *
-                </label>
-                <select
-                  value={editForm.type}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, type: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="villa">Villa</option>
-                  <option value="holiday_apartment">Holiday Apartment</option>
-                  <option value="hotel">Hotel</option>
-                  <option value="cottage">Cottage</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Vendor Type *
-                </label>
-                <select
-                  value={editForm.vendorType}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, vendorType: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="individual">Individual</option>
-                  <option value="company">Company</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Identifier
-                </label>
-                <input
-                  type="text"
-                  value={editForm.identifier}
-                  onChange={(e) =>
-                    setEditForm({ ...editForm, identifier: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Unique identifier for the property"
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Name *
+              </label>
+              <input
+                type="text"
+                value={editForm.title}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, title: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type *
+              </label>
+              <select
+                value={editForm.type}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, type: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              >
+                <option value="villa">Villa</option>
+                <option value="holiday_apartment">Holiday Apartment</option>
+                <option value="hotel">Hotel</option>
+                <option value="cottage">Cottage</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                value={editForm.description}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, description: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={4}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Vendor Type
+              </label>
+              <select
+                value={editForm.vendorType}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, vendorType: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="individual">Individual</option>
+                <option value="company">Company</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Identifier
+              </label>
+              <input
+                type="text"
+                value={editForm.identifier}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, identifier: e.target.value })
+                }
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Unique identifier for the property"
+              />
+            </div>
+
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
@@ -729,6 +757,7 @@ const PropertyManagement = () => {
       </div>
     );
   };
+
   EditPropertyModal.propTypes = {
     property: propertyShape,
     onClose: PropTypes.func.isRequired,
@@ -736,18 +765,25 @@ const PropertyManagement = () => {
     loading: PropTypes.bool.isRequired,
   };
 
+  // Update the fetchProperties function:
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get("/api/properties");
-      setProperties(response.properties || []);
+
+      // Handle different response structures
+      const propertiesData =
+        response.properties || response.data?.properties || [];
+
+      const validProperties = propertiesData.filter(
+        (p) => p && p._id && p.title && p.type
+      );
+
+      setProperties(validProperties);
     } catch (err) {
-      // Handle 404 specifically
-      if (err.message.includes("404")) {
-        setError("Properties endpoint not found");
-      } else {
-        setError(err.message || "Failed to fetch properties");
-      }
+      console.error("Error fetching properties:", err);
+      setError("Failed to fetch properties");
+      setProperties([]);
     } finally {
       setLoading(false);
     }
@@ -755,7 +791,7 @@ const PropertyManagement = () => {
 
   useEffect(() => {
     if (token) {
-      api.setAuthToken(token);
+      setAuthToken(token);
       fetchProperties();
     }
   }, [token, fetchProperties]);
@@ -776,26 +812,26 @@ const PropertyManagement = () => {
   const handleNewProperty = async (e) => {
     e.preventDefault();
     try {
-      console.log("Starting form submission");
-      const formPayload = new FormData();
+      
+      setLoading(true);
 
-      // Log the form data to see what we're working with
-      console.log("Form data:", formData);
+       // Validate type before sending
+    const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
+    if (!validTypes.includes(formData.type)) {
+      setError("Invalid property type selection");
+      return;
+    }
 
-      if (!formData.title || !formData.type) {
-        setError("Property name and type are required");
-        return;
-      }
+    const formPayload = new FormData();
+    
 
+    
+      formPayload.append("type", formData.type.toLowerCase().trim());
       formPayload.append("title", formData.title);
-      formPayload.append("type", formData.type);
       formPayload.append("description", formData.description);
       formPayload.append("vendorType", formData.vendorType);
       formPayload.append("location", JSON.stringify(formData.location));
       formPayload.append("bankDetails", JSON.stringify(formData.bankDetails));
-
-      console.log("Location data:", formData.location);
-      console.log("Bank details:", formData.bankDetails);
 
       // Add photos
       formData.photos.forEach((photo) => {
@@ -804,13 +840,23 @@ const PropertyManagement = () => {
         }
       });
 
-      if (formData.location) {
-        formPayload.append("location", JSON.stringify(formData.location));
+      if (!formData.title || !formData.type) {
+        setError("Property name and type are required");
+        return;
       }
 
-      if (formData.bankDetails) {
-        formPayload.append("bankDetails", JSON.stringify(formData.bankDetails));
+      if (
+        !formData.type ||
+        !["villa", "holiday_apartment", "hotel", "cottage"].includes(
+          formData.type
+        )
+      ) {
+        setError("Valid property type is required");
+        return;
       }
+
+      console.log("Location data:", formData.location);
+      console.log("Bank details:", formData.bankDetails);
 
       console.log("Photos:", formData.photos);
       if (formData.photos && formData.photos.length > 0) {
@@ -821,26 +867,24 @@ const PropertyManagement = () => {
           }
         });
       }
-
-      console.log("Making API request...");
+      console.log('Submitting property type:', formData.type);
       const response = await api.post("/api/properties", formPayload);
-      console.log("API response:", response);
+
+      if (!response?.property) {
+        throw new Error("Invalid response from server");
+      }
 
       setProperties((prev) => [...prev, response.property]);
       setShowNewPropertyModal(false);
       resetFormData();
       await fetchProperties();
     } catch (err) {
-      console.error("Create property error:", err);
-      console.error("Error details:", {
-        message: err.message,
-        stack: err.stack,
-      });
       setError(err.message || "Failed to add property");
     } finally {
       setLoading(false);
     }
   };
+
   const PropertyProfileModal = ({
     property,
     onClose,
@@ -850,8 +894,8 @@ const PropertyManagement = () => {
   }) => {
     const [formData, setFormData] = useState({
       title: property?.title || "",
-      description: property?.profile?.description || "",
-      propertyType: property?.type || "villa",
+      description: property?.description || "",
+      type: property?.type || "villa",
       vendorType: property?.vendorType || "individual",
       location: {
         address: property?.profile?.location?.address || "",
@@ -1008,9 +1052,9 @@ const PropertyManagement = () => {
                     Property Type
                   </label>
                   <select
-                    value={formData.propertyType}
+                    value={formData.type}
                     onChange={(e) =>
-                      setFormData({ ...formData, propertyType: e.target.value })
+                      setFormData({ ...formData, type: e.target.value })
                     }
                     className="w-full px-3 py-2 border rounded-md"
                   >
@@ -1408,35 +1452,42 @@ const PropertyManagement = () => {
       setLoading(true);
       setError("");
 
-      const formData = new FormData();
+      const formPayload = new FormData();
 
-      // Add all necessary form data
-      formData.append("title", updatedData.title);
-      formData.append("type", updatedData.propertyType);
-      formData.append("description", updatedData.description);
-      formData.append("location", JSON.stringify(updatedData.location));
-      formData.append("bankDetails", JSON.stringify(updatedData.bankDetails));
+      // 1. Append all required fields
+      formPayload.append("title", updatedData.title);
+      formPayload.append("type", updatedData.type);
+      formPayload.append("description", updatedData.description);
+      formPayload.append("vendorType", updatedData.vendorType);
+      formPayload.append("identifier", updatedData.identifier || "");
 
-      const newPhotos = updatedData.photos.filter((photo) => photo.file);
-      if (newPhotos.length > 0) {
-        await uploadImages(propertyId, newPhotos);
-      }
+      // 2. Stringify nested objects
+      formPayload.append("location", JSON.stringify(updatedData.location));
+      formPayload.append(
+        "bankDetails",
+        JSON.stringify(updatedData.bankDetails)
+      );
+
+      // 3. Single photo handling
+      updatedData.photos.forEach((photo) => {
+        if (photo.file) formPayload.append("photos", photo.file);
+      });
 
       const response = await api.put(
         `/api/properties/${propertyId}`,
-        formData,
+        formPayload,
         {
           headers: {
-            "Content-Type": "multipart/form-data", // Let browser set content-type
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token || localStorage.getItem("token")}`,
           },
         }
       );
 
       setProperties((prev) =>
-        prev.map((p) => (p._id === propertyId ? response.data : p))
+        prev.map((p) => (p._id === propertyId ? response.property : p))
       );
       setShowProfileModal(false);
-      setActiveProperty(null);
     } catch (err) {
       setError(err.message || "Failed to update property");
     } finally {
@@ -1508,7 +1559,7 @@ const PropertyManagement = () => {
   }) => {
     const getPropertyImage = () => {
       return (
-        property.profile?.photos?.[0]?.url || "https://via.placeholder.com/150"
+        property.photos?.[0]?.url || property.profile?.photos?.[0]?.url || "" // Local fallback
       );
     };
 
@@ -1530,7 +1581,7 @@ const PropertyManagement = () => {
               className="w-full h-full object-cover rounded"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = "https://via.placeholder.com/48x32";
+                e.target.src = "";
               }}
             />
             <button className="absolute inset-0 bg-black bg-opacity-50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -1539,9 +1590,7 @@ const PropertyManagement = () => {
           </div>
           <div>
             <div className="font-medium text-gray-900">{property.title}</div>
-            <div className="text-sm text-gray-500">
-              {property.propertyType || property.type}
-            </div>
+            <div className="text-sm text-gray-500">{property.type}</div>
           </div>
         </div>
         <div className="col-span-5 flex items-center space-x-2">
@@ -1681,7 +1730,7 @@ const PropertyManagement = () => {
             />
           </div>
           <div className="col-span-4">Name</div>
-          <div className="col-span-5">Location</div>
+          
           <div className="col-span-2">Actions</div>
         </div>
 
@@ -1691,25 +1740,27 @@ const PropertyManagement = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProperties.map((property) => (
-              <PropertyCard
-                key={property._id}
-                property={property}
-                isSelected={selectedProperties.some(
-                  (p) => p._id === property._id
-                )}
-                onSelect={handlePropertySelect}
-                onDelete={handlePropertyDelete}
-                onProfile={(p) => {
-                  setActiveProperty(p);
-                  setShowProfileModal(true);
-                }}
-                onInvoice={(p) => {
-                  setActiveProperty(p);
-                  setShowInvoiceModal(true);
-                }}
-              />
-            ))}
+            {filteredProperties
+              .filter((property) => property && property._id)
+              .map((property) => (
+                <PropertyCard
+                  key={property?._id || Math.random()} // Fallback key
+                  property={property}
+                  isSelected={selectedProperties.some(
+                    (p) => p?._id === property?._id
+                  )}
+                  onSelect={handlePropertySelect}
+                  onDelete={handlePropertyDelete}
+                  onProfile={(p) => {
+                    setActiveProperty(p);
+                    setShowProfileModal(true);
+                  }}
+                  onInvoice={(p) => {
+                    setActiveProperty(p);
+                    setShowInvoiceModal(true);
+                  }}
+                />
+              ))}
           </div>
         )}
 

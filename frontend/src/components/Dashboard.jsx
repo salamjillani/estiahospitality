@@ -459,7 +459,7 @@ const Dashboard = () => {
       <div className="h-full flex flex-col p-1">
         <div className="flex justify-between items-center">
           {!bookingEvent && (
-            <div className="text-md font-medium text-green-600">
+            <div className=" -ml-16 text-md font-medium text-green-600">
               ${price}
             </div>
           )}
