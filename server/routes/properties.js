@@ -185,7 +185,6 @@ router.post(
   }
 );
 
-// Update property with proper validation
 router.put(
   "/:id",
   auth,
@@ -196,21 +195,31 @@ router.put(
       const { id } = req.params;
       let updates = { ...req.body };
 
+      // Modified JSON parsing logic
       try {
-        if (updates.profile) {
+        // Parse profile if exists
+        if (updates.profile && typeof updates.profile === "string") {
           updates.profile = JSON.parse(updates.profile);
         }
-        if (updates.bankDetails) {
+        
+        // Parse location if sent separately
+        if (updates.location && typeof updates.location === "string") {
+          updates.location = JSON.parse(updates.location);
+          updates.profile = updates.profile || {};
+          updates.profile.location = updates.location;
+        }
+
+        // Parse bankDetails if exists
+        if (updates.bankDetails && typeof updates.bankDetails === "string") {
           updates.bankDetails = JSON.parse(updates.bankDetails);
         }
       } catch (parseError) {
         return res.status(400).json({
           success: false,
-          message: "Invalid JSON in profile or bank details",
+          message: "Invalid JSON in profile, location, or bank details",
           error: parseError.message,
         });
       }
-
 
     
       if (!updates.type) {
@@ -220,7 +229,7 @@ router.put(
         }
       }
 
-      // Validate type enum value
+
       if (
         updates.type &&
         !["villa", "holiday_apartment", "hotel", "cottage"].includes(
@@ -305,8 +314,7 @@ router.put(
       const allowedUpdates = [
         "title",
         "type",
-        "description",
-        "location",
+        "profile",
         "bankDetails",
         "photos",
         "vendorType",
@@ -315,7 +323,7 @@ router.put(
 
      
 
-       const updateData = {
+      const updateData = {
         ...updates,
         profile: {
           ...(updates.profile || {}),
@@ -330,7 +338,6 @@ router.put(
         { $set: updateData },
         { new: true, runValidators: true }
       );
-
   
 
       if (!updatedProperty) {

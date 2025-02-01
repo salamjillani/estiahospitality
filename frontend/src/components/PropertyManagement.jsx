@@ -92,9 +92,8 @@ const PropertyFormModal = ({
 
   useEffect(() => {
   if (mode === "edit" && property) {
-    // Access location data from profile.location
     const profileData = property.profile || {};
-    const locationData = property?.profile?.location || {};
+    const locationData = profileData.location || {};
     const bankDetailsData = property.bankDetails || {};
 
     setFormData({
@@ -1693,30 +1692,29 @@ const PropertyManagement = () => {
     try {
       setLoading(true);
       setError("");
-
+  
       const formPayload = new FormData();
-
-      // 1. Append all required fields
+  
+      // Properly structure nested data
+      const profileData = {
+        description: updatedData.description,
+        location: updatedData.location
+      };
+  
+      // Stringify nested objects
+      formPayload.append("profile", JSON.stringify(profileData));
+      formPayload.append("bankDetails", JSON.stringify(updatedData.bankDetails));
+      
+      // Append other fields
       formPayload.append("title", updatedData.title);
       formPayload.append("type", updatedData.type);
-      formPayload.append("description", updatedData.description);
       formPayload.append("vendorType", updatedData.vendorType);
       formPayload.append("identifier", updatedData.identifier || "");
-
-        // Stringify nested objects under the correct structure
-    formPayload.append(
-      "profile",
-      JSON.stringify({
-        description: updatedData.description,
-        location: updatedData.location,
-      })
-    );
-    formPayload.append("bankDetails", JSON.stringify(updatedData.bankDetails));
-
-    // Handle photos
-    updatedData.photos.forEach((photo) => {
-      if (photo.file) formPayload.append("photos", photo.file);
-    });
+  
+      // Handle photos
+      updatedData.photos.forEach((photo) => {
+        if (photo.file) formPayload.append("photos", photo.file);
+      });
 
       const response = await api.put(
         `/api/properties/${propertyId}`,
@@ -1732,7 +1730,6 @@ const PropertyManagement = () => {
       setProperties((prev) =>
         prev.map((p) => (p._id === propertyId ? response.property : p))
       );
-      
       setShowProfileModal(false);
       await fetchProperties();
     } catch (err) {
@@ -1741,6 +1738,7 @@ const PropertyManagement = () => {
       setLoading(false);
     }
   };
+
 
   const PropertyActions = ({ property, onDelete, onProfile, onInvoice }) => {
     const { user } = useAuth();
