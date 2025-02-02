@@ -95,6 +95,8 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
+// server/server.js
+app.use('/uploads/properties', express.static(path.join(__dirname, '../uploads/properties')));
 
 
 
@@ -104,7 +106,6 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-app.use('/uploads/properties', express.static(path.join(__dirname, 'uploads/properties')));
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {

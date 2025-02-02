@@ -183,7 +183,7 @@ const PropertyFormModal = ({
               {formData.photos.map((photo, index) => (
                 <div key={index} className="relative group">
                   <img
-                    src={photo.url}
+                    src={`${import.meta.env.VITE_API_BASE_URL}${photo.url}`}
                     alt={photo.caption || `Property ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg"
                   />
@@ -521,7 +521,7 @@ const PropertyDetailsModal = ({ property, onClose }) => {
               {getPropertyImages().map((photo, index) => (
                 <div key={index} className="relative">
                   <img
-                    src={photo.url}
+                    src={`${import.meta.env.VITE_API_BASE_URL}${photo.url}`}
                     alt={photo.caption || `Property ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg"
                   />
@@ -1212,7 +1212,9 @@ const PropertyManagement = () => {
         console.error("Submission error:", error);
       }
     };
+   
     return (
+      
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
           <div className="sticky top-0 bg-white px-6 py-4 border-b flex items-center justify-between">
@@ -1235,7 +1237,7 @@ const PropertyManagement = () => {
                 {formData.photos.map((photo, index) => (
                   <div key={index} className="relative group">
                     <img
-                      src={photo.url}
+                      src={`${import.meta.env.VITE_API_BASE_URL}${photo.url}`}
                       alt={photo.caption || `Property ${index + 1}`}
                       className="w-full h-48 object-cover rounded-lg"
                     />
@@ -1801,12 +1803,10 @@ const PropertyManagement = () => {
     onDelete,
     onProfile,
     onInvoice,
-  }) => {
-    const getPropertyImage = () => {
-      return (
-        property.photos?.[0]?.url || property.profile?.photos?.[0]?.url || ""
-      );
-    };
+}) => {
+  const getPropertyImage = () => {
+    return property.photos?.[0]?.url || "";
+  };
 
     return (
       <div
@@ -1867,7 +1867,6 @@ const PropertyManagement = () => {
       </div>
     );
   };
-
   const filteredProperties = properties.filter((property) =>
     property.title.toLowerCase().includes(searchQuery.toLowerCase())
   );

@@ -101,7 +101,9 @@ router.post(
 
       try {
         location = req.body.location ? JSON.parse(req.body.location) : {};
-        bankDetails = req.body.bankDetails ? JSON.parse(req.body.bankDetails) : {};
+        bankDetails = req.body.bankDetails
+          ? JSON.parse(req.body.bankDetails)
+          : {};
       } catch (parseError) {
         return res.status(400).json({
           success: false,
@@ -201,7 +203,7 @@ router.put(
         if (updates.profile && typeof updates.profile === "string") {
           updates.profile = JSON.parse(updates.profile);
         }
-        
+
         // Parse location if sent separately
         if (updates.location && typeof updates.location === "string") {
           updates.location = JSON.parse(updates.location);
@@ -221,14 +223,12 @@ router.put(
         });
       }
 
-    
       if (!updates.type) {
         const existingProperty = await Property.findById(id);
         if (existingProperty) {
           updates.type = existingProperty.type;
         }
       }
-
 
       if (
         updates.type &&
@@ -243,20 +243,18 @@ router.put(
         });
       }
 
-
       try {
         if (typeof updates.location === "string") {
           const locationData = JSON.parse(updates.location);
-          
-         
+
           updates.profile = {
             ...(updates.profile || {}),
             location: {
               address: locationData.address,
               city: locationData.city,
               country: locationData.country,
-              postalCode: locationData.postalCode
-            }
+              postalCode: locationData.postalCode,
+            },
           };
         }
 
@@ -270,8 +268,6 @@ router.put(
         if (typeof updates.bankDetails === "string") {
           updates.bankDetails = JSON.parse(updates.bankDetails);
         }
-
-
       } catch (parseError) {
         return res.status(400).json({
           success: false,
@@ -279,16 +275,22 @@ router.put(
           error: parseError.message,
         });
       }
-
-      // Handle new photos if any were uploaded
       if (req.files?.length) {
         const newPhotos = req.files.map((file) => ({
           url: `/uploads/properties/${file.filename}`,
           caption: "",
           isPrimary: false,
         }));
-        updates.photos = newPhotos;
+        updates.$push = { photos: { $each: newPhotos } };
       }
+
+      // Preserve existing photos
+      const existingProperty = await Property.findById(id);
+      if (existingProperty?.photos) {
+        updates.photos = existingProperty.photos;
+      }
+
+      
 
       // Find and verify authorization
       const property = await Property.findById(id);
@@ -321,8 +323,6 @@ router.put(
         "identifier",
       ];
 
-     
-
       const updateData = {
         ...updates,
         profile: {
@@ -338,7 +338,6 @@ router.put(
         { $set: updateData },
         { new: true, runValidators: true }
       );
-  
 
       if (!updatedProperty) {
         return res.status(404).json({
@@ -481,11 +480,16 @@ router.get("/", auth, async (req, res) => {
     const properties = await Property.find()
       .populate("createdBy", "name email")
       .populate("managers", "name email")
-      .lean(); // Convert to plain JavaScript objects
+      .lean();
 
-    // Format properties to ensure consistent structure
+    // Corrected formatting: Keep photos at the top level
     const formattedProperties = properties.map((property) => ({
       ...property,
+      photos: property.photos?.map(photo => ({
+        url: photo?.url || '',
+        caption: photo?.caption || '',
+        isPrimary: photo?.isPrimary || false
+      })) || [],
       profile: {
         description: property.profile?.description || "",
         location: {
@@ -494,13 +498,14 @@ router.get("/", auth, async (req, res) => {
           country: property.profile?.location?.country || "",
           postalCode: property.profile?.location?.postalCode || "",
         },
-        photos:
-          property.photos?.map((photo) => ({
-            url: photo.url || "",
-            caption: photo.caption || "",
-            isPrimary: photo.isPrimary || false,
-          })) || [],
       },
+      // Keep photos array at top level
+      photos:
+        property.photos?.map((photo) => ({
+          url: photo.url || "",
+          caption: photo.caption || "",
+          isPrimary: photo.isPrimary || false,
+        })) || [],
       bankDetails: property.bankDetails || {
         accountHolder: "",
         accountNumber: "",
@@ -511,7 +516,6 @@ router.get("/", auth, async (req, res) => {
       },
     }));
 
-    console.log("Formatted properties:", formattedProperties);
     res.json({
       success: true,
       properties: formattedProperties,
