@@ -44,10 +44,10 @@ const propertySchema = new mongoose.Schema({
       }
     },
     photos: [{
-      url: String,
+      url: { type: String, required: true },
       caption: String,
       isPrimary: Boolean
-    }],
+    }]
     
   },
   bankDetails: {

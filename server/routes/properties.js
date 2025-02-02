@@ -170,7 +170,12 @@ router.post(
       };
 
       const property = new Property(propertyData);
-      await property.save();
+await property.save();
+
+// Return the complete populated property data
+const populatedProperty = await Property.findById(property._id)
+  .populate('createdBy', 'name email')
+  .populate('managers', 'name email');
 
       // Send successful response with the created property
       res.status(201).json({
@@ -277,7 +282,7 @@ router.put(
       }
       if (req.files?.length) {
         const newPhotos = req.files.map((file) => ({
-          url: `/uploads/properties/${file.filename}`,
+          url: `/uploads/properties/${file.filename}`, 
           caption: "",
           isPrimary: false,
         }));
@@ -432,8 +437,7 @@ router.post(
       }
 
       const newPhotos = req.files.map((file) => ({
-        url: `/uploads/properties/${file.filename}`,
-        filename: file.filename,
+        url: `/uploads/properties/${file.filename}`, 
         caption: "",
         isPrimary: false,
       }));
@@ -529,5 +533,6 @@ router.get("/", auth, async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;

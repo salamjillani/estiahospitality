@@ -11,6 +11,8 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 
+app.use('/uploads/properties', express.static(path.join(__dirname, '../uploads/properties')));
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const propertyRoutes = require('./routes/properties');
@@ -95,8 +97,7 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
-// server/server.js
-app.use('/uploads/properties', express.static(path.join(__dirname, '../uploads/properties')));
+
 
 
 

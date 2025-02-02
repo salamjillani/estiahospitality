@@ -108,7 +108,10 @@ const PropertyFormModal = ({
         country: locationData.country || "",
         postalCode: locationData.postalCode || "",
       },
-      photos: property.photos || [],
+      photos: property.photos.map(photo => ({
+        ...photo,
+        url: photo.url.startsWith('/') ? photo.url : `/${photo.url}`
+      })),
       bankDetails: {
         accountHolder: bankDetailsData.accountHolder || "",
         accountNumber: bankDetailsData.accountNumber || "",
@@ -1111,21 +1114,33 @@ const PropertyManagement = () => {
         },
       });
 
-      if (!response?.property) {
+      if (!response?.data?.property) { // Modified to check response.data
         throw new Error("Invalid response from server");
       }
-
-      setProperties((prev) => [...prev, response.property]);
+  
+      // Update form data with persisted photos from server
+      setFormData(prev => ({
+        ...prev,
+        photos: response.data.property.photos.map(photo => ({
+          url: photo.url,
+          caption: photo.caption,
+          isPrimary: photo.isPrimary
+        }))
+      }));
+  
+      // Update properties list and close modal
+      setProperties(prev => [...prev, response.data.property]);
       setShowNewPropertyModal(false);
       resetFormData();
       await fetchProperties();
+      
     } catch (err) {
       setError(err.message || "Failed to add property");
     } finally {
       setLoading(false);
     }
   };
-
+ 
   const PropertyProfileModal = ({
     property,
     onClose,
@@ -1804,9 +1819,12 @@ const PropertyManagement = () => {
     onProfile,
     onInvoice,
 }) => {
+
   const getPropertyImage = () => {
-    return property.photos?.[0]?.url || "";
-  };
+  const photo = property.photos?.[0];
+  if (!photo) return "";
+  return `${import.meta.env.VITE_API_BASE_URL}${photo.url.startsWith('/') ? '' : '/'}${photo.url}`;
+};
 
     return (
       <div
@@ -1833,7 +1851,7 @@ const PropertyManagement = () => {
               className="w-full h-full object-cover rounded"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = "";
+                e.target.src = '/placeholder-image.JPG';
               }}
             />
             <button className="absolute inset-0 bg-black bg-opacity-50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
