@@ -11,7 +11,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 
-app.use('/uploads/properties', express.static(path.join(__dirname, '../uploads/properties')));
+
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -91,7 +91,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/bookings', bookingRoutes);
-
+app.use('/uploads/properties', express.static(path.join(__dirname, '../uploads/properties')));
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
