@@ -14,25 +14,20 @@ export const getAuthToken = () => {
 
 export const api = {
   getHeaders: () => {
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-    
-  
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`; // Ensure token is sent
-    }
-    
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
     return headers;
   },
 
   get: async (endpoint) => {
     try {
-      console.log('Making GET request to:', `${BASE_URL}${endpoint}`);
       const response = await fetch(`${BASE_URL}${endpoint}`, {
         credentials: 'include',
-        headers: api.getHeaders(),
-      });
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json',
+        },
+      })
       
 
       const contentType = response.headers.get('content-type');

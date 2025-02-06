@@ -82,6 +82,10 @@ router.post(
       console.log("Body:", req.body);
       console.log("Files:", req.files);
       console.log("User:", req.user);
+      console.log("PhotoData:", req.body.photoData);
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ message: "No photos uploaded" });
+      }
       if (
         !req.body.type ||
         typeof req.body.type !== "string" ||
@@ -112,27 +116,23 @@ router.post(
         });
       }
 
-      // Process uploaded photos
-      const photos = req.files
-        ? req.files.map((file, index) => {
-            // Get the corresponding photo metadata if it exists
-            let photoData = {};
-            try {
-              photoData = req.body.photoData
-                ? JSON.parse(req.body.photoData[index])
-                : {};
-            } catch (e) {
-              photoData = {};
-            }
-
-            return {
-              url: `/uploads/properties/${file.filename}`,
-              filename: file.filename,
-              caption: photoData.caption || "",
-              isPrimary: photoData.isPrimary || false,
-            };
-          })
-        : [];
+      const photos = req.files.map((file, index) => {
+        let photoData = {};
+        if (Array.isArray(req.body.photoData)) {
+          try {
+            photoData = req.body.photoData[index]
+              ? JSON.parse(req.body.photoData[index])
+              : {};
+          } catch (e) {
+            console.error("Error parsing photoData:", e);
+          }
+        }
+        return {
+          url: `/uploads/properties/${file.filename}`,
+          caption: photoData.caption || "",
+          isPrimary: photoData.isPrimary || false,
+        };
+      });
 
       const generateUniqueIdentifier = () => {
         return (
@@ -141,7 +141,7 @@ router.post(
           Math.floor(1000 + Math.random() * 9000)
         );
       };
-      // Create property object
+
       const propertyData = {
         title: req.body.title,
         type: receivedType,
@@ -156,26 +156,24 @@ router.post(
           },
         },
         vendorType: req.body.vendorType || "individual",
-
         bankDetails,
-        photos: req.files
-          ? req.files.map((file) => ({
-              url: `/uploads/properties/${file.filename}`,
-              caption: "",
-              isPrimary: false,
-            }))
-          : [],
+        photos: req.files.map((file) => ({
+          url: `/uploads/properties/${file.filename}`,
+          caption: "",
+          isPrimary: false,
+        })),
         createdBy: req.user._id,
         managers: [req.user._id],
       };
+     
 
       const property = new Property(propertyData);
-await property.save();
+      await property.save();
 
-// Return the complete populated property data
-const populatedProperty = await Property.findById(property._id)
-  .populate('createdBy', 'name email')
-  .populate('managers', 'name email');
+      // Return the complete populated property data
+      const populatedProperty = await Property.findById(property._id)
+        .populate("createdBy", "name email")
+        .populate("managers", "name email");
 
       // Send successful response with the created property
       res.status(201).json({
@@ -282,7 +280,7 @@ router.put(
       }
       if (req.files?.length) {
         const newPhotos = req.files.map((file) => ({
-          url: `/uploads/properties/${file.filename}`, 
+          url: `/uploads/properties/${file.filename}`,
           caption: "",
           isPrimary: false,
         }));
@@ -294,8 +292,6 @@ router.put(
       if (existingProperty?.photos) {
         updates.photos = existingProperty.photos;
       }
-
-      
 
       // Find and verify authorization
       const property = await Property.findById(id);
@@ -437,7 +433,7 @@ router.post(
       }
 
       const newPhotos = req.files.map((file) => ({
-        url: `/uploads/properties/${file.filename}`, 
+        url: `/uploads/properties/${file.filename}`,
         caption: "",
         isPrimary: false,
       }));
@@ -482,17 +478,18 @@ router.delete(
 router.get("/", auth, async (req, res) => {
   try {
     const properties = await Property.find()
-      .populate("createdBy", "name email")
-      .populate("managers", "name email")
+      .populate('managers', 'name email')
       .lean();
 
-    // Corrected formatting: Keep photos at the top level
-    const formattedProperties = properties.map((property) => ({
-      ...property,
-      photos: property.photos?.map(photo => ({
-        url: photo?.url || '',
-        caption: photo?.caption || '',
-        isPrimary: photo?.isPrimary || false
+   
+    const formattedProperties = properties.map((property) => ({ 
+      _id: property._id.toString(),
+      title: property.title,
+      type: property.type,
+      photos: property.photos?.map((photo) => ({
+        url: `${process.env.BASE_URL}${photo.url}`,
+        caption: photo?.caption || "",
+        isPrimary: photo?.isPrimary || false,
       })) || [],
       profile: {
         description: property.profile?.description || "",
@@ -503,13 +500,6 @@ router.get("/", auth, async (req, res) => {
           postalCode: property.profile?.location?.postalCode || "",
         },
       },
-      // Keep photos array at top level
-      photos:
-        property.photos?.map((photo) => ({
-          url: photo.url || "",
-          caption: photo.caption || "",
-          isPrimary: photo.isPrimary || false,
-        })) || [],
       bankDetails: property.bankDetails || {
         accountHolder: "",
         accountNumber: "",
@@ -520,10 +510,7 @@ router.get("/", auth, async (req, res) => {
       },
     }));
 
-    res.json({
-      success: true,
-      properties: formattedProperties,
-    });
+    res.json({ success: true, properties: formattedProperties });
   } catch (error) {
     console.error("Error fetching properties:", error);
     res.status(500).json({
@@ -533,6 +520,5 @@ router.get("/", auth, async (req, res) => {
     });
   }
 });
-
 
 module.exports = router;

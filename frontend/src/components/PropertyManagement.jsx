@@ -89,41 +89,39 @@ const PropertyFormModal = ({
   property,
   setError,
 }) => {
-
   useEffect(() => {
-  if (mode === "edit" && property) {
-    const profileData = property.profile || {};
-    const locationData = profileData.location || {};
-    const bankDetailsData = property.bankDetails || {};
+    if (mode === "edit" && property) {
+      const profileData = property.profile || {};
+      const locationData = profileData.location || {};
+      const bankDetailsData = property.bankDetails || {};
 
-    setFormData({
-      title: property.title || "",
-      type: property.type || "villa",
-      identifier: property.identifier || "",
-      vendorType: property.vendorType || "individual",
-      description: profileData.description || "",
-      location: {
-        address: locationData.address || "",
-        city: locationData.city || "",
-        country: locationData.country || "",
-        postalCode: locationData.postalCode || "",
-      },
-      photos: property.photos.map(photo => ({
-        ...photo,
-        url: photo.url.startsWith('/') ? photo.url : `/${photo.url}`
-      })),
-      bankDetails: {
-        accountHolder: bankDetailsData.accountHolder || "",
-        accountNumber: bankDetailsData.accountNumber || "",
-        bankName: bankDetailsData.bankName || "",
-        swiftCode: bankDetailsData.swiftCode || "",
-        iban: bankDetailsData.iban || "",
-        currency: bankDetailsData.currency || "USD",
-      },
-    });
-  }
-}, [mode, property, setFormData]);
-
+      setFormData({
+        title: property.title || "",
+        type: property.type || "villa",
+        identifier: property.identifier || "",
+        vendorType: property.vendorType || "individual",
+        description: profileData.description || "",
+        location: {
+          address: locationData.address || "",
+          city: locationData.city || "",
+          country: locationData.country || "",
+          postalCode: locationData.postalCode || "",
+        },
+        photos: property.photos.map((photo) => ({
+          ...photo,
+          url: photo.url.startsWith("/") ? photo.url : `/${photo.url}`,
+        })),
+        bankDetails: {
+          accountHolder: bankDetailsData.accountHolder || "",
+          accountNumber: bankDetailsData.accountNumber || "",
+          bankName: bankDetailsData.bankName || "",
+          swiftCode: bankDetailsData.swiftCode || "",
+          iban: bankDetailsData.iban || "",
+          currency: bankDetailsData.currency || "USD",
+        },
+      });
+    }
+  }, [mode, property, setFormData]);
 
   const handleImageUpload = (e) => {
     try {
@@ -186,7 +184,11 @@ const PropertyFormModal = ({
               {formData.photos.map((photo, index) => (
                 <div key={index} className="relative group">
                   <img
-                    src={`${import.meta.env.VITE_API_BASE_URL}${photo.url}`}
+                    src={
+                      photo.url.startsWith("blob:")
+                        ? photo.url
+                        : `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
+                    }
                     alt={photo.caption || `Property ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg"
                   />
@@ -489,7 +491,6 @@ PropertyFormModal.propTypes = {
 const PropertyDetailsModal = ({ property, onClose }) => {
   if (!property) return null;
 
- 
   const getNestedValue = (obj, path) => {
     return path.split(".").reduce((acc, part) => {
       return acc && acc[part] ? acc[part] : "-";
@@ -524,7 +525,11 @@ const PropertyDetailsModal = ({ property, onClose }) => {
               {getPropertyImages().map((photo, index) => (
                 <div key={index} className="relative">
                   <img
-                    src={`${import.meta.env.VITE_API_BASE_URL}${photo.url}`}
+                    src={
+                      photo.url.startsWith("blob:")
+                        ? photo.url
+                        : `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
+                    }
                     alt={photo.caption || `Property ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg"
                   />
@@ -575,39 +580,39 @@ const PropertyDetailsModal = ({ property, onClose }) => {
               Location
             </h3>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-        <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-500">
-            Address
-          </label>
-          <div className="mt-1">
-            {getNestedValue(property, "profile.location.address")}
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-500">
-            City
-          </label>
-          <div className="mt-1">
-            {getNestedValue(property, "profile.location.city")}
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-500">
-            Country
-          </label>
-          <div className="mt-1">
-            {getNestedValue(property, "profile.location.country")}
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-500">
-            Postal Code
-          </label>
-          <div className="mt-1">
-            {getNestedValue(property, "profile.location.postalCode")}
-          </div>
-        </div>
-      </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-500">
+                  Address
+                </label>
+                <div className="mt-1">
+                  {getNestedValue(property, "profile.location.address")}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500">
+                  City
+                </label>
+                <div className="mt-1">
+                  {getNestedValue(property, "profile.location.city")}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500">
+                  Country
+                </label>
+                <div className="mt-1">
+                  {getNestedValue(property, "profile.location.country")}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500">
+                  Postal Code
+                </label>
+                <div className="mt-1">
+                  {getNestedValue(property, "profile.location.postalCode")}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Banking Details */}
@@ -878,10 +883,9 @@ const PropertyManagement = () => {
     const handleSubmit = async (e) => {
       e.preventDefault();
 
-      // Create a proper payload that includes all necessary fields
       const payload = {
         ...editForm,
-        type: editForm.type, // Ensure type is included
+        type: editForm.type,
         location: JSON.stringify(editForm.location),
         bankDetails: JSON.stringify(editForm.bankDetails),
       };
@@ -1015,21 +1019,11 @@ const PropertyManagement = () => {
     loading: PropTypes.bool.isRequired,
   };
 
-  // Update the fetchProperties function:
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get("/api/properties");
-
-      // Handle different response structures
-      const propertiesData =
-        response.properties || response.data?.properties || [];
-
-      const validProperties = propertiesData.filter(
-        (p) => p && p._id && p.title && p.type
-      );
-
-      setProperties(validProperties);
+      setProperties(response.properties || []);
     } catch (err) {
       console.error("Error fetching properties:", err);
       setError("Failed to fetch properties");
@@ -1063,84 +1057,74 @@ const PropertyManagement = () => {
     e.preventDefault();
     try {
       setLoading(true);
-
-      // Validate type before sending
+  
       const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
       if (!validTypes.includes(formData.type)) {
         setError("Invalid property type selection");
         return;
       }
-
+  
       const formPayload = new FormData();
-
-      // Append basic fields
+      formData.photos.forEach((photo, index) => {
+        if (photo.file) {
+          formPayload.append("photos", photo.file);
+          formPayload.append(
+            `photoData[${index}]`,
+            JSON.stringify({
+              caption: photo.caption,
+              isPrimary: photo.isPrimary,
+            })
+          );
+        }
+      });
+  
       formPayload.append("type", formData.type.toLowerCase().trim());
       formPayload.append("title", formData.title);
       formPayload.append("description", formData.description);
       formPayload.append("vendorType", formData.vendorType);
       formPayload.append("location", JSON.stringify(formData.location));
       formPayload.append("bankDetails", JSON.stringify(formData.bankDetails));
-
-      // Handle photos correctly
-      if (formData.photos && formData.photos.length > 0) {
-        formData.photos.forEach((photo, index) => {
-          if (photo.file) {
-            // Append each photo with a unique field name
-            formPayload.append("photos", photo.file);
-            // Append additional photo metadata if needed
-            formPayload.append(
-              `photoData[${index}]`,
-              JSON.stringify({
-                caption: photo.caption || "",
-                isPrimary: photo.isPrimary || false,
-              })
-            );
-          }
-        });
-      }
-
-      // Validate required fields
+  
+   
       if (!formData.title || !formData.type) {
         setError("Property name and type are required");
         return;
       }
-
-      console.log("Location data:", formData.location);
-      console.log("Bank details:", formData.bankDetails);
-
+  
       const response = await api.post("/api/properties", formPayload, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
+  
 
-      if (!response?.data?.property) { // Modified to check response.data
-        throw new Error("Invalid response from server");
+      if (!response || !response.success || !response.property) {
+        throw new Error("Invalid server response format");
       }
   
-      // Update form data with persisted photos from server
-      setFormData(prev => ({
+
+      setFormData((prev) => ({
         ...prev,
-        photos: response.data.property.photos.map(photo => ({
+        photos: response.property.photos?.map((photo) => ({
           url: photo.url,
-          caption: photo.caption,
-          isPrimary: photo.isPrimary
-        }))
+          caption: photo.caption || "",
+          isPrimary: photo.isPrimary || false,
+        })) || [],
       }));
-  
-      // Update properties list and close modal
-      setProperties(prev => [...prev, response.data.property]);
+ 
+      setProperties((prev) => [...prev, response.property]);
       setShowNewPropertyModal(false);
       resetFormData();
       await fetchProperties();
-      
+  
     } catch (err) {
+      console.error("Error adding property:", err);
       setError(err.message || "Failed to add property");
     } finally {
       setLoading(false);
     }
   };
- 
+
   const PropertyProfileModal = ({
     property,
     onClose,
@@ -1193,43 +1177,51 @@ const PropertyManagement = () => {
     const uploadImages = async (propertyId, photos) => {
       try {
         const formData = new FormData();
+    
         photos.forEach((photo, index) => {
-          formData.append(`photos`, photo.file);
-          formData.append(`captions[${index}]`, photo.caption);
-          formData.append(`isPrimary[${index}]`, photo.isPrimary);
+          if (photo.file) {
+            formData.append("photos", photo.file);
+            formData.append(`captions[${index}]`, photo.caption || "");
+            formData.append(`isPrimary[${index}]`, photo.isPrimary || false);
+          }
         });
-
-        const data = await api.post(
+    
+        const response = await api.post(
           `/api/properties/${propertyId}/photos`,
           formData,
           {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
+            headers: { "Content-Type": "multipart/form-data" },
           }
         );
-        return data.photos;
+    
+        console.log("Image upload response:", response);
+        return response.data.photos;
       } catch (error) {
         console.error("Error uploading images:", error);
         throw error;
       }
     };
+    
+
     const handleSubmit = async (e) => {
       e.preventDefault();
       try {
         await onSave(property._id, formData, token);
-
+ 
         const newPhotos = formData.photos.filter((photo) => photo.file);
         if (newPhotos.length > 0) {
+          console.log("Uploading new images:", newPhotos);
           await uploadImages(property._id, newPhotos);
         }
       } catch (error) {
         console.error("Submission error:", error);
+        setError("Failed to save property or upload images");
       }
     };
-   
+    
+    
+
     return (
-      
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4">
           <div className="sticky top-0 bg-white px-6 py-4 border-b flex items-center justify-between">
@@ -1252,7 +1244,11 @@ const PropertyManagement = () => {
                 {formData.photos.map((photo, index) => (
                   <div key={index} className="relative group">
                     <img
-                      src={`${import.meta.env.VITE_API_BASE_URL}${photo.url}`}
+                      src={
+                        photo.url.startsWith("blob:")
+                          ? photo.url
+                          : `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
+                      }
                       alt={photo.caption || `Property ${index + 1}`}
                       className="w-full h-48 object-cover rounded-lg"
                     />
@@ -1709,25 +1705,28 @@ const PropertyManagement = () => {
     try {
       setLoading(true);
       setError("");
-  
+
       const formPayload = new FormData();
-  
+
       // Properly structure nested data
       const profileData = {
         description: updatedData.description,
-        location: updatedData.location
+        location: updatedData.location,
       };
-  
+
       // Stringify nested objects
       formPayload.append("profile", JSON.stringify(profileData));
-      formPayload.append("bankDetails", JSON.stringify(updatedData.bankDetails));
-      
+      formPayload.append(
+        "bankDetails",
+        JSON.stringify(updatedData.bankDetails)
+      );
+
       // Append other fields
       formPayload.append("title", updatedData.title);
       formPayload.append("type", updatedData.type);
       formPayload.append("vendorType", updatedData.vendorType);
       formPayload.append("identifier", updatedData.identifier || "");
-  
+
       // Handle photos
       updatedData.photos.forEach((photo) => {
         if (photo.file) formPayload.append("photos", photo.file);
@@ -1755,7 +1754,6 @@ const PropertyManagement = () => {
       setLoading(false);
     }
   };
-
 
   const PropertyActions = ({ property, onDelete, onProfile, onInvoice }) => {
     const { user } = useAuth();
@@ -1818,13 +1816,14 @@ const PropertyManagement = () => {
     onDelete,
     onProfile,
     onInvoice,
-}) => {
-
-  const getPropertyImage = () => {
-  const photo = property.photos?.[0];
-  if (!photo) return "";
-  return `${import.meta.env.VITE_API_BASE_URL}${photo.url.startsWith('/') ? '' : '/'}${photo.url}`;
-};
+  }) => {
+    const getPropertyImage = () => {
+      const photo = property.photos?.[0];
+      if (!photo) return "";
+      return `${import.meta.env.VITE_API_BASE_URL}${
+        photo.url.startsWith("/") ? "" : "/"
+      }${photo.url}`;
+    };
 
     return (
       <div
@@ -1851,7 +1850,7 @@ const PropertyManagement = () => {
               className="w-full h-full object-cover rounded"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = '/placeholder-image.JPG';
+                e.target.src = "";
               }}
             />
             <button className="absolute inset-0 bg-black bg-opacity-50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">

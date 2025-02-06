@@ -61,6 +61,7 @@ wss.on('connection', (ws) => {
 app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true,
+  exposedHeaders: ['Content-Disposition'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: [
     'Content-Type', 
@@ -91,7 +92,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/bookings', bookingRoutes);
-app.use('/uploads/properties', express.static(path.join(__dirname, '../uploads/properties')));
+app.use('/uploads/properties', express.static(path.join(__dirname, 'uploads/properties')));
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

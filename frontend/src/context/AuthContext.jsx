@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
       }
     };
     if (token) {
-      setAuthToken(token); // Initialize with existing token
+      setAuthToken(token);
       checkAuthStatus();
     } else {
       setLoading(false);
@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
       const { token, user } = response;
       
       localStorage.setItem("token", token);
-      setAuthToken(token); // Set the token for API headers
+      setAuthToken(token);
       setUser(user);
       setToken(token);
       navigate("/dashboard");
