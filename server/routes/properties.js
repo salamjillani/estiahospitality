@@ -456,13 +456,12 @@ router.get("/", auth, async (req, res) => {
       .populate('managers', 'name email')
       .lean();
 
-   
     const formattedProperties = properties.map((property) => ({ 
+      ...property,
       _id: property._id.toString(),
-      title: property.title,
-      type: property.type,
       photos: property.photos?.map((photo) => ({
-        url: photo.url,
+        ...photo,
+        url: photo.url.startsWith("/uploads") ? photo.url : `/uploads/${photo.url}`,
         caption: photo?.caption || "",
         isPrimary: photo?.isPrimary || false,
       })) || [],
@@ -484,7 +483,6 @@ router.get("/", auth, async (req, res) => {
         currency: "USD",
       },
     }));
-
     res.json({ success: true, properties: formattedProperties });
   } catch (error) {
     console.error("Error fetching properties:", error);

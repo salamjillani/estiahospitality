@@ -126,7 +126,7 @@ const PropertyFormModal = ({
   const handleImageUpload = (e) => {
     try {
       const files = Array.from(e.target.files);
-      const maxFileSize = 5 * 1024 * 1024; 
+      const maxFileSize = 5 * 1024 * 1024;
 
       // Validate file size and type
       const invalidFiles = files.filter((file) => {
@@ -185,11 +185,11 @@ const PropertyFormModal = ({
                 <div key={index} className="relative group">
                   <img
                     src={
-                      photo.url.startsWith("blob:")
-                        ? photo.url
-                        : `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
+                      photo.url.startsWith("/uploads")
+                        ? `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
+                        : photo.url
                     }
-                    alt={photo.caption || `Property ${index + 1}`}
+                    alt={`Property ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg"
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
@@ -472,6 +472,7 @@ const PropertyFormModal = ({
           </div>
         </form>
       </div>
+      
     </div>
   );
 };
@@ -498,7 +499,14 @@ const PropertyDetailsModal = ({ property, onClose }) => {
   };
 
   const getPropertyImages = () => {
-    return property.photos || [];
+    return (
+      property.photos?.map((photo) => ({
+        ...photo,
+        url: photo.url.startsWith("/uploads")
+          ? `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
+          : photo.url,
+      })) || []
+    );
   };
 
   return (
@@ -811,25 +819,25 @@ const PropertyManagement = () => {
     try {
       const files = Array.from(e.target.files);
       if (!files.length) return;
-  
-      const validFiles = files.filter(file => 
-        file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024
+
+      const validFiles = files.filter(
+        (file) => file.type.startsWith("image/") && file.size <= 5 * 1024 * 1024
       );
-  
+
       if (validFiles.length !== files.length) {
         setError("Some files were rejected (max 5MB, images only)");
       }
-  
-      const newPhotos = validFiles.map(file => ({
+
+      const newPhotos = validFiles.map((file) => ({
         file,
         url: URL.createObjectURL(file),
         caption: "",
-        isPrimary: false
+        isPrimary: false,
       }));
-  
-      setFormData(prev => ({
+
+      setFormData((prev) => ({
         ...prev,
-        photos: [...prev.photos, ...newPhotos]
+        photos: [...prev.photos, ...newPhotos],
       }));
     } catch (error) {
       setError("Image upload failed: " + error.message);
@@ -1812,50 +1820,58 @@ const PropertyManagement = () => {
   }) => {
     const getPropertyImage = () => {
       const photo = property.photos?.[0];
-      if (!photo) return "";
-      return photo.url.startsWith("http")
-        ? photo.url
-        : `${import.meta.env.VITE_API_BASE_URL}${photo.url}`;
+      if (!photo?.url) return "";
+      return photo.url.startsWith("/uploads")
+        ? `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
+        : photo.url;
     };
-
+  
     return (
       <div
-        className="grid grid-cols-12 gap-4 px-6 py-4 border-b hover:bg-gray-50 cursor-pointer"
+        className="flex flex-col gap-3 px-6 py-4 border-b hover:bg-gray-50 cursor-pointer"
         onClick={() => {
           setActiveProperty(property);
           setShowDetailsModal(true);
         }}
       >
-        <div className="col-span-1" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onSelect(property)}
-            className="rounded border-gray-300"
+        <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onSelect(property)}
+              className="rounded border-gray-300"
+            />
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-8 relative bg-gray-200 rounded group">
+                <img
+                  src={getPropertyImage()}
+                  alt={property.title}
+                  className="w-full h-full object-cover rounded"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "";
+                  }}
+                />
+                <button className="absolute inset-0 bg-black bg-opacity-50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <Image size={16} />
+                </button>
+              </div>
+              <div>
+                <div className="font-medium text-gray-900">{property.title}</div>
+                <div className="text-sm text-gray-500">{property.type}</div>
+              </div>
+            </div>
+          </div>
+          <PropertyActions
+            property={property}
+            onDelete={onDelete}
+            onProfile={onProfile}
+            onInvoice={onInvoice}
           />
         </div>
-
-        <div className="col-span-4 flex items-center gap-3">
-          <div className="w-12 h-8 relative bg-gray-200 rounded group">
-            <img
-              src={getPropertyImage()}
-              alt={property.title}
-              className="w-full h-full object-cover rounded"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = "";
-              }}
-            />
-            <button className="absolute inset-0 bg-black bg-opacity-50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-              <Image size={16} />
-            </button>
-          </div>
-          <div>
-            <div className="font-medium text-gray-900">{property.title}</div>
-            <div className="text-sm text-gray-500">{property.type}</div>
-          </div>
-        </div>
-        <div className="col-span-5 flex items-center space-x-2">
+        
+        <div className="flex items-center space-x-2">
           {property.location?.address && (
             <Map size={18} className="text-gray-400" />
           )}
@@ -1865,14 +1881,6 @@ const PropertyManagement = () => {
               ? `${property.profile.location.city}, ${property.profile.location.country}`
               : "-"}
           </div>
-        </div>
-        <div className="col-span-2 flex items-center justify-end space-x-2">
-          <PropertyActions
-            property={property}
-            onDelete={onDelete}
-            onProfile={onProfile}
-            onInvoice={onInvoice}
-          />
         </div>
       </div>
     );
@@ -2000,12 +2008,12 @@ const PropertyManagement = () => {
             <Loader2 className="animate-spin text-blue-600" size={40} />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+         <div className="flex flex-col">
             {filteredProperties
               .filter((property) => property && property._id)
               .map((property) => (
                 <PropertyCard
-                  key={property?._id || Math.random()} // Fallback key
+                  key={property?._id}
                   property={property}
                   isSelected={selectedProperties.some(
                     (p) => p?._id === property?._id
