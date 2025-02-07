@@ -198,113 +198,22 @@ router.put(
   async (req, res) => {
     try {
       const { id } = req.params;
-      let updates = { ...req.body };
 
-      // Modified JSON parsing logic
-      try {
-        // Parse profile if exists
-        if (updates.profile && typeof updates.profile === "string") {
-          updates.profile = JSON.parse(updates.profile);
-        }
-
-        // Parse location if sent separately
-        if (updates.location && typeof updates.location === "string") {
-          updates.location = JSON.parse(updates.location);
-          updates.profile = updates.profile || {};
-          updates.profile.location = updates.location;
-        }
-
-        // Parse bankDetails if exists
-        if (updates.bankDetails && typeof updates.bankDetails === "string") {
-          updates.bankDetails = JSON.parse(updates.bankDetails);
-        }
-      } catch (parseError) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid JSON in profile, location, or bank details",
-          error: parseError.message,
-        });
-      }
-
-      if (!updates.type) {
-        const existingProperty = await Property.findById(id);
-        if (existingProperty) {
-          updates.type = existingProperty.type;
-        }
-      }
-
-      if (
-        updates.type &&
-        !["villa", "holiday_apartment", "hotel", "cottage"].includes(
-          updates.type
-        )
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid property type. Must be one of: villa, holiday_apartment, hotel, cottage",
-        });
-      }
-
-      try {
-        if (typeof updates.location === "string") {
-          const locationData = JSON.parse(updates.location);
-
-          updates.profile = {
-            ...(updates.profile || {}),
-            location: {
-              address: locationData.address,
-              city: locationData.city,
-              country: locationData.country,
-              postalCode: locationData.postalCode,
-            },
-          };
-        }
-
-        if (updates.location) {
-          updateData.profile = {
-            ...(property.profile?.toObject() || {}),
-            location: updates.location,
-          };
-        }
-
-        if (typeof updates.bankDetails === "string") {
-          updates.bankDetails = JSON.parse(updates.bankDetails);
-        }
-      } catch (parseError) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid JSON in location or bank details",
-          error: parseError.message,
-        });
-      }
-      if (req.files?.length) {
-        const newPhotos = req.files.map((file) => ({
-          url: `/uploads/properties/${file.filename}`,
-          caption: "",
-          isPrimary: false,
-        }));
-        updates.$push = { photos: { $each: newPhotos } };
-      }
-
-      // Preserve existing photos
+      // 1. First, find the existing property
       const existingProperty = await Property.findById(id);
-      if (existingProperty?.photos) {
-        updates.photos = existingProperty.photos;
-      }
-
-      // Find and verify authorization
-      const property = await Property.findById(id);
-      if (!property) {
+      if (!existingProperty) {
         return res.status(404).json({
           success: false,
           message: "Property not found",
         });
       }
 
+      // 2. Check authorization
       const isAuthorized =
         req.user.role === "admin" ||
-        property.managers.some((m) => m.toString() === req.user._id.toString());
+        existingProperty.managers.some(
+          (m) => m.toString() === req.user._id.toString()
+        );
 
       if (!isAuthorized) {
         return res.status(403).json({
@@ -313,27 +222,96 @@ router.put(
         });
       }
 
-      // Update only allowed fields
-      const allowedUpdates = [
-        "title",
-        "type",
-        "profile",
-        "bankDetails",
-        "photos",
-        "vendorType",
-        "identifier",
-      ];
+      // 3. Prepare updates object
+      let updates = { ...req.body };
 
+      // 4. Handle JSON parsing with proper error handling
+      try {
+        if (updates.profile && typeof updates.profile === "string") {
+          updates.profile = JSON.parse(updates.profile);
+        }
+
+        if (updates.location && typeof updates.location === "string") {
+          const locationData = JSON.parse(updates.location);
+          updates.profile = updates.profile || {};
+          updates.profile.location = {
+            address: locationData.address || "",
+            city: locationData.city || "",
+            country: locationData.country || "",
+            postalCode: locationData.postalCode || "",
+          };
+        }
+
+        if (updates.bankDetails && typeof updates.bankDetails === "string") {
+          updates.bankDetails = JSON.parse(updates.bankDetails);
+        }
+      } catch (parseError) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid JSON in request data",
+          error: parseError.message,
+        });
+      }
+
+      // 5. Validate property type if provided
+      if (updates.type) {
+        const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
+        if (!validTypes.includes(updates.type)) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid property type. Must be one of: ${validTypes.join(", ")}`,
+          });
+        }
+      }
+
+      // 6. Handle identifier
+      // Keep existing identifier if not provided or empty in updates
+      if (!updates.identifier || updates.identifier.trim() === "") {
+        updates.identifier = existingProperty.identifier;
+      }
+
+      // 7. Handle file uploads
+      if (req.files?.length > 0) {
+        const newPhotos = req.files.map((file) => ({
+          url: `/uploads/properties/${file.filename}`,
+          caption: "",
+          isPrimary: false,
+        }));
+
+        // Combine existing and new photos
+        updates.photos = [...(existingProperty.photos || []), ...newPhotos];
+      } else {
+        // Keep existing photos if no new ones are uploaded
+        updates.photos = existingProperty.photos;
+      }
+
+      // 8. Prepare final update data
       const updateData = {
-        ...updates,
+        title: updates.title || existingProperty.title,
+        type: updates.type || existingProperty.type,
+        identifier: updates.identifier,
+        vendorType: updates.vendorType || existingProperty.vendorType,
         profile: {
-          ...(updates.profile || {}),
+          description: updates.profile?.description || existingProperty.profile?.description || "",
+          location: {
+            address: updates.profile?.location?.address || existingProperty.profile?.location?.address || "",
+            city: updates.profile?.location?.city || existingProperty.profile?.location?.city || "",
+            country: updates.profile?.location?.country || existingProperty.profile?.location?.country || "",
+            postalCode: updates.profile?.location?.postalCode || existingProperty.profile?.location?.postalCode || "",
+          },
         },
         bankDetails: {
-          ...(updates.bankDetails || {}),
+          accountHolder: updates.bankDetails?.accountHolder || existingProperty.bankDetails?.accountHolder || "",
+          accountNumber: updates.bankDetails?.accountNumber || existingProperty.bankDetails?.accountNumber || "",
+          bankName: updates.bankDetails?.bankName || existingProperty.bankDetails?.bankName || "",
+          swiftCode: updates.bankDetails?.swiftCode || existingProperty.bankDetails?.swiftCode || "",
+          iban: updates.bankDetails?.iban || existingProperty.bankDetails?.iban || "",
+          currency: updates.bankDetails?.currency || existingProperty.bankDetails?.currency || "USD",
         },
+        photos: updates.photos,
       };
 
+      // 9. Perform the update
       const updatedProperty = await Property.findByIdAndUpdate(
         id,
         { $set: updateData },
@@ -347,16 +325,19 @@ router.put(
         });
       }
 
-      // Broadcast update event if needed
+      // 10. Broadcast update event if needed
       if (req.app.locals.broadcast) {
         req.app.locals.broadcast("property_updated", updatedProperty);
       }
-      console.log("Updated property:", updatedProperty);
+
+      // 11. Send response
       res.json({
         success: true,
         property: updatedProperty,
       });
+
     } catch (error) {
+      // 12. Error handling
       console.error("Property update error:", error);
       res.status(500).json({
         success: false,
@@ -364,10 +345,8 @@ router.put(
         error: process.env.NODE_ENV === "development" ? error.stack : undefined,
       });
     }
-    console.log("Received update payload:", req.body);
   }
 );
-
 // Enhanced invoice generation
 router.post(
   "/:propertyId/invoice",

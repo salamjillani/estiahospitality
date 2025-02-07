@@ -44,7 +44,7 @@ const propertySchema = new mongoose.Schema({
       }
     },
     photos: [{
-      url: { type: String, required: true },
+      url: String,
       caption: String,
       isPrimary: Boolean
     }]
