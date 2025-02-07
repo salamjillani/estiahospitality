@@ -157,11 +157,7 @@ router.post(
         },
         vendorType: req.body.vendorType || "individual",
         bankDetails,
-        photos: req.files.map((file) => ({
-          url: `/uploads/properties/${file.filename}`,
-          caption: "",
-          isPrimary: false,
-        })),
+        photos: photos,
         createdBy: req.user._id,
         managers: [req.user._id],
       };
@@ -466,7 +462,7 @@ router.get("/", auth, async (req, res) => {
       title: property.title,
       type: property.type,
       photos: property.photos?.map((photo) => ({
-        url: `${process.env.BASE_URL}${photo.url}`,
+        url: photo.url,
         caption: photo?.caption || "",
         isPrimary: photo?.isPrimary || false,
       })) || [],

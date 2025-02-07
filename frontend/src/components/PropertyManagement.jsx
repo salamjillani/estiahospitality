@@ -126,7 +126,7 @@ const PropertyFormModal = ({
   const handleImageUpload = (e) => {
     try {
       const files = Array.from(e.target.files);
-      const maxFileSize = 5 * 1024 * 1024; // 5MB limit
+      const maxFileSize = 5 * 1024 * 1024; 
 
       // Validate file size and type
       const invalidFiles = files.filter((file) => {
@@ -806,34 +806,33 @@ const PropertyManagement = () => {
       },
     });
   };
-  // Add this in the PropertyManagement component's functions
+
   const handleImageUpload = (e) => {
     try {
       const files = Array.from(e.target.files);
-      const maxFileSize = 5 * 1024 * 1024;
-
-      // Filter invalid files
-      const validFiles = files.filter(
-        (file) => file.size <= maxFileSize && file.type.startsWith("image/")
+      if (!files.length) return;
+  
+      const validFiles = files.filter(file => 
+        file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024
       );
-
+  
       if (validFiles.length !== files.length) {
         setError("Some files were rejected (max 5MB, images only)");
       }
-
-      const newPhotos = validFiles.map((file) => ({
+  
+      const newPhotos = validFiles.map(file => ({
         file,
         url: URL.createObjectURL(file),
         caption: "",
-        isPrimary: false,
+        isPrimary: false
       }));
-
-      setFormData((prev) => ({
+  
+      setFormData(prev => ({
         ...prev,
-        photos: [...prev.photos, ...newPhotos],
+        photos: [...prev.photos, ...newPhotos]
       }));
     } catch (error) {
-      setError("Image upload failed", error);
+      setError("Image upload failed: " + error.message);
     }
   };
 
@@ -1057,13 +1056,13 @@ const PropertyManagement = () => {
     e.preventDefault();
     try {
       setLoading(true);
-  
+
       const validTypes = ["villa", "holiday_apartment", "hotel", "cottage"];
       if (!validTypes.includes(formData.type)) {
         setError("Invalid property type selection");
         return;
       }
-  
+
       const formPayload = new FormData();
       formData.photos.forEach((photo, index) => {
         if (photo.file) {
@@ -1077,46 +1076,43 @@ const PropertyManagement = () => {
           );
         }
       });
-  
+
       formPayload.append("type", formData.type.toLowerCase().trim());
       formPayload.append("title", formData.title);
       formPayload.append("description", formData.description);
       formPayload.append("vendorType", formData.vendorType);
       formPayload.append("location", JSON.stringify(formData.location));
       formPayload.append("bankDetails", JSON.stringify(formData.bankDetails));
-  
-   
+
       if (!formData.title || !formData.type) {
         setError("Property name and type are required");
         return;
       }
-  
+
       const response = await api.post("/api/properties", formPayload, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
-  
 
       if (!response || !response.success || !response.property) {
         throw new Error("Invalid server response format");
       }
-  
 
       setFormData((prev) => ({
         ...prev,
-        photos: response.property.photos?.map((photo) => ({
-          url: photo.url,
-          caption: photo.caption || "",
-          isPrimary: photo.isPrimary || false,
-        })) || [],
+        photos:
+          response.property.photos?.map((photo) => ({
+            url: photo.url,
+            caption: photo.caption || "",
+            isPrimary: photo.isPrimary || false,
+          })) || [],
       }));
- 
+
       setProperties((prev) => [...prev, response.property]);
       setShowNewPropertyModal(false);
       resetFormData();
       await fetchProperties();
-  
     } catch (err) {
       console.error("Error adding property:", err);
       setError(err.message || "Failed to add property");
@@ -1177,7 +1173,7 @@ const PropertyManagement = () => {
     const uploadImages = async (propertyId, photos) => {
       try {
         const formData = new FormData();
-    
+
         photos.forEach((photo, index) => {
           if (photo.file) {
             formData.append("photos", photo.file);
@@ -1185,7 +1181,7 @@ const PropertyManagement = () => {
             formData.append(`isPrimary[${index}]`, photo.isPrimary || false);
           }
         });
-    
+
         const response = await api.post(
           `/api/properties/${propertyId}/photos`,
           formData,
@@ -1193,7 +1189,7 @@ const PropertyManagement = () => {
             headers: { "Content-Type": "multipart/form-data" },
           }
         );
-    
+
         console.log("Image upload response:", response);
         return response.data.photos;
       } catch (error) {
@@ -1201,13 +1197,12 @@ const PropertyManagement = () => {
         throw error;
       }
     };
-    
 
     const handleSubmit = async (e) => {
       e.preventDefault();
       try {
         await onSave(property._id, formData, token);
- 
+
         const newPhotos = formData.photos.filter((photo) => photo.file);
         if (newPhotos.length > 0) {
           console.log("Uploading new images:", newPhotos);
@@ -1218,8 +1213,6 @@ const PropertyManagement = () => {
         setError("Failed to save property or upload images");
       }
     };
-    
-    
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1820,9 +1813,9 @@ const PropertyManagement = () => {
     const getPropertyImage = () => {
       const photo = property.photos?.[0];
       if (!photo) return "";
-      return `${import.meta.env.VITE_API_BASE_URL}${
-        photo.url.startsWith("/") ? "" : "/"
-      }${photo.url}`;
+      return photo.url.startsWith("http")
+        ? photo.url
+        : `${import.meta.env.VITE_API_BASE_URL}${photo.url}`;
     };
 
     return (

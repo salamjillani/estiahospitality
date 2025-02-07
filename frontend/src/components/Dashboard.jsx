@@ -4,9 +4,17 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { websocketService } from "../services/webSocketService";
-import { 
-  Loader2, Trash2, Search, Calendar, Home, Users, Building2, 
-  MapPin,  Phone, Plane 
+import {
+  Loader2,
+  Trash2,
+  Search,
+  Calendar,
+  Home,
+  Users,
+  Building2,
+  MapPin,
+  Phone,
+  Plane,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import "./calendar-styles.css";
@@ -36,10 +44,10 @@ const Dashboard = () => {
 
   const getEventColor = useCallback((source) => {
     const colors = {
-      direct: "#4F46E5", 
-      airbnb: "#EC4899", 
-      "booking.com": "#10B981", 
-      vrbo: "#F59E0B", 
+      direct: "#4F46E5",
+      airbnb: "#EC4899",
+      "booking.com": "#10B981",
+      vrbo: "#F59E0B",
     };
     return colors[source] || "#6B7280";
   }, []);
@@ -103,9 +111,12 @@ const Dashboard = () => {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch bookings");
-
-      const bookings = await response.json();
-      const formattedEvents = bookings.map((booking) => ({
+  
+      const data = await response.json();
+      // Handle both cases: when response is an array directly or wrapped in bookings property
+      const bookingsData = Array.isArray(data) ? data : data.bookings || [];
+      
+      const formattedEvents = bookingsData.map((booking) => ({
         id: booking._id,
         title: `${booking.guestName}`,
         start: new Date(booking.startDate),
@@ -114,7 +125,7 @@ const Dashboard = () => {
         borderColor: getEventColor(booking.source),
         className: "rounded-lg shadow-sm",
         extendedProps: {
-          propertyId: booking.property._id,
+          propertyId: booking.property,
           guestName: booking.guestName,
           numberOfGuests: booking.numberOfGuests,
           pricePerNight: booking.pricePerNight,
@@ -122,7 +133,6 @@ const Dashboard = () => {
           status: booking.status,
         },
       }));
-
       setEvents(formattedEvents);
     } catch (error) {
       setError("Error fetching bookings: " + error.message);
@@ -182,9 +192,9 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError("");
-
+  
       const validatedBooking = validateBooking(newEvent);
-
+  
       const bookingData = {
         property: validatedBooking.propertyId,
         guestName: validatedBooking.guestName,
@@ -195,7 +205,7 @@ const Dashboard = () => {
         endDate: new Date(validatedBooking.endDate).toISOString(),
         createdBy: "6786d83f4ff2c84b44528678",
       };
-
+  
       const response = await fetch("http://localhost:5000/api/bookings", {
         method: "POST",
         headers: {
@@ -204,12 +214,13 @@ const Dashboard = () => {
         credentials: "include",
         body: JSON.stringify(bookingData),
       });
-
+  
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to save booking");
       }
-
+  
+      // Wait for fetchBookings to complete before closing modal
       await fetchBookings();
       setShowEventModal(false);
       setNewEvent({
@@ -349,20 +360,23 @@ const Dashboard = () => {
   const eventContent = useCallback((eventInfo) => {
     const nights = calculateNights(eventInfo.event.start, eventInfo.event.end);
     const checkInDate = formatDate(eventInfo.event.start);
-    const totalPrice = (eventInfo.event.extendedProps.pricePerNight * nights).toFixed(2);
-  
+    const totalPrice = (
+      eventInfo.event.extendedProps.pricePerNight * nights
+    ).toFixed(2);
+
     // Placeholder for additional booking details
     const additionalDetails = [
       { icon: Plane, text: "Early morning flight" },
-      { icon: Phone, text: "Prefers late check-in" }
+      { icon: Phone, text: "Prefers late check-in" },
     ];
-  
+
     return (
-      <div className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity" 
-           style={{ 
-             backgroundColor: eventInfo.event.backgroundColor, 
-             color: 'white' 
-           }}
+      <div
+        className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
+        style={{
+          backgroundColor: eventInfo.event.backgroundColor,
+          color: "white",
+        }}
       >
         <div className="flex-1 font-medium truncate pl-2">
           {eventInfo.event.title}
@@ -373,16 +387,14 @@ const Dashboard = () => {
             {eventInfo.event.extendedProps.numberOfGuests}
           </span>
         </div>
-  
+
         <div className="absolute invisible group-hover:visible bg-gray-900 text-white text-sm rounded-lg px-3 py-2 left-1/2 transform -translate-x-1/2 -top-32 min-w-max z-50 shadow-lg">
           <div className="flex flex-col items-center space-y-2">
             <div className="font-medium">Check-in: {checkInDate}</div>
             <div>
               {nights} {nights === 1 ? "night" : "nights"}
             </div>
-            <div className="font-semibold">
-              Total Price: ${totalPrice}
-            </div>
+            <div className="font-semibold">Total Price: ${totalPrice}</div>
             <div className="w-full border-t border-gray-700 pt-2">
               {additionalDetails.map((detail, index) => (
                 <div key={index} className="flex items-center space-x-2 mb-1">
@@ -433,28 +445,30 @@ const Dashboard = () => {
   };
 
   const dayCellContent = (arg) => {
-    const dateKey = arg.date.toISOString().split('T')[0];
-    
+    const dateKey = arg.date.toISOString().split("T")[0];
+
     const bookingEvent = events.find((event) => {
       const startDate = new Date(event.start);
       const endDate = new Date(event.end);
       const currentDate = new Date(arg.date);
-  
+
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(0, 0, 0, 0);
       currentDate.setHours(0, 0, 0, 0);
-  
+
       return currentDate >= startDate && currentDate < endDate;
     });
-  
+
     let price;
     if (!bookingEvent) {
-      price = dailyPrices[dateKey] || Math.floor(Math.random() * (250 - 100 + 1)) + 100;
+      price =
+        dailyPrices[dateKey] ||
+        Math.floor(Math.random() * (250 - 100 + 1)) + 100;
       if (!dailyPrices[dateKey]) {
         setDailyPrices((prev) => ({ ...prev, [dateKey]: price }));
       }
     }
-  
+
     return (
       <div className="h-full flex flex-col p-1">
         <div className="flex justify-between items-center">
@@ -487,15 +501,15 @@ const Dashboard = () => {
             </span>
           </div>
           <div className="flex items-center space-x-4">
-            <Link 
-              to="/calendar" 
+            <Link
+              to="/calendar"
               className="flex items-center text-gray-600 hover:text-blue-600 transition"
             >
               <Calendar size={18} className="mr-2" />
               Calendar
             </Link>
-            <Link 
-              to="/properties" 
+            <Link
+              to="/properties"
               className="flex items-center text-gray-600 hover:text-blue-600 transition"
             >
               <Home size={18} className="mr-2" />
@@ -510,10 +524,7 @@ const Dashboard = () => {
         {/* Properties Section */}
         <div className="w-96 bg-white border-r border-gray-100 overflow-y-auto p-4 space-y-4">
           <div className="relative mb-4">
-            <Search
-              className="absolute left-3 top-4 text-gray-400"
-              size={18}
-            />
+            <Search className="absolute left-3 top-4 text-gray-400" size={18} />
             <input
               type="text"
               placeholder="Search properties..."
@@ -603,247 +614,243 @@ const Dashboard = () => {
         </div>
       </div>
 
-          {/* Modal */}
-          {showEventModal && (
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-              style={{ zIndex: 9999 }}
-              onClick={() => {
-                setShowEventModal(false);
-                resetForm();
-              }}
-            >
-              <div
-                className="bg-white rounded-xl w-full max-w-lg shadow-xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="p-6">
-                  {/* Modal Header */}
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">
-                      {isEditMode ? "Edit Booking" : "New Booking"}
-                    </h2>
+      {/* Modal */}
+      {showEventModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          style={{ zIndex: 9999 }}
+          onClick={() => {
+            setShowEventModal(false);
+            resetForm();
+          }}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-lg shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">
+                  {isEditMode ? "Edit Booking" : "New Booking"}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowEventModal(false);
+                    resetForm();
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Form Grid Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Property Selection */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Property *
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    value={newEvent.propertyId}
+                    onChange={(e) =>
+                      setNewEvent({
+                        ...newEvent,
+                        propertyId: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">Select Property</option>
+                    {properties.map((property) => (
+                      <option key={property._id} value={property._id}>
+                        {property.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Guest Name */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Guest Name *
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newEvent.guestName}
+                    onChange={(e) =>
+                      setNewEvent({
+                        ...newEvent,
+                        guestName: e.target.value,
+                      })
+                    }
+                    placeholder="Enter guest name"
+                  />
+                </div>
+
+                {/* Number of Guests */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Number of Guests *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newEvent.numberOfGuests}
+                    onChange={(e) =>
+                      setNewEvent({
+                        ...newEvent,
+                        numberOfGuests: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                {/* Price per Night */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Price per Night *
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={newEvent.pricePerNight}
+                      onChange={(e) =>
+                        setNewEvent({
+                          ...newEvent,
+                          pricePerNight: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Start Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Date *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newEvent.startDate}
+                    onChange={(e) =>
+                      setNewEvent({
+                        ...newEvent,
+                        startDate: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                {/* End Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    End Date *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newEvent.endDate}
+                    onChange={(e) =>
+                      setNewEvent({ ...newEvent, endDate: e.target.value })
+                    }
+                  />
+                </div>
+
+                {/* Source Selection */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Channel
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={newEvent.source}
+                    onChange={(e) =>
+                      setNewEvent({ ...newEvent, source: e.target.value })
+                    }
+                  >
+                    <option value="direct">Direct</option>
+                    <option value="airbnb">Airbnb</option>
+                    <option value="booking.com">Booking.com</option>
+                    <option value="vrbo">VRBO</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="mt-4 text-red-600 text-sm">{error}</div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="mt-8 flex justify-between">
+                {/* Left side - Delete button */}
+                <div>
+                  {isEditMode && (
                     <button
-                      onClick={() => {
-                        setShowEventModal(false);
-                        resetForm();
-                      }}
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      type="button"
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center"
+                      onClick={handleDeleteBooking}
+                      disabled={loading}
                     >
-                      <svg
-                        className="w-6 h-6"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
                     </button>
-                  </div>
-
-                  {/* Form Grid Layout */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Property Selection */}
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Property *
-                      </label>
-                      <select
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        value={newEvent.propertyId}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            propertyId: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="">Select Property</option>
-                        {properties.map((property) => (
-                          <option key={property._id} value={property._id}>
-                            {property.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Guest Name */}
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Guest Name *
-                      </label>
-                      <input
-                        type="text"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={newEvent.guestName}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            guestName: e.target.value,
-                          })
-                        }
-                        placeholder="Enter guest name"
-                      />
-                    </div>
-
-                    {/* Number of Guests */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Number of Guests *
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={newEvent.numberOfGuests}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            numberOfGuests: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-
-                    {/* Price per Night */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Price per Night *
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-2 text-gray-500">
-                          $
-                        </span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={newEvent.pricePerNight}
-                          onChange={(e) =>
-                            setNewEvent({
-                              ...newEvent,
-                              pricePerNight: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    {/* Start Date */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Start Date *
-                      </label>
-                      <input
-                        type="datetime-local"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={newEvent.startDate}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            startDate: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-
-                    {/* End Date */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        End Date *
-                      </label>
-                      <input
-                        type="datetime-local"
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={newEvent.endDate}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, endDate: e.target.value })
-                        }
-                      />
-                    </div>
-
-                    {/* Source Selection */}
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Channel
-                      </label>
-                      <select
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={newEvent.source}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, source: e.target.value })
-                        }
-                      >
-                        <option value="direct">Direct</option>
-                        <option value="airbnb">Airbnb</option>
-                        <option value="booking.com">Booking.com</option>
-                        <option value="vrbo">VRBO</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Error Message */}
-                  {error && (
-                    <div className="mt-4 text-red-600 text-sm">{error}</div>
                   )}
+                </div>
 
-                  {/* Action Buttons */}
-                  <div className="mt-8 flex justify-between">
-                    {/* Left side - Delete button */}
-                    <div>
-                      {isEditMode && (
-                        <button
-                          type="button"
-                          className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center"
-                          onClick={handleDeleteBooking}
-                          disabled={loading}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Right side - Cancel and Save/Update buttons */}
-                    <div className="flex space-x-3">
-                      <button
-                        type="button"
-                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                        onClick={() => {
-                          setShowEventModal(false);
-                          resetForm();
-                        }}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50"
-                        onClick={
-                          isEditMode ? handleUpdateBooking : handleSaveEvent
-                        }
-                        disabled={loading}
-                      >
-                        {loading && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        {isEditMode ? "Update" : "Save"}
-                      </button>
-                    </div>
-                  </div>
+                {/* Right side - Cancel and Save/Update buttons */}
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                    onClick={() => {
+                      setShowEventModal(false);
+                      resetForm();
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50"
+                    onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
+                    disabled={loading}
+                  >
+                    {loading && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    {isEditMode ? "Update" : "Save"}
+                  </button>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
-     
- 
+      )}
+    </div>
   );
 };
 

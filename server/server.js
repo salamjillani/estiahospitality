@@ -18,6 +18,8 @@ const authRoutes = require('./routes/auth');
 const propertyRoutes = require('./routes/properties');
 const bookingRoutes = require('./routes/bookings');
 
+
+
 const app = express();
 const server = http.createServer(app);
 
@@ -92,8 +94,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/bookings', bookingRoutes);
-app.use('/uploads/properties', express.static(path.join(__dirname, 'uploads/properties')));
-// Error handling middleware
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
