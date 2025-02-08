@@ -126,6 +126,7 @@ const PropertyFormModal = ({
   const handleImageUpload = (e) => {
     try {
       const files = Array.from(e.target.files);
+
       const maxFileSize = 5 * 1024 * 1024;
 
       // Validate file size and type
@@ -180,17 +181,17 @@ const PropertyFormModal = ({
               <Image size={20} />
               Property Images
             </h3>
+            {console.log("Form Data Photos:", formData.photos)};
             <div className="grid grid-cols-3 gap-4">
               {formData.photos.map((photo, index) => (
                 <div key={index} className="relative group">
                   <img
                     src={
-                      photo.url.startsWith("/uploads")
+                      photo.url.startsWith("/uploads") ||
+                      photo.url.startsWith("http")
                         ? `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
                         : photo.url
                     }
-                    alt={`Property ${index + 1}`}
-                    className="w-full h-48 object-cover rounded-lg"
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                     <button
@@ -472,7 +473,6 @@ const PropertyFormModal = ({
           </div>
         </form>
       </div>
-      
     </div>
   );
 };
@@ -482,11 +482,11 @@ PropertyFormModal.propTypes = {
   onSubmit: PropTypes.func.isRequired,
   formData: PropTypes.object.isRequired,
   setFormData: PropTypes.func.isRequired,
-  setError: PropTypes.func.isRequired,
+  setError: PropTypes.func,
   loading: PropTypes.bool.isRequired,
   mode: PropTypes.oneOf(["add", "edit"]).isRequired,
   property: propertyShape,
-  handleImageUpload: PropTypes.func.isRequired,
+  handleImageUpload: PropTypes.func,
 };
 
 const PropertyDetailsModal = ({ property, onClose }) => {
@@ -534,12 +534,11 @@ const PropertyDetailsModal = ({ property, onClose }) => {
                 <div key={index} className="relative">
                   <img
                     src={
-                      photo.url.startsWith("blob:")
-                        ? photo.url
-                        : `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
+                      photo.url.startsWith("/uploads") ||
+                      photo.url.startsWith("http")
+                        ? `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
+                        : photo.url
                     }
-                    alt={photo.caption || `Property ${index + 1}`}
-                    className="w-full h-48 object-cover rounded-lg"
                   />
                   {photo.caption && (
                     <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white p-2 text-sm rounded-b-lg">
@@ -818,6 +817,7 @@ const PropertyManagement = () => {
   const handleImageUpload = (e) => {
     try {
       const files = Array.from(e.target.files);
+      console.log("Selected files:", files);
       if (!files.length) return;
 
       const validFiles = files.filter(
@@ -825,6 +825,10 @@ const PropertyManagement = () => {
       );
 
       if (validFiles.length !== files.length) {
+        console.warn(
+          "Invalid files:",
+          files.filter((f) => !validFiles.includes(f))
+        ); // 🔍 Warn about invalid files
         setError("Some files were rejected (max 5MB, images only)");
       }
 
@@ -834,7 +838,10 @@ const PropertyManagement = () => {
         caption: "",
         isPrimary: false,
       }));
-
+      console.log(
+        "Processed Image URLs:",
+        newPhotos.map((photo) => photo.url)
+      );
       setFormData((prev) => ({
         ...prev,
         photos: [...prev.photos, ...newPhotos],
@@ -1030,6 +1037,7 @@ const PropertyManagement = () => {
     try {
       setLoading(true);
       const response = await api.get("/api/properties");
+      console.log("Fetched Properties Response:", response);
       setProperties(response.properties || []);
     } catch (err) {
       console.error("Error fetching properties:", err);
@@ -1818,14 +1826,14 @@ const PropertyManagement = () => {
     onProfile,
     onInvoice,
   }) => {
-    const getPropertyImage = () => {
-      const photo = property.photos?.[0];
-      if (!photo?.url) return "";
+    const getPropertyImageUrl = () => {
+      if (!property.photos?.length) return "";
+      const photo = property.photos[0];
       return photo.url.startsWith("/uploads")
         ? `${import.meta.env.VITE_API_BASE_URL}${photo.url}`
         : photo.url;
     };
-  
+
     return (
       <div
         className="flex flex-col gap-3 px-6 py-4 border-b hover:bg-gray-50 cursor-pointer"
@@ -1834,7 +1842,10 @@ const PropertyManagement = () => {
           setShowDetailsModal(true);
         }}
       >
-        <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center justify-between"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
@@ -1845,7 +1856,7 @@ const PropertyManagement = () => {
             <div className="flex items-center gap-3">
               <div className="w-12 h-8 relative bg-gray-200 rounded group">
                 <img
-                  src={getPropertyImage()}
+                  src={getPropertyImageUrl()}
                   alt={property.title}
                   className="w-full h-full object-cover rounded"
                   onError={(e) => {
@@ -1858,7 +1869,9 @@ const PropertyManagement = () => {
                 </button>
               </div>
               <div>
-                <div className="font-medium text-gray-900">{property.title}</div>
+                <div className="font-medium text-gray-900">
+                  {property.title}
+                </div>
                 <div className="text-sm text-gray-500">{property.type}</div>
               </div>
             </div>
@@ -1870,7 +1883,7 @@ const PropertyManagement = () => {
             onInvoice={onInvoice}
           />
         </div>
-        
+
         <div className="flex items-center space-x-2">
           {property.location?.address && (
             <Map size={18} className="text-gray-400" />
@@ -2008,7 +2021,7 @@ const PropertyManagement = () => {
             <Loader2 className="animate-spin text-blue-600" size={40} />
           </div>
         ) : (
-         <div className="flex flex-col">
+          <div className="flex flex-col">
             {filteredProperties
               .filter((property) => property && property._id)
               .map((property) => (

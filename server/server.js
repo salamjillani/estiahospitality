@@ -60,18 +60,11 @@ wss.on('connection', (ws) => {
 });
 
 app.use('/uploads/properties', express.static(path.join(__dirname, '../uploads/properties')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true,
-  exposedHeaders: ['Content-Disposition'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With',
-    'Accept',
-    'Content-Disposition' 
-  ]
+  exposedHeaders: ['Content-Disposition']
 }));
 
 app.use((err, req, res, next) => {
@@ -104,16 +97,15 @@ app.use((err, req, res, next) => {
 
 
 
-const uploadDir = path.join(__dirname, 'uploads/properties');
-// Create upload directory if it doesn't exist
+const uploadDir = path.join(__dirname, '../uploads/properties');
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir) // Use absolute path
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + path.extname(file.originalname))

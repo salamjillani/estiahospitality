@@ -161,7 +161,6 @@ router.post(
         createdBy: req.user._id,
         managers: [req.user._id],
       };
-     
 
       const property = new Property(propertyData);
       await property.save();
@@ -255,7 +254,9 @@ router.put(
         if (!validTypes.includes(updates.type)) {
           return res.status(400).json({
             success: false,
-            message: `Invalid property type. Must be one of: ${validTypes.join(", ")}`,
+            message: `Invalid property type. Must be one of: ${validTypes.join(
+              ", "
+            )}`,
           });
         }
       }
@@ -288,21 +289,54 @@ router.put(
         identifier: updates.identifier,
         vendorType: updates.vendorType || existingProperty.vendorType,
         profile: {
-          description: updates.profile?.description || existingProperty.profile?.description || "",
+          description:
+            updates.profile?.description ||
+            existingProperty.profile?.description ||
+            "",
           location: {
-            address: updates.profile?.location?.address || existingProperty.profile?.location?.address || "",
-            city: updates.profile?.location?.city || existingProperty.profile?.location?.city || "",
-            country: updates.profile?.location?.country || existingProperty.profile?.location?.country || "",
-            postalCode: updates.profile?.location?.postalCode || existingProperty.profile?.location?.postalCode || "",
+            address:
+              updates.profile?.location?.address ||
+              existingProperty.profile?.location?.address ||
+              "",
+            city:
+              updates.profile?.location?.city ||
+              existingProperty.profile?.location?.city ||
+              "",
+            country:
+              updates.profile?.location?.country ||
+              existingProperty.profile?.location?.country ||
+              "",
+            postalCode:
+              updates.profile?.location?.postalCode ||
+              existingProperty.profile?.location?.postalCode ||
+              "",
           },
         },
         bankDetails: {
-          accountHolder: updates.bankDetails?.accountHolder || existingProperty.bankDetails?.accountHolder || "",
-          accountNumber: updates.bankDetails?.accountNumber || existingProperty.bankDetails?.accountNumber || "",
-          bankName: updates.bankDetails?.bankName || existingProperty.bankDetails?.bankName || "",
-          swiftCode: updates.bankDetails?.swiftCode || existingProperty.bankDetails?.swiftCode || "",
-          iban: updates.bankDetails?.iban || existingProperty.bankDetails?.iban || "",
-          currency: updates.bankDetails?.currency || existingProperty.bankDetails?.currency || "USD",
+          accountHolder:
+            updates.bankDetails?.accountHolder ||
+            existingProperty.bankDetails?.accountHolder ||
+            "",
+          accountNumber:
+            updates.bankDetails?.accountNumber ||
+            existingProperty.bankDetails?.accountNumber ||
+            "",
+          bankName:
+            updates.bankDetails?.bankName ||
+            existingProperty.bankDetails?.bankName ||
+            "",
+          swiftCode:
+            updates.bankDetails?.swiftCode ||
+            existingProperty.bankDetails?.swiftCode ||
+            "",
+          iban:
+            updates.bankDetails?.iban ||
+            existingProperty.bankDetails?.iban ||
+            "",
+          currency:
+            updates.bankDetails?.currency ||
+            existingProperty.bankDetails?.currency ||
+            "USD",
         },
         photos: updates.photos,
       };
@@ -331,7 +365,6 @@ router.put(
         success: true,
         property: updatedProperty,
       });
-
     } catch (error) {
       // 12. Error handling
       console.error("Property update error:", error);
@@ -452,16 +485,13 @@ router.delete(
 
 router.get("/", auth, async (req, res) => {
   try {
-    const properties = await Property.find()
-      .populate('managers', 'name email')
-      .lean();
+    const properties = await Property.find().populate("managers", "name email").lean();
 
-    const formattedProperties = properties.map((property) => ({ 
+    const formattedProperties = properties.map((property) => ({
       ...property,
-      _id: property._id.toString(),
       photos: property.photos?.map((photo) => ({
         ...photo,
-        url: photo.url.startsWith("/uploads") ? photo.url : `/uploads/${photo.url}`,
+        url: photo.url, // Remove CLIENT_URL prefix here
         caption: photo?.caption || "",
         isPrimary: photo?.isPrimary || false,
       })) || [],

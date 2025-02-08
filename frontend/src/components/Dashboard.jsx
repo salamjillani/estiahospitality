@@ -111,11 +111,11 @@ const Dashboard = () => {
         credentials: "include",
       });
       if (!response.ok) throw new Error("Failed to fetch bookings");
-  
+
       const data = await response.json();
       // Handle both cases: when response is an array directly or wrapped in bookings property
       const bookingsData = Array.isArray(data) ? data : data.bookings || [];
-      
+
       const formattedEvents = bookingsData.map((booking) => ({
         id: booking._id,
         title: `${booking.guestName}`,
@@ -192,9 +192,9 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError("");
-  
+
       const validatedBooking = validateBooking(newEvent);
-  
+
       const bookingData = {
         property: validatedBooking.propertyId,
         guestName: validatedBooking.guestName,
@@ -205,7 +205,7 @@ const Dashboard = () => {
         endDate: new Date(validatedBooking.endDate).toISOString(),
         createdBy: "6786d83f4ff2c84b44528678",
       };
-  
+
       const response = await fetch("http://localhost:5000/api/bookings", {
         method: "POST",
         headers: {
@@ -214,12 +214,12 @@ const Dashboard = () => {
         credentials: "include",
         body: JSON.stringify(bookingData),
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Failed to save booking");
       }
-  
+
       // Wait for fetchBookings to complete before closing modal
       await fetchBookings();
       setShowEventModal(false);
@@ -548,7 +548,9 @@ const Dashboard = () => {
                 <div className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
                     <img
-                      src="/api/placeholder/64/64"
+                      src={
+                        property.photos?.[0]?.url || "/placeholder-property.jpg"
+                      }
                       alt={property.title}
                       className="w-full h-full object-cover"
                     />
