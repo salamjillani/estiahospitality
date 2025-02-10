@@ -15,6 +15,7 @@
     "@fullcalendar/interaction": "^6.1.15",
     "@fullcalendar/react": "^6.1.15",
     "@fullcalendar/resource-timeline": "^6.1.15",
+    "@fullcalendar/scrollgrid": "^6.1.15",
     "@fullcalendar/timegrid": "^6.1.15",
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-dialog": "^1.1.4",

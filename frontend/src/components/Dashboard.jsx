@@ -11,13 +11,18 @@ import {
   Calendar,
   Home,
   Users,
-  Building2,
   MapPin,
   Phone,
   Plane,
+  Star,
+  Settings,
+  Bell,
+  Building,
+  User,
+  X,
+  Menu
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import "./calendar-styles.css";
 
 const Dashboard = () => {
   const [events, setEvents] = useState([]);
@@ -31,6 +36,7 @@ const Dashboard = () => {
   const [propertySearchQuery, setPropertySearchQuery] = useState("");
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [newEvent, setNewEvent] = useState({
     propertyId: "",
@@ -487,108 +493,142 @@ const Dashboard = () => {
       </div>
     );
   };
+  
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-              <Building2 className="text-white" size={20} />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+      {/* Responsive Navigation */}
+      <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 z-50">
+        <div className="max-w-8xl mx-auto">
+          <div className="flex items-center justify-between h-16 px-4 lg:px-6">
+            <div className="flex items-center">
+              <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="lg:hidden p-2 mr-2 text-gray-500 hover:text-gray-700"
+              >
+                {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+              <div className="flex items-center space-x-3">
+                <img src="logo.png" alt="Logo" className="h-10 w-auto" />
+              </div>
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-              Estia Hospitality
-            </span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link
-              to="/calendar"
-              className="flex items-center text-gray-600 hover:text-blue-600 transition"
-            >
-              <Calendar size={18} className="mr-2" />
-              Calendar
-            </Link>
-            <Link
-              to="/properties"
-              className="flex items-center text-gray-600 hover:text-blue-600 transition"
-            >
-              <Home size={18} className="mr-2" />
-              Properties
-            </Link>
+
+            <div className="hidden lg:flex items-center space-x-1">
+              <Link to="/calendar" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
+                <Calendar className="w-4 h-4 inline-block mr-2" />
+                Calendar
+              </Link>
+              <Link to="/properties" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
+                <Building className="w-4 h-4 inline-block mr-2" />
+                Properties
+              </Link>
+            </div>
+
+            <div className="flex items-center space-x-2 lg:space-x-4">
+              <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
+                <Bell className="w-5 h-5" />
+              </button>
+              <button className="hidden sm:block p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
+                <Settings className="w-5 h-5" />
+              </button>
+              <div className="hidden sm:block h-8 w-px bg-gray-200"></div>
+              <div className="flex items-center space-x-3">
+                <User className="w-5 h-5" />
+                <span className="hidden sm:inline text-sm font-medium text-gray-700">Admin</span>
+              </div>
+            </div>
           </div>
         </div>
       </nav>
 
-      {/* Main Content Area */}
-      <div className="flex mt-16 h-[calc(100vh-4rem)] w-full">
-        {/* Properties Section */}
-        <div className="w-96 bg-white border-r border-gray-100 overflow-y-auto p-4 space-y-4">
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-4 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search properties..."
-              value={propertySearchQuery}
-              onChange={(e) => setPropertySearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-            />
-          </div>
+      {/* Main Content */}
+      <div className="pt-16 h-screen flex">
+        {/* Responsive Sidebar */}
+        <div className={`fixed lg:relative lg:block w-full lg:w-96 bg-white border-r border-gray-100 h-full transform transition-transform duration-300 ease-in-out z-40 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}>
+          <div className="p-4 lg:p-6 overflow-y-auto h-full">
+            {/* Search */}
+            <div className="relative mb-6">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search properties..."
+                value={propertySearchQuery}
+                onChange={(e) => setPropertySearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200"
+              />
+            </div>
 
-          <div className="space-y-3">
-            {filteredProperties.map((property) => (
-              <div
-                key={property._id}
-                onClick={() => handlePropertySelect(property)}
-                className={`p-4 border rounded-xl cursor-pointer transition-all group ${
-                  selectedProperty?._id === property._id
-                    ? "border-blue-500 bg-blue-50 shadow-md"
-                    : "border-gray-200 hover:border-blue-300 hover:shadow-sm"
-                }`}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
-                    <img
-                      src={
-                        property.photos?.[0]?.url || "/placeholder-property.jpg"
-                      }
-                      alt={property.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition">
-                      {property.title}
-                    </h3>
-                    <div className="flex items-center text-gray-500 text-sm">
-                      <MapPin size={14} className="mr-1" />
-                      {property.type}
+            {/* Property Cards */}
+            <div className="space-y-4">
+              {filteredProperties.map((property) => (
+                <div
+                  key={property._id}
+                  onClick={() => {
+                    handlePropertySelect(property);
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`group relative overflow-hidden p-4 bg-white rounded-xl border transition-all duration-300 hover:shadow-lg cursor-pointer ${
+                    selectedProperty?._id === property._id
+                      ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50"
+                      : "border-gray-100 hover:border-blue-300"
+                  }`}
+                >
+                  <div className="flex items-start space-x-4">
+                    <div className="relative w-20 h-20 lg:w-24 lg:h-24 rounded-lg overflow-hidden">
+                      <img
+                        src={property.photos?.[0]?.url || "/api/placeholder/96/96"}
+                        alt={property.title}
+                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors duration-200 text-sm lg:text-base">
+                          {property.title}
+                        </h3>
+                      </div>
+                      
+                      <div className="flex items-center text-xs lg:text-sm text-gray-500 mb-2">
+                        <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
+                        <span className="truncate">{property.type}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-xs lg:text-sm">
+                        <div className="flex items-center">
+                          <Star className="w-4 h-4 text-yellow-400" />
+                          <span className="ml-1 font-medium text-gray-600">4.9</span>
+                        </div>
+                        <span className="font-medium text-blue-600">$100/night</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Calendar Section */}
-        <div className="flex-1 p-4 bg-white">
-          <div className="h-full bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="flex-1 p-4 lg:p-6 bg-gray-50">
+          <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
               headerToolbar={{
-                left: "prev,next today",
+                left: "prev,next",
                 center: "title",
-                right: "dayGridMonth,timeGridWeek,timeGridDay",
+                right: "dayGridMonth,timeGridWeek,timeGridDay"
               }}
-              events={
-                selectedProperty
-                  ? events.filter(
-                      (event) =>
-                        event.extendedProps.propertyId === selectedProperty._id
-                    )
-                  : events
-              }
+              events={selectedProperty
+                ? events.filter(
+                    (event) =>
+                      event.extendedProps.propertyId === selectedProperty._id
+                  )
+                : events}
               editable={true}
               selectable={true}
               selectMirror={true}
@@ -609,249 +649,219 @@ const Dashboard = () => {
               eventTimeFormat={{
                 hour: "2-digit",
                 minute: "2-digit",
-                meridiem: false,
+                meridiem: false
               }}
             />
           </div>
         </div>
       </div>
+{/* Enhanced Modal */}
+{showEventModal && (
+  <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] overflow-y-auto">
+    <div className="my-8 bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white px-8 py-6 border-b border-gray-100 z-10">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {isEditMode ? "Edit Booking" : "New Booking"}
+            </h2>
+            <button
+              onClick={() => {
+                setShowEventModal(false);
+                resetForm();
+              }}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
 
-      {/* Modal */}
-      {showEventModal && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-          style={{ zIndex: 9999 }}
-          onClick={() => {
-            setShowEventModal(false);
-            resetForm();
-          }}
-        >
-          <div
-            className="bg-white rounded-xl w-full max-w-lg shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              {/* Modal Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  {isEditMode ? "Edit Booking" : "New Booking"}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowEventModal(false);
-                    resetForm();
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
+        <div className="px-8 py-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Property</label>
+              <select
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                value={newEvent.propertyId}
+                onChange={(e) => setNewEvent({ ...newEvent, propertyId: e.target.value })}
+              >
+                <option value="">Select Property</option>
+                {properties.map((property) => (
+                  <option key={property._id} value={property._id}>
+                    {property.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Guest Name</label>
+              <input
+                type="text"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                value={newEvent.guestName}
+                onChange={(e) => setNewEvent({ ...newEvent, guestName: e.target.value })}
+                placeholder="Enter guest name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Number of Guests</label>
+              <input
+                type="number"
+                min="1"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                value={newEvent.numberOfGuests}
+                onChange={(e) => setNewEvent({ ...newEvent, numberOfGuests: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Price per Night</label>
+              <div className="relative">
+                <span className="absolute left-4 top-3 text-gray-500">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-8 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  value={newEvent.pricePerNight}
+                  onChange={(e) => setNewEvent({ ...newEvent, pricePerNight: e.target.value })}
+                />
               </div>
+            </div>
 
-              {/* Form Grid Layout */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Property Selection */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Property *
-                  </label>
-                  <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    value={newEvent.propertyId}
-                    onChange={(e) =>
-                      setNewEvent({
-                        ...newEvent,
-                        propertyId: e.target.value,
-                      })
-                    }
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Check-in</label>
+              <input
+                type="datetime-local"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                value={newEvent.startDate}
+                onChange={(e) => setNewEvent({ ...newEvent, startDate: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Check-out</label>
+              <input
+                type="datetime-local"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                value={newEvent.endDate}
+                onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Booking Source</label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {['direct', 'airbnb', 'booking.com', 'vrbo'].map((source) => (
+                  <button
+                    key={source}
+                    type="button"
+                    onClick={() => setNewEvent({ ...newEvent, source })}
+                    className={`flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
+                      newEvent.source === source
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20'
+                        : 'border-gray-200 hover:border-blue-300'
+                    }`}
                   >
-                    <option value="">Select Property</option>
-                    {properties.map((property) => (
-                      <option key={property._id} value={property._id}>
-                        {property.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Guest Name */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Guest Name *
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newEvent.guestName}
-                    onChange={(e) =>
-                      setNewEvent({
-                        ...newEvent,
-                        guestName: e.target.value,
-                      })
-                    }
-                    placeholder="Enter guest name"
-                  />
-                </div>
-
-                {/* Number of Guests */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Number of Guests *
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newEvent.numberOfGuests}
-                    onChange={(e) =>
-                      setNewEvent({
-                        ...newEvent,
-                        numberOfGuests: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                {/* Price per Night */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price per Night *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500">
-                      $
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
+                      newEvent.source === source ? 'bg-blue-500' : 'bg-gray-100'
+                    }`}>
+                      {source === 'direct' && <Home className={`w-4 h-4 ${newEvent.source === source ? 'text-white' : 'text-gray-500'}`} />}
+                      {source === 'airbnb' && <Plane className={`w-4 h-4 ${newEvent.source === source ? 'text-white' : 'text-gray-500'}`} />}
+                      {source === 'booking.com' && <Calendar className={`w-4 h-4 ${newEvent.source === source ? 'text-white' : 'text-gray-500'}`} />}
+                      {source === 'vrbo' && <Home className={`w-4 h-4 ${newEvent.source === source ? 'text-white' : 'text-gray-500'}`} />}
+                    </div>
+                    <span className={`text-sm font-medium capitalize ${
+                      newEvent.source === source ? 'text-blue-600' : 'text-gray-700'
+                    }`}>
+                      {source === 'booking.com' ? 'Booking' : source}
                     </span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={newEvent.pricePerNight}
-                      onChange={(e) =>
-                        setNewEvent({
-                          ...newEvent,
-                          pricePerNight: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Start Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Date *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newEvent.startDate}
-                    onChange={(e) =>
-                      setNewEvent({
-                        ...newEvent,
-                        startDate: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-
-                {/* End Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Date *
-                  </label>
-                  <input
-                    type="datetime-local"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newEvent.endDate}
-                    onChange={(e) =>
-                      setNewEvent({ ...newEvent, endDate: e.target.value })
-                    }
-                  />
-                </div>
-
-                {/* Source Selection */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Channel
-                  </label>
-                  <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={newEvent.source}
-                    onChange={(e) =>
-                      setNewEvent({ ...newEvent, source: e.target.value })
-                    }
-                  >
-                    <option value="direct">Direct</option>
-                    <option value="airbnb">Airbnb</option>
-                    <option value="booking.com">Booking.com</option>
-                    <option value="vrbo">VRBO</option>
-                  </select>
-                </div>
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Error Message */}
-              {error && (
-                <div className="mt-4 text-red-600 text-sm">{error}</div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="mt-8 flex justify-between">
-                {/* Left side - Delete button */}
-                <div>
-                  {isEditMode && (
-                    <button
-                      type="button"
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center"
-                      onClick={handleDeleteBooking}
-                      disabled={loading}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </button>
-                  )}
+            <div className="md:col-span-2">
+              <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Nights</span>
+                  <span className="text-lg font-semibold text-gray-900">
+                    {newEvent.startDate && newEvent.endDate
+                      ? calculateNights(newEvent.startDate, newEvent.endDate)
+                      : 0}
+                  </span>
                 </div>
-
-                {/* Right side - Cancel and Save/Update buttons */}
-                <div className="flex space-x-3">
-                  <button
-                    type="button"
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-                    onClick={() => {
-                      setShowEventModal(false);
-                      resetForm();
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50"
-                    onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
-                    disabled={loading}
-                  >
-                    {loading && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    {isEditMode ? "Update" : "Save"}
-                  </button>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Price</span>
+                  <span className="text-lg font-semibold text-gray-900">
+                    ${newEvent.startDate && newEvent.endDate && newEvent.pricePerNight
+                      ? (calculateNights(newEvent.startDate, newEvent.endDate) *
+                         parseFloat(newEvent.pricePerNight)).toFixed(2)
+                      : "0.00"}
+                  </span>
                 </div>
               </div>
             </div>
           </div>
+
+          {error && (
+            <div className="mt-6 p-4 bg-red-50 rounded-xl border border-red-200">
+              <div className="flex items-center text-red-600">
+                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                {error}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        <div className="sticky bottom-0 bg-white px-8 py-6 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              {isEditMode && (
+                <button
+                  type="button"
+                  onClick={handleDeleteBooking}
+                  disabled={loading}
+                  className="flex items-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Booking
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEventModal(false);
+                  resetForm();
+                }}
+                className="px-6 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
+                disabled={loading}
+                className="flex items-center px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+              >
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {isEditMode ? "Update Booking" : "Create Booking"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
