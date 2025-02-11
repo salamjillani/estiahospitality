@@ -14,6 +14,7 @@ import {
   X,
   AlertCircle,
   AlertTriangle,
+  MapPin
 } from "lucide-react";
 import PropTypes from "prop-types";
 import { useAuth } from "../context/AuthContext";
@@ -2000,60 +2001,65 @@ const PropertyManagement = () => {
         : photo.url;
     };
 
+    const locationText =
+      property.profile?.location?.city && property.profile?.location?.country
+        ? `${property.profile.location.city}, ${property.profile.location.country}`
+        : "-";
+
     return (
-      <div 
+    <div 
       className="group bg-white border border-gray-100 rounded-xl transition-all duration-200 hover:shadow-lg hover:border-gray-200 overflow-hidden cursor-pointer"
       onClick={() => {
         setActiveProperty(property);
         setShowDetailsModal(true);
       }}
     >
-        <div className="p-4 sm:p-6">
-          {/* Remove stopPropagation from this wrapper div */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Left Side - Checkbox, Image, and Title */}
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    onSelect(property);
-                  }}
-                  className="w-5 h-5 rounded-lg border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors duration-200 cursor-pointer"
-                />
-              </div>
-
-              {/* Image Container */}
-              <div
-                className="relative w-16 h-16 bg-gray-100 rounded-lg overflow-hidden group/image"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <img
-                  src={getPropertyImageUrl()}
-                  alt={property.title}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover/image:scale-110"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "";
-                  }}
-                />
-                <button className="absolute inset-0 bg-black/40 opacity-0 group-hover/image:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                  <Image size={20} className="text-white" />
-                </button>
-              </div>
-
-              {/* Title and Type */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  {property.title}
-                </h3>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                  {property.type}
-                </span>
-              </div>
+      <div className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Left Side - Checkbox, Image, and Title */}
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onSelect(property);
+                }}
+                className="w-5 h-5 rounded-lg border-gray-300 text-blue-600 focus:ring-blue-500 transition-colors duration-200 cursor-pointer"
+              />
             </div>
+
+            {/* Image Container */}
+            <div
+              className="relative w-16 h-16 bg-gray-100 rounded-lg overflow-hidden group/image"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={getPropertyImageUrl()}
+                alt={property.title}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover/image:scale-110"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "";
+                }}
+              />
+              <button className="absolute inset-0 bg-black/40 opacity-0 group-hover/image:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                <Image size={20} className="text-white" />
+              </button>
+            </div>
+
+            {/* Title and Location */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                {property.title}
+              </h3>
+              <p className="text-sm text-gray-600">
+                <MapPin className="inline-block w-4 h-4 mr-1 text-gray-400" />
+                {locationText}
+              </p>
+            </div>
+          </div>
 
             {/* Right Side - Actions */}
             <div className="flex items-center gap-2">
@@ -2320,7 +2326,6 @@ const PropertyManagement = () => {
             loading={loading}
             mode="edit"
             property={activeProperty}
-            
           />
         )}
 

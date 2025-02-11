@@ -30,8 +30,8 @@ import { Link } from "react-router-dom";
 const defaultCommissions = {
   direct: 0,
   airbnb: 12,
-  'booking.com': 15,
-  vrbo: 8
+  "booking.com": 15,
+  vrbo: 8,
 };
 
 const Dashboard = () => {
@@ -70,7 +70,7 @@ const Dashboard = () => {
 
   const allBookingSources = [
     ...Object.keys(defaultCommissions),
-    ...bookingAgents.map(agent => agent.name)
+    ...bookingAgents.map((agent) => agent.name),
   ];
 
   const getEventColor = useCallback((source) => {
@@ -125,13 +125,13 @@ const Dashboard = () => {
 
   const fetchAgents = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/booking-agents', {
-        credentials: 'include'
+      const response = await fetch("http://localhost:5000/api/booking-agents", {
+        credentials: "include",
       });
       const data = await response.json();
       setBookingAgents(data);
     } catch (error) {
-      console.error('Error fetching agents:', error);
+      console.error("Error fetching agents:", error);
     }
   };
 
@@ -518,32 +518,35 @@ const Dashboard = () => {
   };
 
   const AddAgentModal = () => {
-    const [newAgentCommission, setNewAgentCommission] = useState('');
+    const [newAgentCommission, setNewAgentCommission] = useState("");
 
     const handleAddAgent = async () => {
       if (newAgentName.trim() && newAgentCommission.trim()) {
         try {
-          const response = await fetch('http://localhost:5000/api/booking-agents', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              name: newAgentName.trim(),
-              commissionPercentage: parseFloat(newAgentCommission)
-            })
-          });
-          
+          const response = await fetch(
+            "http://localhost:5000/api/booking-agents",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify({
+                name: newAgentName.trim(),
+                commissionPercentage: parseFloat(newAgentCommission),
+              }),
+            }
+          );
+
           if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to add agent');
+            throw new Error(errorData.message || "Failed to add agent");
           }
-    
+
           const data = await response.json();
-          setBookingAgents(prev => [...prev, data]);
-          setNewAgentName('');
-          setNewAgentCommission('');
+          setBookingAgents((prev) => [...prev, data]);
+          setNewAgentName("");
+          setNewAgentCommission("");
           setShowAddAgentModal(false);
         } catch (error) {
           setError(error.message);
@@ -595,7 +598,9 @@ const Dashboard = () => {
                     placeholder="Enter commission"
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-12"
                   />
-                  <span className="absolute right-4 top-3.5 text-gray-400">%</span>
+                  <span className="absolute right-4 top-3.5 text-gray-400">
+                    %
+                  </span>
                 </div>
               </div>
             </div>
@@ -655,6 +660,13 @@ const Dashboard = () => {
               >
                 <Building className="w-4 h-4 inline-block mr-2" />
                 Properties
+              </Link>
+              <Link
+                to="/bookings"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+              >
+                <Calendar className="w-4 h-4 inline-block mr-2" />
+                Booking Information
               </Link>
             </div>
 
@@ -733,7 +745,12 @@ const Dashboard = () => {
 
                       <div className="flex items-center text-xs lg:text-sm text-gray-500 mb-2">
                         <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
-                        <span className="truncate">{property.type}</span>
+                        <span className="truncate">
+                          {property.profile?.location?.city &&
+                          property.profile?.location?.country
+                            ? `${property.profile.location.city}, ${property.profile.location.country}`
+                            : "N/A"}
+                        </span>
                       </div>
 
                       <div className="flex items-center justify-between text-xs lg:text-sm">
@@ -1093,12 +1110,16 @@ const Dashboard = () => {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {allBookingSources.map((source) => {
-                        const agent = bookingAgents.find(a => a.name === source);
+                        const agent = bookingAgents.find(
+                          (a) => a.name === source
+                        );
                         return (
                           <div key={source} className="relative group">
                             <button
                               type="button"
-                              onClick={() => setNewEvent({ ...newEvent, source })}
+                              onClick={() =>
+                                setNewEvent({ ...newEvent, source })
+                              }
                               className={`w-full flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
                                 newEvent.source === source
                                   ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
@@ -1136,16 +1157,24 @@ const Dashboard = () => {
                                   e.stopPropagation();
                                   try {
                                     const response = await fetch(
-                                      `http://localhost:5000/api/booking-agents/${agent._id}`, 
-                                      { method: 'DELETE' }
+                                      `http://localhost:5000/api/booking-agents/${agent._id}`,
+                                      { method: "DELETE" }
                                     );
                                     if (!response.ok) {
                                       const errorData = await response.json();
-                                      throw new Error(errorData.message || 'Failed to delete agent');
+                                      throw new Error(
+                                        errorData.message ||
+                                          "Failed to delete agent"
+                                      );
                                     }
-                                    setBookingAgents(prev => prev.filter(a => a._id !== agent._id));
+                                    setBookingAgents((prev) =>
+                                      prev.filter((a) => a._id !== agent._id)
+                                    );
                                     if (newEvent.source === agent.name) {
-                                      setNewEvent(prev => ({ ...prev, source: 'direct' }));
+                                      setNewEvent((prev) => ({
+                                        ...prev,
+                                        source: "direct",
+                                      }));
                                     }
                                   } catch (error) {
                                     setError(error.message);

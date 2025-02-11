@@ -4,6 +4,7 @@ import Auth from "./components/Auth";
 import PropTypes from "prop-types";
 import Dashboard from "./components/Dashboard";
 import PropertyManagement from "./components/PropertyManagement";
+import BookingsPage from "./components/Bookings";
 import { useAuth } from "./context/AuthContext";
 
 const ProtectedRoute = ({ children }) => {
@@ -48,6 +49,14 @@ const App = () => {
             element={
               <ProtectedRoute>
                 <PropertyManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bookings"
+            element={
+              <ProtectedRoute>
+                <BookingsPage />
               </ProtectedRoute>
             }
           />
