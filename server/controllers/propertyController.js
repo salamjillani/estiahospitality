@@ -177,4 +177,4 @@ exports.uploadPhotos = async (req, res) => {
       error: error.message
     });
   }
-}; // 🔍 Log the stored image paths
+}; 

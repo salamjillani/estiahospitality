@@ -1,3 +1,4 @@
+//server/routes/bookings.js
 const express = require("express");
 const router = express.Router();
 const { auth, checkRole } = require("../middleware/auth");
@@ -11,8 +12,9 @@ router.get("/", auth, async (req, res) => {
     let query = {};
 
     if (startDate && endDate) {
-      query.startDate = { $gte: new Date(startDate) };
-      query.endDate = { $lte: new Date(endDate) };
+      query.$or = [
+        { startDate: { $lt: new Date(endDate) }, endDate: { $gt: new Date(startDate) } }
+      ];
     }
 
     if (propertyId) {
@@ -32,8 +34,8 @@ router.get("/", auth, async (req, res) => {
       })
       .sort({ startDate: 1 });
 
-    // Wrap bookings in an object
-    res.json({ bookings });  // Changed this line
+
+    res.json({ bookings }); 
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -117,56 +119,23 @@ router.post("/", auth, validateBooking, async (req, res) => {
 // Add PUT route for updating bookings
 router.put("/:id", auth, validateBooking, async (req, res) => {
   try {
-    const bookingId = req.params.id;
-    const {
-      property,
-      startDate,
-      endDate,
-      guestName,
-      numberOfGuests,
-      pricePerNight,
-      source,
-    } = req.body;
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
 
-    // Check if booking exists
-    const existingBooking = await Booking.findById(bookingId).populate(
-      "property"
-    );
+    // Update fields
+    booking.set({
+      ...req.validatedBooking,
+      updatedBy: req.user._id,
+      updatedAt: new Date()
+    });
 
-    if (!existingBooking) {
-      return res.status(404).json({ message: "Booking not found" });
-    }
+    await booking.save(); // Triggers pre-save hooks
 
-    // Check property access
-    if (
-      req.user.role !== "admin" &&
-      !req.user.assignedProperties.includes(existingBooking.property._id)
-    ) {
-      return res.status(403).json({ message: "Access denied to this booking" });
-    }
-
-    // Update booking
-    const updatedBooking = await Booking.findByIdAndUpdate(
-      bookingId,
-      {
-        ...req.validatedBooking,
-        updatedBy: req.user._id,
-        updatedAt: new Date(),
-      },
-      { new: true }
-    )
-      .populate({
-        path: "property",
-        select: "title identifier type",
-      })
-      .populate({
-        path: "createdBy",
-        select: "name email",
-      });
-
-    res.json(updatedBooking);
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate('property createdBy');
+      
+    res.json(populatedBooking);
   } catch (error) {
-    console.error("Booking update error:", error);
     res.status(400).json({ message: error.message });
   }
 });

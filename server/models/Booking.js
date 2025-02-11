@@ -1,3 +1,4 @@
+//server/models/Booking.js
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema(
@@ -31,7 +32,6 @@ const bookingSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ["direct", "airbnb", "booking.com", "vrbo"],
       required: true,
     },
     status: {
@@ -39,7 +39,6 @@ const bookingSchema = new mongoose.Schema(
       enum: ["confirmed", "pending", "cancelled"],
       default: "confirmed",
     },
-    // Remove default functions from schema definition
     totalNights: Number,
     totalPrice: Number,
     commissionPercentage: Number,
@@ -56,9 +55,9 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
-// Pre-validate middleware to ensure proper data types
+
 bookingSchema.pre('validate', function(next) {
-  // Convert string dates to Date objects if needed
+
   if (typeof this.startDate === 'string') {
     this.startDate = new Date(this.startDate);
   }
@@ -66,7 +65,7 @@ bookingSchema.pre('validate', function(next) {
     this.endDate = new Date(this.endDate);
   }
   
-  // Ensure pricePerNight is a number
+ 
   if (this.pricePerNight) {
     this.pricePerNight = Number(this.pricePerNight);
   }
@@ -74,23 +73,22 @@ bookingSchema.pre('validate', function(next) {
   next();
 });
 
-/// Update the pre-save middleware in the Booking model
 bookingSchema.pre('save', function(next) {
   try {
-    // Ensure pricePerNight is a valid number
+  
     if (typeof this.pricePerNight !== 'number' || isNaN(this.pricePerNight) || this.pricePerNight <= 0) {
       throw new Error('Valid price per night is required');
     }
 
-    // Calculate total nights
+  
     const start = new Date(this.startDate);
     const end = new Date(this.endDate);
     this.totalNights = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
 
-    // Calculate total price (ensure both values are numbers)
+
     this.totalPrice = Number(this.pricePerNight) * Number(this.totalNights);
 
-    // Set commission percentage based on source
+ 
     this.commissionPercentage = {
       'booking.com': 15,
       'airbnb': 12,
