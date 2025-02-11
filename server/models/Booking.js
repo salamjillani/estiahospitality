@@ -88,17 +88,12 @@ bookingSchema.pre('save', function(next) {
 
     this.totalPrice = Number(this.pricePerNight) * Number(this.totalNights);
 
- 
-    this.commissionPercentage = {
-      'booking.com': 15,
-      'airbnb': 12,
-      'vrbo': 8,
-      'direct': 0
-    }[this.source] || 0;
-
-    // Calculate commission amounts with proper number handling
-    this.commissionAmount = Number((this.totalPrice * (this.commissionPercentage / 100)).toFixed(2));
-    this.netAmount = Number((this.totalPrice - this.commissionAmount).toFixed(2));
+    this.commissionAmount = Number(
+      (this.totalPrice * (this.commissionPercentage / 100)).toFixed(2)
+    );
+    this.netAmount = Number(
+      (this.totalPrice - this.commissionAmount).toFixed(2)
+    );
 
     // Final validation
     if (isNaN(this.totalPrice) || this.totalPrice <= 0) {

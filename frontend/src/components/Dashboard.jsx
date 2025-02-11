@@ -27,6 +27,13 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+const defaultCommissions = {
+  direct: 0,
+  airbnb: 12,
+  'booking.com': 15,
+  vrbo: 8
+};
+
 const Dashboard = () => {
   const [events, setEvents] = useState([]);
   const [properties, setProperties] = useState([]);
@@ -40,9 +47,9 @@ const Dashboard = () => {
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [customAgents, setCustomAgents] = useState([]);
   const [showAddAgentModal, setShowAddAgentModal] = useState(false);
   const [newAgentName, setNewAgentName] = useState("");
+  const [bookingAgents, setBookingAgents] = useState([]);
 
   const [newEvent, setNewEvent] = useState({
     propertyId: "",
@@ -61,21 +68,9 @@ const Dashboard = () => {
     customPaymentText: "",
   });
 
-  const handleAddAgent = () => {
-    if (newAgentName.trim()) {
-      setCustomAgents((prevAgents) => [...prevAgents, newAgentName.trim()]);
-      setNewAgentName("");
-      setShowAddAgentModal(false);
-    }
-  };
-
-  // Combine default and custom booking sources
   const allBookingSources = [
-    "direct",
-    "airbnb",
-    "booking.com",
-    "vrbo",
-    ...customAgents,
+    ...Object.keys(defaultCommissions),
+    ...bookingAgents.map(agent => agent.name)
   ];
 
   const getEventColor = useCallback((source) => {
@@ -92,8 +87,7 @@ const Dashboard = () => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     const diffTime = Math.abs(endDate - startDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
   const formatDate = (date) => {
@@ -129,6 +123,22 @@ const Dashboard = () => {
     }
   }, []);
 
+  const fetchAgents = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/booking-agents', {
+        credentials: 'include'
+      });
+      const data = await response.json();
+      setBookingAgents(data);
+    } catch (error) {
+      console.error('Error fetching agents:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAgents();
+  }, []);
+
   useEffect(() => {
     const filtered = properties.filter((property) =>
       property.title.toLowerCase().includes(propertySearchQuery.toLowerCase())
@@ -149,7 +159,6 @@ const Dashboard = () => {
       if (!response.ok) throw new Error("Failed to fetch bookings");
 
       const data = await response.json();
-      // Handle both cases: when response is an array directly or wrapped in bookings property
       const bookingsData = Array.isArray(data) ? data : data.bookings || [];
 
       const formattedEvents = bookingsData.map((booking) => ({
@@ -256,7 +265,6 @@ const Dashboard = () => {
         throw new Error(errorData.message || "Failed to save booking");
       }
 
-      // Wait for fetchBookings to complete before closing modal
       await fetchBookings();
       setShowEventModal(false);
       setNewEvent({
@@ -304,7 +312,6 @@ const Dashboard = () => {
     setShowEventModal(true);
   }, []);
 
-  // Add handleDeleteBooking function
   const handleDeleteBooking = async () => {
     try {
       setLoading(true);
@@ -333,7 +340,6 @@ const Dashboard = () => {
     }
   };
 
-  // Add handleUpdateBooking function
   const handleUpdateBooking = async () => {
     try {
       setLoading(true);
@@ -378,7 +384,6 @@ const Dashboard = () => {
     }
   };
 
-  // Add resetForm function
   const resetForm = () => {
     setNewEvent({
       propertyId: "",
@@ -400,7 +405,6 @@ const Dashboard = () => {
       eventInfo.event.extendedProps.pricePerNight * nights
     ).toFixed(2);
 
-    // Placeholder for additional booking details
     const additionalDetails = [
       { icon: Plane, text: "Early morning flight" },
       { icon: Phone, text: "Prefers late check-in" },
@@ -448,12 +452,10 @@ const Dashboard = () => {
     );
   }, []);
 
-  // Generate a random price between 100 and 200
   const generateRandomPrice = () => {
     return Math.floor(Math.random() * (200 - 100 + 1)) + 100;
   };
 
-  // Generate prices for a month
   const generateMonthlyPrices = (date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -472,7 +474,6 @@ const Dashboard = () => {
     setDailyPrices((prev) => ({ ...prev, ...prices }));
   };
 
-  // Update prices when the calendar view changes
   const handleDatesSet = (dateInfo) => {
     generateMonthlyPrices(dateInfo.start);
     if (dateInfo.start.getMonth() !== dateInfo.end.getMonth()) {
@@ -495,21 +496,13 @@ const Dashboard = () => {
       return currentDate >= startDate && currentDate < endDate;
     });
 
-    let price;
-    if (!bookingEvent) {
-      price =
-        dailyPrices[dateKey] ||
-        Math.floor(Math.random() * (250 - 100 + 1)) + 100;
-      if (!dailyPrices[dateKey]) {
-        setDailyPrices((prev) => ({ ...prev, [dateKey]: price }));
-      }
-    }
+    const price = dailyPrices[dateKey];
 
     return (
       <div className="h-full flex flex-col p-1">
         <div className="flex justify-between items-center">
-          {!bookingEvent && (
-            <div className=" -ml-16 text-md font-medium text-green-600">
+          {!bookingEvent && price && (
+            <div className="-ml-16 text-md font-medium text-green-600">
               ${price}
             </div>
           )}
@@ -523,28 +516,54 @@ const Dashboard = () => {
       </div>
     );
   };
-  // Create a simple AddAgentModal component right before your return statement
+
   const AddAgentModal = () => {
-    if (!showAddAgentModal) return null;
+    const [newAgentCommission, setNewAgentCommission] = useState('');
+
+    const handleAddAgent = async () => {
+      if (newAgentName.trim() && newAgentCommission.trim()) {
+        try {
+          const response = await fetch('http://localhost:5000/api/booking-agents', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              name: newAgentName.trim(),
+              commissionPercentage: parseFloat(newAgentCommission)
+            })
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to add agent');
+          }
+    
+          const data = await response.json();
+          setBookingAgents(prev => [...prev, data]);
+          setNewAgentName('');
+          setNewAgentCommission('');
+          setShowAddAgentModal(false);
+        } catch (error) {
+          setError(error.message);
+        }
+      }
+    };
 
     return (
       <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[99999]">
-        <div
-          className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
           <div className="px-6 py-4 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Add New Booking Agent
-              </h3>
-              <button
-                onClick={() => setShowAddAgentModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Add New Booking Agent
+            </h3>
+            <button
+              onClick={() => setShowAddAgentModal(false)}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           <div className="p-6">
@@ -558,8 +577,26 @@ const Dashboard = () => {
                   value={newAgentName}
                   onChange={(e) => setNewAgentName(e.target.value)}
                   placeholder="Enter agent name"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Commission Percentage
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={newAgentCommission}
+                    onChange={(e) => setNewAgentCommission(e.target.value)}
+                    placeholder="Enter commission"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-12"
+                  />
+                  <span className="absolute right-4 top-3.5 text-gray-400">%</span>
+                </div>
               </div>
             </div>
           </div>
@@ -568,14 +605,14 @@ const Dashboard = () => {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowAddAgentModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddAgent}
-                disabled={!newAgentName.trim()}
-                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!newAgentName.trim() || !newAgentCommission.trim()}
+                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Agent
@@ -586,9 +623,9 @@ const Dashboard = () => {
       </div>
     );
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
-      {/* Responsive Navigation */}
       <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 z-50">
         <div className="max-w-8xl mx-auto">
           <div className="flex items-center justify-between h-16 px-4 lg:px-6">
@@ -640,9 +677,7 @@ const Dashboard = () => {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="pt-16 h-screen flex">
-        {/* Responsive Sidebar */}
         <div
           className={`fixed lg:relative lg:block w-full lg:w-96 bg-white border-r border-gray-100 h-full transform transition-transform duration-300 ease-in-out z-40 ${
             isSidebarOpen
@@ -651,7 +686,6 @@ const Dashboard = () => {
           }`}
         >
           <div className="p-4 lg:p-6 overflow-y-auto h-full">
-            {/* Search */}
             <div className="relative mb-6">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-gray-400" />
@@ -665,7 +699,6 @@ const Dashboard = () => {
               />
             </div>
 
-            {/* Property Cards */}
             <div className="space-y-4">
               {filteredProperties.map((property) => (
                 <div
@@ -722,7 +755,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Calendar Section */}
         <div className="flex-1 p-4 lg:p-6 bg-gray-50">
           <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <FullCalendar
@@ -767,7 +799,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-      {/* Enhanced Modal */}
+
       {showEventModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] overflow-y-auto">
           <div
@@ -933,7 +965,6 @@ const Dashboard = () => {
                     />
                   </div>
 
-                  {/* Arrival Time */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Approximate Arrival Time
@@ -953,7 +984,6 @@ const Dashboard = () => {
                       />
                     </div>
                   </div>
-                  {/* Payment Date */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Payment Date
@@ -974,7 +1004,6 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  {/* Payment Method */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Payment Method
@@ -1028,7 +1057,6 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  {/* Custom Payment Text (shows only when 'other' is selected) */}
                   {newEvent.paymentMethod === "other" && (
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1049,7 +1077,6 @@ const Dashboard = () => {
                     </div>
                   )}
 
-                  {/* Booking Source with Custom Agent Option */}
                   <div className="md:col-span-2">
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">
@@ -1065,43 +1092,74 @@ const Dashboard = () => {
                       </button>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {allBookingSources.map((source) => (
-                        <button
-                          key={source}
-                          type="button"
-                          onClick={() => setNewEvent({ ...newEvent, source })}
-                          className={`flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
-                            newEvent.source === source
-                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
-                              : "border-gray-200 hover:border-blue-300"
-                          }`}
-                        >
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                              newEvent.source === source
-                                ? "bg-blue-500"
-                                : "bg-gray-100"
-                            }`}
-                          >
-                            <Building
-                              className={`w-4 h-4 ${
+                      {allBookingSources.map((source) => {
+                        const agent = bookingAgents.find(a => a.name === source);
+                        return (
+                          <div key={source} className="relative group">
+                            <button
+                              type="button"
+                              onClick={() => setNewEvent({ ...newEvent, source })}
+                              className={`w-full flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
                                 newEvent.source === source
-                                  ? "text-white"
-                                  : "text-gray-500"
+                                  ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
+                                  : "border-gray-200 hover:border-blue-300"
                               }`}
-                            />
+                            >
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
+                                  newEvent.source === source
+                                    ? "bg-blue-500"
+                                    : "bg-gray-100"
+                                }`}
+                              >
+                                <Building
+                                  className={`w-4 h-4 ${
+                                    newEvent.source === source
+                                      ? "text-white"
+                                      : "text-gray-500"
+                                  }`}
+                                />
+                              </div>
+                              <span
+                                className={`text-sm font-medium capitalize ${
+                                  newEvent.source === source
+                                    ? "text-blue-600"
+                                    : "text-gray-700"
+                                }`}
+                              >
+                                {source}
+                              </span>
+                            </button>
+                            {agent && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    const response = await fetch(
+                                      `http://localhost:5000/api/booking-agents/${agent._id}`, 
+                                      { method: 'DELETE' }
+                                    );
+                                    if (!response.ok) {
+                                      const errorData = await response.json();
+                                      throw new Error(errorData.message || 'Failed to delete agent');
+                                    }
+                                    setBookingAgents(prev => prev.filter(a => a._id !== agent._id));
+                                    if (newEvent.source === agent.name) {
+                                      setNewEvent(prev => ({ ...prev, source: 'direct' }));
+                                    }
+                                  } catch (error) {
+                                    setError(error.message);
+                                  }
+                                }}
+                                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                                title="Delete agent"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
-                          <span
-                            className={`text-sm font-medium capitalize ${
-                              newEvent.source === source
-                                ? "text-blue-600"
-                                : "text-gray-700"
-                            }`}
-                          >
-                            {source}
-                          </span>
-                        </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1134,7 +1192,6 @@ const Dashboard = () => {
                             : "0.00"}
                         </span>
                       </div>
-                      {/* Comments Section */}
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Comments
@@ -1222,7 +1279,7 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-      <AddAgentModal />
+      {showAddAgentModal && <AddAgentModal />}
     </div>
   );
 };

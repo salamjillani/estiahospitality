@@ -1,4 +1,3 @@
-//server
 // server/server.js
 const path = require('path');
 const multer = require('multer');
@@ -11,22 +10,17 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 
-
-
 // Import routes
 const authRoutes = require('./routes/auth');
 const propertyRoutes = require('./routes/properties');
 const bookingRoutes = require('./routes/bookings');
-
-
+const bookingAgentRoutes = require('./routes/bookingAgents');
 
 const app = express();
 const server = http.createServer(app);
 
 // WebSocket setup
 const wss = new WebSocket.Server({ server });
-
-
 
 // Broadcast function for WebSocket
 const broadcast = (type, data) => {
@@ -37,17 +31,14 @@ const broadcast = (type, data) => {
   });
 };
 
-// Make broadcast available throughout the app
 app.locals.broadcast = broadcast;
 
-// WebSocket connection handling
 wss.on('connection', (ws) => {
   console.log('New WebSocket client connected');
 
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message);
-      // Handle any client-to-server WebSocket messages here
       console.log('Received:', data);
     } catch (error) {
       console.error('WebSocket message error:', error);
@@ -59,14 +50,63 @@ wss.on('connection', (ws) => {
   });
 });
 
-app.use('/uploads/properties', express.static(path.join(__dirname, '../uploads/properties')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Middleware setup
 app.use(cors({
   origin: 'http://localhost:5173',
   credentials: true,
   exposedHeaders: ['Content-Disposition']
 }));
+app.use(cookieParser());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+// Static files
+app.use('/uploads/properties', express.static(path.join(__dirname, '../uploads/properties')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/properties', propertyRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/booking-agents', bookingAgentRoutes); // Moved after body parsers
+
+// File upload configuration
+const uploadDir = path.join(__dirname, '../uploads/properties');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Not an image! Please upload an image.'), false);
+    }
+  }
+});
+
+app.post('/api/properties/upload', upload.array('photos', 10), async (req, res) => {
+  try {
+    const photoUrls = req.files.map(file => `/uploads/properties/${file.filename}`);
+    res.json({ photoUrls });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Error handlers
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Internal Server Error', error: err.message });
@@ -80,64 +120,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-// Mount routes
-app.use('/api/auth', authRoutes);
-app.use('/api/properties', propertyRoutes);
-app.use('/api/bookings', bookingRoutes);
-
-
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
-});
-
-
-
-
-const uploadDir = path.join(__dirname, '../uploads/properties');
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname))
-  }
-});
-
-
-
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Not an image! Please upload an image.'), false);
-    }
-  }
-});
-
-// Add the upload route
-app.post('/api/properties/upload', upload.array('photos', 10), async (req, res) => {
-  try {
-    const photoUrls = req.files.map(file => `/uploads/properties/${file.filename}`);
-    res.json({ photoUrls });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-// Connect to MongoDB
+// Database connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
