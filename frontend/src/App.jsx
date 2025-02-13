@@ -13,6 +13,7 @@ import { useAuth } from "./context/AuthContext";
 import PropertyForm from "./components/PropertyForm";
 import Properties from "./components/Properties";
 import PropertyDetails from "./components/PropertyDetails";
+import Agents from "./components/Agents";
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -56,6 +57,14 @@ const App = () => {
           <Route path="/properties/new" element={<PropertyForm />} />
           <Route path="/properties/:id" element={<PropertyDetails />} />
           <Route path="/properties/:id/edit" element={<PropertyForm />} />
+          <Route
+            path="/agents"
+            element={
+              <ProtectedRoute>
+                <Agents />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/bookings"
             element={

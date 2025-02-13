@@ -39,6 +39,12 @@ const bookingSchema = new mongoose.Schema(
       enum: ["confirmed", "pending", "cancelled"],
       default: "confirmed",
     },
+    reservationCode: {
+      type: String,
+      required: true,
+      unique: true,
+      default: () => Math.random().toString(36).substr(2, 6).toUpperCase()
+    },
     totalNights: Number,
     totalPrice: Number,
     commissionPercentage: Number,

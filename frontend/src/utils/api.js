@@ -99,33 +99,28 @@ export const api = {
     }
 },
 
-  put: async (endpoint, data) => {
-    try {
-      const headers = data instanceof FormData 
-        ? {} // Let browser set Content-Type
-        : { 'Content-Type': 'application/json' };
-  
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-  
-      const response = await fetch(`${BASE_URL}${endpoint}`, {
-        method: 'PUT',
-        headers,
-        credentials: 'include',
-        body: data instanceof FormData ? data : JSON.stringify(data)
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'API request failed');
-      }
-      return response.json();
-    } catch (err) {
-      console.error('API call failed:', err);
-      throw err;
+put: async (endpoint, data) => {
+  try {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAuthToken()}`
+      },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'API request failed');
     }
-  },
+    return response.json();
+  } catch (err) {
+    console.error('API call failed:', err);
+    throw err;
+  }
+},
 
   delete: async (endpoint) => {
     try {

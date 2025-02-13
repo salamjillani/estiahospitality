@@ -19,14 +19,13 @@ import {
   X,
   Home,
   Menu,
-  Plus,
   Clock,
   Mail,
   DollarSign,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from '../context/AuthContext'; // Adjust path as needed
-import { getAuthToken } from '../utils/api';
+import { useAuth } from "../context/AuthContext";
+import { getAuthToken } from "../utils/api";
 
 const defaultCommissions = {
   direct: 0,
@@ -47,8 +46,6 @@ const Dashboard = () => {
   const [propertySearchQuery, setPropertySearchQuery] = useState("");
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showAddAgentModal, setShowAddAgentModal] = useState(false);
-  const [newAgentName, setNewAgentName] = useState("");
   const [bookingAgents, setBookingAgents] = useState([]);
 
   const [newEvent, setNewEvent] = useState({
@@ -66,6 +63,7 @@ const Dashboard = () => {
     paymentMethod: "cash",
     paymentDate: "",
     customPaymentText: "",
+    reservationCode: Math.random().toString(36).substr(2, 6).toUpperCase(),
   });
 
   const allBookingSources = [
@@ -98,15 +96,17 @@ const Dashboard = () => {
       year: "numeric",
     });
   };
+
   const { user } = useAuth();
+
   const fetchProperties = useCallback(async () => {
     try {
       setError("");
       const response = await fetch("http://localhost:5000/api/properties", {
-        credentials: "include", // Add this
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`, // Add auth header
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       });
 
@@ -248,6 +248,7 @@ const Dashboard = () => {
         startDate: new Date(validatedBooking.startDate).toISOString(),
         endDate: new Date(validatedBooking.endDate).toISOString(),
         createdBy: user._id,
+        reservationCode: newEvent.reservationCode,
       };
 
       const response = await fetch("http://localhost:5000/api/bookings", {
@@ -274,6 +275,7 @@ const Dashboard = () => {
         source: "direct",
         startDate: "",
         endDate: "",
+        reservationCode: Math.random().toString(36).substr(2, 6).toUpperCase(),
       });
     } catch (error) {
       setError(error.message);
@@ -307,6 +309,7 @@ const Dashboard = () => {
       source: event.extendedProps.source,
       startDate: event.start.toISOString().slice(0, 16),
       endDate: event.end.toISOString().slice(0, 16),
+      reservationCode: event.extendedProps.reservationCode,
     });
     setShowEventModal(true);
   }, []);
@@ -354,6 +357,7 @@ const Dashboard = () => {
         source: validatedBooking.source,
         startDate: new Date(validatedBooking.startDate).toISOString(),
         endDate: new Date(validatedBooking.endDate).toISOString(),
+        reservationCode: newEvent.reservationCode,
       };
 
       const response = await fetch(
@@ -392,6 +396,7 @@ const Dashboard = () => {
       source: "direct",
       startDate: "",
       endDate: "",
+      reservationCode: Math.random().toString(36).substr(2, 6).toUpperCase(),
     });
     setSelectedEventId(null);
     setIsEditMode(false);
@@ -516,118 +521,6 @@ const Dashboard = () => {
     );
   };
 
-  const AddAgentModal = () => {
-    const [newAgentCommission, setNewAgentCommission] = useState("");
-
-    const handleAddAgent = async () => {
-      if (newAgentName.trim() && newAgentCommission.trim()) {
-        try {
-          const response = await fetch(
-            "http://localhost:5000/api/booking-agents",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              credentials: "include",
-              body: JSON.stringify({
-                name: newAgentName.trim(),
-                commissionPercentage: parseFloat(newAgentCommission),
-              }),
-            }
-          );
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || "Failed to add agent");
-          }
-
-          const data = await response.json();
-          setBookingAgents((prev) => [...prev, data]);
-          setNewAgentName("");
-          setNewAgentCommission("");
-          setShowAddAgentModal(false);
-        } catch (error) {
-          setError(error.message);
-        }
-      }
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[99999]">
-        <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Add New Booking Agent
-            </h3>
-            <button
-              onClick={() => setShowAddAgentModal(false)}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="p-6">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Agent Name
-                </label>
-                <input
-                  type="text"
-                  value={newAgentName}
-                  onChange={(e) => setNewAgentName(e.target.value)}
-                  placeholder="Enter agent name"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Commission Percentage
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={newAgentCommission}
-                    onChange={(e) => setNewAgentCommission(e.target.value)}
-                    placeholder="Enter commission"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-12"
-                  />
-                  <span className="absolute right-4 top-3.5 text-gray-400">
-                    %
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-6 py-4 border-t border-gray-100">
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowAddAgentModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddAgent}
-                disabled={!newAgentName.trim() || !newAgentCommission.trim()}
-                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Agent
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
       <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 z-50">
@@ -666,6 +559,13 @@ const Dashboard = () => {
               >
                 <Calendar className="w-4 h-4 inline-block mr-2" />
                 Booking Information
+              </Link>
+              <Link
+                to="/agents"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+              >
+                <Users className="w-4 h-4 inline-block mr-2" />
+                Agents
               </Link>
             </div>
 
@@ -718,7 +618,6 @@ const Dashboard = () => {
                   className="block p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 group"
                 >
                   <div className="flex items-start gap-4">
-                    {/* Property Image */}
                     <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
                       {property.photos?.[0] ? (
                         <img
@@ -733,7 +632,6 @@ const Dashboard = () => {
                       )}
                     </div>
 
-                    {/* Property Details */}
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900 truncate">
                         {property.title}
@@ -852,6 +750,18 @@ const Dashboard = () => {
                         setNewEvent({ ...newEvent, guestName: e.target.value })
                       }
                       placeholder="Enter guest name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reservation Code
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      value={newEvent.reservationCode}
+                      readOnly
                     />
                   </div>
 
@@ -1076,96 +986,46 @@ const Dashboard = () => {
                       <label className="block text-sm font-medium text-gray-700">
                         Booking Source
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowAddAgentModal(true)}
-                        className="text-sm text-blue-600 hover:text-blue-700 flex items-center"
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add New Agent
-                      </button>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {allBookingSources.map((source) => {
-                        const agent = bookingAgents.find(
-                          (a) => a.name === source
-                        );
-                        return (
-                          <div key={source} className="relative group">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setNewEvent({ ...newEvent, source })
-                              }
-                              className={`w-full flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
+                      {allBookingSources.map((source) => (
+                        <div key={source} className="relative group">
+                          <button
+                            type="button"
+                            onClick={() => setNewEvent({ ...newEvent, source })}
+                            className={`w-full flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
+                              newEvent.source === source
+                                ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
+                                : "border-gray-200 hover:border-blue-300"
+                            }`}
+                          >
+                            <div
+                              className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
                                 newEvent.source === source
-                                  ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
-                                  : "border-gray-200 hover:border-blue-300"
+                                  ? "bg-blue-500"
+                                  : "bg-gray-100"
                               }`}
                             >
-                              <div
-                                className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
+                              <Building
+                                className={`w-4 h-4 ${
                                   newEvent.source === source
-                                    ? "bg-blue-500"
-                                    : "bg-gray-100"
+                                    ? "text-white"
+                                    : "text-gray-500"
                                 }`}
-                              >
-                                <Building
-                                  className={`w-4 h-4 ${
-                                    newEvent.source === source
-                                      ? "text-white"
-                                      : "text-gray-500"
-                                  }`}
-                                />
-                              </div>
-                              <span
-                                className={`text-sm font-medium capitalize ${
-                                  newEvent.source === source
-                                    ? "text-blue-600"
-                                    : "text-gray-700"
-                                }`}
-                              >
-                                {source}
-                              </span>
-                            </button>
-                            {agent && (
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    const response = await fetch(
-                                      `http://localhost:5000/api/booking-agents/${agent._id}`,
-                                      { method: "DELETE" }
-                                    );
-                                    if (!response.ok) {
-                                      const errorData = await response.json();
-                                      throw new Error(
-                                        errorData.message ||
-                                          "Failed to delete agent"
-                                      );
-                                    }
-                                    setBookingAgents((prev) =>
-                                      prev.filter((a) => a._id !== agent._id)
-                                    );
-                                    if (newEvent.source === agent.name) {
-                                      setNewEvent((prev) => ({
-                                        ...prev,
-                                        source: "direct",
-                                      }));
-                                    }
-                                  } catch (error) {
-                                    setError(error.message);
-                                  }
-                                }}
-                                className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                                title="Delete agent"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
+                              />
+                            </div>
+                            <span
+                              className={`text-sm font-medium capitalize ${
+                                newEvent.source === source
+                                  ? "text-blue-600"
+                                  : "text-gray-700"
+                              }`}
+                            >
+                              {source}
+                            </span>
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -1285,7 +1145,6 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-      {showAddAgentModal && <AddAgentModal />}
     </div>
   );
 };
