@@ -10,15 +10,14 @@ import {
   Search,
   Calendar,
   Users,
-  MapPin,
   Phone,
   Plane,
-  Star,
   Settings,
   Bell,
   Building,
   User,
   X,
+  Home,
   Menu,
   Plus,
   Clock,
@@ -26,6 +25,8 @@ import {
   DollarSign,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from '../context/AuthContext'; // Adjust path as needed
+import { getAuthToken } from '../utils/api';
 
 const defaultCommissions = {
   direct: 0,
@@ -45,7 +46,6 @@ const Dashboard = () => {
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [propertySearchQuery, setPropertySearchQuery] = useState("");
   const [filteredProperties, setFilteredProperties] = useState([]);
-  const [selectedProperty, setSelectedProperty] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showAddAgentModal, setShowAddAgentModal] = useState(false);
   const [newAgentName, setNewAgentName] = useState("");
@@ -98,14 +98,15 @@ const Dashboard = () => {
       year: "numeric",
     });
   };
-
+  const { user } = useAuth();
   const fetchProperties = useCallback(async () => {
     try {
       setError("");
       const response = await fetch("http://localhost:5000/api/properties", {
-        credentials: "include",
+        credentials: "include", // Add this
         headers: {
-          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAuthToken()}`, // Add auth header
         },
       });
 
@@ -115,8 +116,8 @@ const Dashboard = () => {
       }
 
       const data = await response.json();
-      setProperties(data.properties || []);
-      setFilteredProperties(data.properties || []);
+      setProperties(data || []);
+      setFilteredProperties(data || []);
     } catch (err) {
       setError("Error fetching properties: " + err.message);
       console.error("Error fetching properties:", err);
@@ -140,15 +141,21 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    const unsubscribe = websocketService.subscribe(
+      "property_created",
+      (newProperty) => {
+        setProperties((prev) => [...prev, newProperty]);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const filtered = properties.filter((property) =>
       property.title.toLowerCase().includes(propertySearchQuery.toLowerCase())
     );
     setFilteredProperties(filtered);
   }, [propertySearchQuery, properties]);
-
-  const handlePropertySelect = (property) => {
-    setSelectedProperty(property);
-  };
 
   const fetchBookings = useCallback(async () => {
     try {
@@ -192,16 +199,8 @@ const Dashboard = () => {
       fetchBookings();
     }, 0);
 
-    const unsubscribe = websocketService.subscribe(
-      "property_created",
-      (newProperty) => {
-        setProperties((prev) => [...prev, newProperty]);
-      }
-    );
-
     return () => {
       clearTimeout(timeoutId);
-      unsubscribe();
     };
   }, [fetchProperties, fetchBookings]);
 
@@ -248,7 +247,7 @@ const Dashboard = () => {
         source: validatedBooking.source,
         startDate: new Date(validatedBooking.startDate).toISOString(),
         endDate: new Date(validatedBooking.endDate).toISOString(),
-        createdBy: "6786d83f4ff2c84b44528678",
+        createdBy: user._id,
       };
 
       const response = await fetch("http://localhost:5000/api/bookings", {
@@ -642,7 +641,7 @@ const Dashboard = () => {
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
               <div className="flex items-center space-x-3">
-                <img src="logo.png" alt="Logo" className="h-10 w-auto" />
+                <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
               </div>
             </div>
 
@@ -713,60 +712,46 @@ const Dashboard = () => {
 
             <div className="space-y-4">
               {filteredProperties.map((property) => (
-                <div
+                <Link
                   key={property._id}
-                  onClick={() => {
-                    handlePropertySelect(property);
-                    setIsSidebarOpen(false);
-                  }}
-                  className={`group relative overflow-hidden p-4 bg-white rounded-xl border transition-all duration-300 hover:shadow-lg cursor-pointer ${
-                    selectedProperty?._id === property._id
-                      ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50"
-                      : "border-gray-100 hover:border-blue-300"
-                  }`}
+                  to={`/properties/${property._id}`}
+                  className="block p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 group"
                 >
-                  <div className="flex items-start space-x-4">
-                    <div className="relative w-20 h-20 lg:w-24 lg:h-24 rounded-lg overflow-hidden">
-                      <img
-                        src={
-                          property.photos?.[0]?.url || "/api/placeholder/96/96"
-                        }
-                        alt={property.title}
-                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300"
-                      />
+                  <div className="flex items-start gap-4">
+                    {/* Property Image */}
+                    <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                      {property.photos?.[0] ? (
+                        <img
+                          src={property.photos[0].url}
+                          alt={property.title}
+                          className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Home className="w-6 h-6 text-gray-400" />
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors duration-200 text-sm lg:text-base">
-                          {property.title}
-                        </h3>
-                      </div>
-
-                      <div className="flex items-center text-xs lg:text-sm text-gray-500 mb-2">
-                        <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
-                        <span className="truncate">
-                          {property.profile?.location?.city &&
-                          property.profile?.location?.country
-                            ? `${property.profile.location.city}, ${property.profile.location.country}`
-                            : "N/A"}
+                    {/* Property Details */}
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900 truncate">
+                        {property.title}
+                      </h3>
+                      <p className="text-sm text-gray-500 capitalize">
+                        {property.type}
+                      </p>
+                      <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          🏠 {property.bedrooms} beds
                         </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs lg:text-sm">
-                        <div className="flex items-center">
-                          <Star className="w-4 h-4 text-yellow-400" />
-                          <span className="ml-1 font-medium text-gray-600">
-                            4.9
-                          </span>
-                        </div>
-                        <span className="font-medium text-blue-600">
-                          $100/night
+                        <span className="flex items-center gap-1">
+                          🚿 {property.bathrooms} baths
                         </span>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -782,14 +767,7 @@ const Dashboard = () => {
                 center: "title",
                 right: "dayGridMonth,timeGridWeek,timeGridDay",
               }}
-              events={
-                selectedProperty
-                  ? events.filter(
-                      (event) =>
-                        event.extendedProps.propertyId === selectedProperty._id
-                    )
-                  : events
-              }
+              events={events}
               editable={true}
               selectable={true}
               selectMirror={true}
@@ -848,7 +826,6 @@ const Dashboard = () => {
                       Property
                     </label>
                     <select
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.propertyId}
                       onChange={(e) =>
                         setNewEvent({ ...newEvent, propertyId: e.target.value })

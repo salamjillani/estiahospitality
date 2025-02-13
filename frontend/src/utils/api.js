@@ -15,7 +15,9 @@ export const getAuthToken = () => {
 export const api = {
   getHeaders: () => {
     const headers = { 'Content-Type': 'application/json' };
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
     return headers;
   },
 

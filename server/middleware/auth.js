@@ -1,6 +1,7 @@
 // server/middleware/auth.js
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Fix: Remove curly braces
+const User = require('../models/User');
+const mongoose = require('mongoose');
 
 const auth = async (req, res, next) => {
   try {
@@ -8,6 +9,9 @@ const auth = async (req, res, next) => {
     if (!token) {
       console.error("No token found");
       throw new Error("Authentication token missing");
+    }
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(500).json({ message: 'Database not connected' });
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id);

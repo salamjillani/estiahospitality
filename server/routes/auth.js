@@ -117,6 +117,16 @@ router.post('/register', async (req, res) => {
     }
 });
 
+
+router.post('/logout', auth, async (req, res) => {
+  try {
+    res.clearCookie('token');
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
   // Get all non-admin users
   router.get('/users', auth, checkRole(['admin']), async (req, res) => {
     try {

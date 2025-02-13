@@ -1,11 +1,18 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Auth from "./components/Auth";
 import PropTypes from "prop-types";
 import Dashboard from "./components/Dashboard";
-import PropertyManagement from "./components/PropertyManagement";
 import BookingsPage from "./components/Bookings";
 import { useAuth } from "./context/AuthContext";
+import PropertyForm from "./components/PropertyForm";
+import Properties from "./components/Properties";
+import PropertyDetails from "./components/PropertyDetails";
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -44,14 +51,11 @@ const App = () => {
             }
           />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route
-            path="/properties"
-            element={
-              <ProtectedRoute>
-                <PropertyManagement />
-              </ProtectedRoute>
-            }
-          />
+
+          <Route path="/properties" element={<Properties />} />
+          <Route path="/properties/new" element={<PropertyForm />} />
+          <Route path="/properties/:id" element={<PropertyDetails />} />
+          <Route path="/properties/:id/edit" element={<PropertyForm />} />
           <Route
             path="/bookings"
             element={
