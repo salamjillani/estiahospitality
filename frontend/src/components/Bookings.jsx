@@ -60,7 +60,7 @@ const Bookings = () => {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-200 bg-white flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">All Bookings</h1>
+              <h1 className="text-2xl font-semibold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">All Bookings</h1>
               <p className="mt-1 text-sm text-gray-500">
                 Manage and view all your property bookings
               </p>

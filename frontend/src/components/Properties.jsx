@@ -144,7 +144,7 @@ const Properties = () => {
       <main className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold text-gray-900">Properties</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">All Listings</h1>
           </div>
           <Link
             to="/properties/new"
@@ -209,13 +209,13 @@ const Properties = () => {
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     {property.title}
                   </h3>
-                  <div className="flex items-center gap-2 text-gray-500">
+                  <div className="flex items-center gap-2 text-gray-800">
                     <MapPin className="w-4 h-4" />
                     <p className="text-sm truncate">
                       {property.location?.address || "No address specified"}
                     </p>
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-800">
                     {property.location?.city}, {property.location?.country}
                   </p>
                 </div>
@@ -223,14 +223,14 @@ const Properties = () => {
                 <div className="flex items-center justify-between border-t border-gray-100 pt-4">
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
-                      <Bed className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">
+                      <Bed className="w-4 h-4 text-gray-700" />
+                      <span className="text-sm text-gray-700">
                         {property.bedrooms}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Bath className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">
+                      <Bath className="w-4 h-4 text-gray-700" />
+                      <span className="text-sm text-gray-700">
                         {property.bathrooms}
                       </span>
                     </div>

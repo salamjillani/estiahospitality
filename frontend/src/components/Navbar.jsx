@@ -86,7 +86,7 @@ const Navbar = ({ isSidebarOpen, setIsSidebarOpen }) => {
               <Link
                 key={to}
                 to={to}
-                className={`group flex items-center px-4 py-2 text-sm font-medium text-gray-600 hover:${color} ${hoverBg} ${activeBg} rounded-lg transition-all duration-200`}
+                className={`group flex items-center px-4 py-2 text-sm font-medium text-gray-900 hover:${color} ${hoverBg} ${activeBg} rounded-lg transition-all duration-200`}
               >
                 <Icon className={`w-4 h-4 mr-2 transition-transform duration-200 group-hover:scale-110 group-hover:${color}`} />
                 <span className="relative">

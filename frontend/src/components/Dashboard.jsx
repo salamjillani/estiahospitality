@@ -41,7 +41,7 @@ const Dashboard = () => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [dailyPrices, setDailyPrices] = useState({});
+
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [propertySearchQuery, setPropertySearchQuery] = useState("");
@@ -457,60 +457,30 @@ const Dashboard = () => {
     );
   }, []);
 
-  const generateRandomPrice = () => {
-    return Math.floor(Math.random() * (200 - 100 + 1)) + 100;
-  };
+  
 
-  const generateMonthlyPrices = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const prices = {};
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(
-        day
-      ).padStart(2, "0")}`;
-      if (!dailyPrices[dateKey]) {
-        prices[dateKey] = generateRandomPrice();
-      }
-    }
-
-    setDailyPrices((prev) => ({ ...prev, ...prices }));
-  };
-
-  const handleDatesSet = (dateInfo) => {
-    generateMonthlyPrices(dateInfo.start);
-    if (dateInfo.start.getMonth() !== dateInfo.end.getMonth()) {
-      generateMonthlyPrices(dateInfo.end);
-    }
-  };
-
+  
   const dayCellContent = (arg) => {
-    const dateKey = arg.date.toISOString().split("T")[0];
-
+    const currentDate = new Date(arg.date);
+    
+    // Booking check without dateKey
     const bookingEvent = events.find((event) => {
       const startDate = new Date(event.start);
       const endDate = new Date(event.end);
-      const currentDate = new Date(arg.date);
-
+      
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(0, 0, 0, 0);
       currentDate.setHours(0, 0, 0, 0);
-
+  
       return currentDate >= startDate && currentDate < endDate;
     });
-
-    const price = dailyPrices[dateKey];
 
     return (
       <div className="h-full flex flex-col p-1">
         <div className="flex justify-between items-center">
-          {!bookingEvent && price && (
-            <div className="-ml-16 text-md font-medium text-green-600">
-              ${price}
-            </div>
-          )}
+          <div className="-ml-16 text-md font-medium text-green-600">
+            $60
+          </div>
           <div className="text-sm font-semibold text-gray-800">
             {arg.dayNumberText}
           </div>
@@ -573,7 +543,7 @@ const Dashboard = () => {
                       <h3 className="font-medium text-gray-900">{property.title}</h3>
                       <p className="flex items-center gap-1 mt-1 text-sm text-gray-500">
                         <MapPin className="w-4 h-4" />
-                        {property.location.address || "Location not specified"}
+                        {property.location.city || "Location not specified"}
                       </p>
                       <div className="flex items-center gap-3 mt-2">
                         <span className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded-lg text-sm text-gray-600">
@@ -611,7 +581,7 @@ const Dashboard = () => {
               weekends={true}
               eventContent={eventContent}
               dayCellContent={dayCellContent}
-              datesSet={handleDatesSet}
+             
               select={handleDateSelect}
               eventClick={handleEventClick}
               height="100%"

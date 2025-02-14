@@ -78,7 +78,7 @@ const Agents = () => {
       <main className="flex-1 pt-16"> {/* pt-16 matches navbar height */}
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Booking Agents</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">Booking Agents</h1>
             <Link 
               to="/dashboard" 
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
