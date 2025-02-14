@@ -175,9 +175,9 @@ const Dashboard = () => {
         end: new Date(booking.endDate),
         backgroundColor: getEventColor(booking.source),
         borderColor: getEventColor(booking.source),
-        className: "rounded-lg shadow-sm",
+        className: "rounded-full shadow-sm",
         extendedProps: {
-          propertyId: booking.property,
+          propertyId: booking.property._id,
           guestName: booking.guestName,
           numberOfGuests: booking.numberOfGuests,
           pricePerNight: booking.pricePerNight,
@@ -417,7 +417,7 @@ const Dashboard = () => {
   const eventContent = useCallback(
     (eventInfo) => {
       const property = properties.find(
-        (p) => p._id === eventInfo.event.extendedProps.propertyId
+        (p) => p._id.toString() === eventInfo.event.extendedProps.propertyId.toString()
       );
       const checkInDate = formatDate(eventInfo.event.start);
       const checkOutDate = formatDate(eventInfo.event.end);
@@ -431,7 +431,7 @@ const Dashboard = () => {
 
       return (
         <div
-          className="relative group flex items-center justify-between p-1 py-2 rounded-lg h-full w-full hover:opacity-90 transition-opacity"
+          className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
           style={{
             backgroundColor: eventInfo.event.backgroundColor,
             color: "white",
