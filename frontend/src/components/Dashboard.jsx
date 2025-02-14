@@ -11,7 +11,6 @@ import {
   Calendar,
   Users,
   Phone,
-  Plane,
   Building,
   X,
   Home,
@@ -182,6 +181,9 @@ const Dashboard = () => {
           guestName: booking.guestName,
           numberOfGuests: booking.numberOfGuests,
           pricePerNight: booking.pricePerNight,
+          phone: booking.phone,
+          email: booking.email,
+          arrivalTime: booking.arrivalTime,
           source: booking.source,
           status: booking.status,
         },
@@ -249,6 +251,9 @@ const Dashboard = () => {
         startDate: new Date(validatedBooking.startDate).toISOString(),
         endDate: new Date(validatedBooking.endDate).toISOString(),
         createdBy: user._id,
+        phone: validatedBooking.phone,
+        email: validatedBooking.email,
+        arrivalTime: validatedBooking.arrivalTime,
         reservationCode: newEvent.reservationCode,
       };
 
@@ -310,6 +315,9 @@ const Dashboard = () => {
       source: event.extendedProps.source,
       startDate: event.start.toISOString().slice(0, 16),
       endDate: event.end.toISOString().slice(0, 16),
+      phone: event.extendedProps.phone || "",
+      email: event.extendedProps.email || "",
+      arrivalTime: event.extendedProps.arrivalTime || "",
       reservationCode: event.extendedProps.reservationCode,
     });
     setShowEventModal(true);
@@ -358,6 +366,9 @@ const Dashboard = () => {
         source: validatedBooking.source,
         startDate: new Date(validatedBooking.startDate).toISOString(),
         endDate: new Date(validatedBooking.endDate).toISOString(),
+        phone: validatedBooking.phone,
+        email: validatedBooking.email,
+        arrivalTime: validatedBooking.arrivalTime,
         reservationCode: newEvent.reservationCode,
       };
 
@@ -403,84 +414,131 @@ const Dashboard = () => {
     setIsEditMode(false);
   };
 
-  const eventContent = useCallback((eventInfo) => {
-    const nights = calculateNights(eventInfo.event.start, eventInfo.event.end);
-    const checkInDate = formatDate(eventInfo.event.start);
-    const totalPrice = (
-      eventInfo.event.extendedProps.pricePerNight * nights
-    ).toFixed(2);
+  const eventContent = useCallback(
+    (eventInfo) => {
+      const property = properties.find(
+        (p) => p._id === eventInfo.event.extendedProps.propertyId
+      );
+      const checkInDate = formatDate(eventInfo.event.start);
+      const checkOutDate = formatDate(eventInfo.event.end);
+      const nights = calculateNights(
+        eventInfo.event.start,
+        eventInfo.event.end
+      );
+      const totalPrice = (
+        eventInfo.event.extendedProps.pricePerNight * nights
+      ).toFixed(2);
 
-    const additionalDetails = [
-      { icon: Plane, text: "Early morning flight" },
-      { icon: Phone, text: "Prefers late check-in" },
-    ];
+      return (
+        <div
+          className="relative group flex items-center justify-between p-1 py-2 rounded-lg h-full w-full hover:opacity-90 transition-opacity"
+          style={{
+            backgroundColor: eventInfo.event.backgroundColor,
+            color: "white",
+          }}
+        >
+          <div className="flex-1 font-medium truncate pl-2">
+            {eventInfo.event.title}
+          </div>
+          <div className="flex items-center space-x-1 bg-white/20 rounded-full px-2 py-1 ml-2">
+            <Users size={14} className="text-white" />
+            <span className="text-sm">
+              {eventInfo.event.extendedProps.numberOfGuests}
+            </span>
+          </div>
 
-    return (
-      <div
-        className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
-        style={{
-          backgroundColor: eventInfo.event.backgroundColor,
-          color: "white",
-        }}
-      >
-        <div className="flex-1 font-medium truncate pl-2">
-          {eventInfo.event.title}
-        </div>
-        <div className="flex items-center space-x-1 bg-white/20 rounded-full px-2 py-1 ml-2">
-          <Users size={14} className="text-white" />
-          <span className="text-sm">
-            {eventInfo.event.extendedProps.numberOfGuests}
-          </span>
-        </div>
+          <div className="absolute invisible group-hover:visible bg-white/95 backdrop-blur-sm text-gray-700 text-sm rounded-xl p-4 left-1/2 transform -translate-x-1/2 -top-44 min-w-[320px] z-50 shadow-lg border border-gray-100/50">
+            <div className="flex flex-col space-y-3">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100/50">
+                <h3 className="font-semibold text-base text-gray-900">
+                  {property?.title || "Unknown Property"}
+                </h3>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  {eventInfo.event.extendedProps.reservationCode}
+                </span>
+              </div>
 
-        <div className="absolute invisible group-hover:visible bg-gray-900 text-white text-sm rounded-lg px-3 py-2 left-1/2 transform -translate-x-1/2 -top-32 min-w-max z-50 shadow-lg">
-          <div className="flex flex-col items-center space-y-2">
-            <div className="font-medium">Check-in: {checkInDate}</div>
-            <div>
-              {nights} {nights === 1 ? "night" : "nights"}
-            </div>
-            <div className="font-semibold">Total Price: ${totalPrice}</div>
-            <div className="w-full border-t border-gray-700 pt-2">
-              {additionalDetails.map((detail, index) => (
-                <div key={index} className="flex items-center space-x-2 mb-1">
-                  <detail.icon size={14} className="text-gray-300" />
-                  <span>{detail.text}</span>
+              {/* Details Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Check-in</p>
+                    <p className="text-sm font-medium">{checkInDate}</p>
+                  </div>
                 </div>
-              ))}
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Check-out</p>
+                    <p className="text-sm font-medium">{checkOutDate}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-gray-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Arrival Time</p>
+                    <p className="text-sm font-medium">
+                      {eventInfo.event.extendedProps.arrivalTime ||
+                        "Not specified"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-gray-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Guests</p>
+                    <p className="text-sm font-medium">
+                      {eventInfo.event.extendedProps.numberOfGuests}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Price Summary */}
+              <div className="pt-2 border-t border-gray-100/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">
+                    {nights} {nights === 1 ? "Night" : "Nights"}
+                  </span>
+                  <span className="text-sm font-semibold text-blue-600">
+                    ${totalPrice}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Tooltip Arrow */}
+            <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full">
+              <div className="border-8 border-transparent border-t-white/95"></div>
             </div>
           </div>
-          <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full">
-            <div className="border-8 border-transparent border-t-gray-900"></div>
-          </div>
         </div>
-      </div>
-    );
-  }, []);
+      );
+    },
+    [properties]
+  );
 
-  
-
-  
   const dayCellContent = (arg) => {
     const currentDate = new Date(arg.date);
-    
+
     // Booking check without dateKey
     const bookingEvent = events.find((event) => {
       const startDate = new Date(event.start);
       const endDate = new Date(event.end);
-      
+
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(0, 0, 0, 0);
       currentDate.setHours(0, 0, 0, 0);
-  
+
       return currentDate >= startDate && currentDate < endDate;
     });
 
     return (
       <div className="h-full flex flex-col p-1">
         <div className="flex justify-between items-center">
-          <div className="-ml-16 text-md font-medium text-green-600">
-            $60
-          </div>
+          <div className="-ml-16 text-md font-medium text-green-600">$60</div>
           <div className="text-sm font-semibold text-gray-800">
             {arg.dayNumberText}
           </div>
@@ -494,30 +552,37 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50">
-    <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-    
-    <div className="pt-16 h-screen flex">
-      {/* Sidebar */}
-      <div className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/80 backdrop-blur-xl border-r border-gray-100/50 h-full transform transition-transform duration-300 ease-in-out z-40 ${
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      }`}>
-        <div className="p-4 lg:p-6 overflow-y-auto h-full">
-          {/* Search Box */}
-          <div className="relative mb-6">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search properties..."
-              value={propertySearchQuery}
-              onChange={(e) => setPropertySearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-4 py-3 bg-white/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-gray-400"
-            />
-          </div>
+      <Navbar
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
 
-          {/* Property Cards */}
-          <div className="space-y-4">
+      <div className="pt-16 h-screen flex">
+        {/* Sidebar */}
+        <div
+          className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/80 backdrop-blur-xl border-r border-gray-100/50 h-full transform transition-transform duration-300 ease-in-out z-40 ${
+            isSidebarOpen
+              ? "translate-x-0"
+              : "-translate-x-full lg:translate-x-0"
+          }`}
+        >
+          <div className="p-4 lg:p-6 overflow-y-auto h-full">
+            {/* Search Box */}
+            <div className="relative mb-6">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search properties..."
+                value={propertySearchQuery}
+                onChange={(e) => setPropertySearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-4 py-3 bg-white/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-gray-400"
+              />
+            </div>
+
+            {/* Property Cards */}
+            <div className="space-y-4">
               {filteredProperties.map((property) => (
                 <Link
                   key={property._id}
@@ -540,7 +605,9 @@ const Dashboard = () => {
                     </div>
 
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{property.title}</h3>
+                      <h3 className="font-medium text-gray-900">
+                        {property.title}
+                      </h3>
                       <p className="flex items-center gap-1 mt-1 text-sm text-gray-500">
                         <MapPin className="w-4 h-4" />
                         {property.location.city || "Location not specified"}
@@ -581,7 +648,6 @@ const Dashboard = () => {
               weekends={true}
               eventContent={eventContent}
               dayCellContent={dayCellContent}
-             
               select={handleDateSelect}
               eventClick={handleEventClick}
               height="100%"
@@ -603,7 +669,7 @@ const Dashboard = () => {
 
       {showEventModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center p-4 z-[9999] overflow-y-auto">
-          <div 
+          <div
             className="my-8 bg-white rounded-3xl w-full max-w-3xl shadow-2xl relative border border-gray-100"
             onClick={(e) => e.stopPropagation()}
           >
@@ -635,7 +701,9 @@ const Dashboard = () => {
                     </label>
                     <select
                       value={newEvent.propertyId}
-                      onChange={(e) => setNewEvent({ ...newEvent, propertyId: e.target.value })}
+                      onChange={(e) =>
+                        setNewEvent({ ...newEvent, propertyId: e.target.value })
+                      }
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     >
                       <option value="">Select Property</option>
@@ -656,7 +724,9 @@ const Dashboard = () => {
                       type="text"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.guestName}
-                      onChange={(e) => setNewEvent({ ...newEvent, guestName: e.target.value })}
+                      onChange={(e) =>
+                        setNewEvent({ ...newEvent, guestName: e.target.value })
+                      }
                       placeholder="Enter guest name"
                     />
                   </div>
@@ -682,7 +752,12 @@ const Dashboard = () => {
                       min="1"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.numberOfGuests}
-                      onChange={(e) => setNewEvent({ ...newEvent, numberOfGuests: e.target.value })}
+                      onChange={(e) =>
+                        setNewEvent({
+                          ...newEvent,
+                          numberOfGuests: e.target.value,
+                        })
+                      }
                     />
                   </div>
 
@@ -697,7 +772,9 @@ const Dashboard = () => {
                         type="tel"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.phone}
-                        onChange={(e) => setNewEvent({ ...newEvent, phone: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, phone: e.target.value })
+                        }
                         placeholder="Enter phone number"
                       />
                     </div>
@@ -713,7 +790,9 @@ const Dashboard = () => {
                         type="email"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.email}
-                        onChange={(e) => setNewEvent({ ...newEvent, email: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, email: e.target.value })
+                        }
                         placeholder="Enter email address"
                       />
                     </div>
@@ -725,14 +804,21 @@ const Dashboard = () => {
                       Price per Night
                     </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-3.5 text-gray-500">$</span>
+                      <span className="absolute left-4 top-3.5 text-gray-500">
+                        $
+                      </span>
                       <input
                         type="number"
                         min="0"
                         step="0.01"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-8 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         value={newEvent.pricePerNight}
-                        onChange={(e) => setNewEvent({ ...newEvent, pricePerNight: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            pricePerNight: e.target.value,
+                          })
+                        }
                       />
                     </div>
                   </div>
@@ -746,7 +832,9 @@ const Dashboard = () => {
                       type="datetime-local"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.startDate}
-                      onChange={(e) => setNewEvent({ ...newEvent, startDate: e.target.value })}
+                      onChange={(e) =>
+                        setNewEvent({ ...newEvent, startDate: e.target.value })
+                      }
                     />
                   </div>
 
@@ -758,7 +846,9 @@ const Dashboard = () => {
                       type="datetime-local"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.endDate}
-                      onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
+                      onChange={(e) =>
+                        setNewEvent({ ...newEvent, endDate: e.target.value })
+                      }
                     />
                   </div>
 
@@ -772,7 +862,12 @@ const Dashboard = () => {
                         type="time"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.arrivalTime}
-                        onChange={(e) => setNewEvent({ ...newEvent, arrivalTime: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            arrivalTime: e.target.value,
+                          })
+                        }
                       />
                     </div>
                   </div>
@@ -787,7 +882,12 @@ const Dashboard = () => {
                         type="date"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.paymentDate}
-                        onChange={(e) => setNewEvent({ ...newEvent, paymentDate: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            paymentDate: e.target.value,
+                          })
+                        }
                       />
                     </div>
                   </div>
@@ -798,33 +898,47 @@ const Dashboard = () => {
                       Payment Method
                     </label>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      {["cash", "credit_card", "bank_deposit", "stripe", "other"].map((method) => (
+                      {[
+                        "cash",
+                        "credit_card",
+                        "bank_deposit",
+                        "stripe",
+                        "other",
+                      ].map((method) => (
                         <button
                           key={method}
                           type="button"
-                          onClick={() => setNewEvent({ ...newEvent, paymentMethod: method })}
+                          onClick={() =>
+                            setNewEvent({ ...newEvent, paymentMethod: method })
+                          }
                           className={`flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:shadow-md ${
                             newEvent.paymentMethod === method
                               ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
                               : "border-gray-200 hover:border-blue-300"
                           }`}
                         >
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
-                            newEvent.paymentMethod === method
-                              ? "bg-blue-500"
-                              : "bg-gray-100"
-                          }`}>
-                            <DollarSign className={`w-5 h-5 ${
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
                               newEvent.paymentMethod === method
-                                ? "text-white"
-                                : "text-gray-500"
-                            }`} />
+                                ? "bg-blue-500"
+                                : "bg-gray-100"
+                            }`}
+                          >
+                            <DollarSign
+                              className={`w-5 h-5 ${
+                                newEvent.paymentMethod === method
+                                  ? "text-white"
+                                  : "text-gray-500"
+                              }`}
+                            />
                           </div>
-                          <span className={`text-sm font-medium capitalize ${
-                            newEvent.paymentMethod === method
-                              ? "text-blue-600"
-                              : "text-gray-700"
-                          }`}>
+                          <span
+                            className={`text-sm font-medium capitalize ${
+                              newEvent.paymentMethod === method
+                                ? "text-blue-600"
+                                : "text-gray-700"
+                            }`}
+                          >
                             {method.replace("_", " ")}
                           </span>
                         </button>
@@ -841,7 +955,12 @@ const Dashboard = () => {
                         type="text"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.customPaymentText}
-                        onChange={(e) => setNewEvent({ ...newEvent, customPaymentText: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            customPaymentText: e.target.value,
+                          })
+                        }
                         placeholder="Enter custom payment details"
                       />
                     </div>
@@ -866,22 +985,28 @@ const Dashboard = () => {
                                 : "border-gray-200 hover:border-blue-300"
                             }`}
                           >
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
-                              newEvent.source === source
-                                ? "bg-blue-500"
-                                : "bg-gray-100"
-                            }`}>
-                              <Building className={`w-5 h-5 ${
+                            <div
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
                                 newEvent.source === source
-                                  ? "text-white"
-                                  : "text-gray-500"
-                              }`} />
+                                  ? "bg-blue-500"
+                                  : "bg-gray-100"
+                              }`}
+                            >
+                              <Building
+                                className={`w-5 h-5 ${
+                                  newEvent.source === source
+                                    ? "text-white"
+                                    : "text-gray-500"
+                                }`}
+                              />
                             </div>
-                            <span className={`text-sm font-medium capitalize ${
-                              newEvent.source === source
-                                ? "text-blue-600"
-                                : "text-gray-700"
-                            }`}>
+                            <span
+                              className={`text-sm font-medium capitalize ${
+                                newEvent.source === source
+                                  ? "text-blue-600"
+                                  : "text-gray-700"
+                              }`}
+                            >
                               {source}
                             </span>
                           </button>
@@ -894,23 +1019,33 @@ const Dashboard = () => {
                   <div className="md:col-span-2">
                     <div className="bg-gray-50 rounded-2xl p-6 space-y-4">
                       <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Total Nights</span>
+                        <span className="text-gray-600">Total Nights</span>
                         <span className="text-lg font-semibold text-gray-900">
                           {newEvent.startDate && newEvent.endDate
-                            ? calculateNights(newEvent.startDate, newEvent.endDate)
+                            ? calculateNights(
+                                newEvent.startDate,
+                                newEvent.endDate
+                              )
                             : 0}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Total Price</span>
                         <span className="text-lg font-semibold text-gray-900">
-                          ${newEvent.startDate && newEvent.endDate && newEvent.pricePerNight
-                            ? (calculateNights(newEvent.startDate, newEvent.endDate) * 
-                               parseFloat(newEvent.pricePerNight)).toFixed(2)
+                          $
+                          {newEvent.startDate &&
+                          newEvent.endDate &&
+                          newEvent.pricePerNight
+                            ? (
+                                calculateNights(
+                                  newEvent.startDate,
+                                  newEvent.endDate
+                                ) * parseFloat(newEvent.pricePerNight)
+                              ).toFixed(2)
                             : "0.00"}
                         </span>
                       </div>
-                      
+
                       {/* Comments Section */}
                       <div className="pt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -919,7 +1054,12 @@ const Dashboard = () => {
                         <textarea
                           className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px] resize-none"
                           value={newEvent.comments}
-                          onChange={(e) => setNewEvent({ ...newEvent, comments: e.target.value })}
+                          onChange={(e) =>
+                            setNewEvent({
+                              ...newEvent,
+                              comments: e.target.value,
+                            })
+                          }
                           placeholder="Add any additional comments or special requests..."
                         />
                       </div>
@@ -978,11 +1118,15 @@ const Dashboard = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
+                      onClick={
+                        isEditMode ? handleUpdateBooking : handleSaveEvent
+                      }
                       disabled={loading}
                       className="flex items-center px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                      {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      {loading && (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      )}
                       {isEditMode ? "Update Booking" : "Create Booking"}
                     </button>
                   </div>

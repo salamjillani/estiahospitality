@@ -51,7 +51,10 @@ const validateBooking = async (req, res, next) => {
       guestName,
       numberOfGuests: parseInt(numberOfGuests),
       pricePerNight: parseFloat(pricePerNight),
-      source: req.body.source // Allow any string
+      phone: req.body.phone,
+      email: req.body.email,
+      arrivalTime: req.body.arrivalTime,
+      source: req.body.source
     };
 
     next();
