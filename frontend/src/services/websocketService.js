@@ -8,7 +8,10 @@ class WebSocketService {
 
   connect() {
     this.socket = new WebSocket('ws://localhost:5000');
-
+    this.socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      setTimeout(() => this.connect(), 5000);
+    };
     this.socket.onopen = () => {
       console.log('WebSocket connected');
     };

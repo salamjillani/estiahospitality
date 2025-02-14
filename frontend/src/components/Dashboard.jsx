@@ -12,20 +12,21 @@ import {
   Users,
   Phone,
   Plane,
-  Settings,
-  Bell,
   Building,
-  User,
   X,
   Home,
-  Menu,
   Clock,
   Mail,
   DollarSign,
+  MapPin,
+  BedDouble,
+  ChevronRight,
+  Bath,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getAuthToken } from "../utils/api";
+import Navbar from "./Navbar";
 
 const defaultCommissions = {
   direct: 0,
@@ -522,103 +523,39 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
-      <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-gray-100 z-50">
-        <div className="max-w-8xl mx-auto">
-          <div className="flex items-center justify-between h-16 px-4 lg:px-6">
-            <div className="flex items-center">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="lg:hidden p-2 mr-2 text-gray-500 hover:text-gray-700"
-              >
-                {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-              <div className="flex items-center space-x-3">
-                <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50">
+    <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+    
+    <div className="pt-16 h-screen flex">
+      {/* Sidebar */}
+      <div className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/80 backdrop-blur-xl border-r border-gray-100/50 h-full transform transition-transform duration-300 ease-in-out z-40 ${
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      }`}>
+        <div className="p-4 lg:p-6 overflow-y-auto h-full">
+          {/* Search Box */}
+          <div className="relative mb-6">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
             </div>
-
-            <div className="hidden lg:flex items-center space-x-1">
-              <Link
-                to="/calendar"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-              >
-                <Calendar className="w-4 h-4 inline-block mr-2" />
-                Calendar
-              </Link>
-              <Link
-                to="/properties"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-              >
-                <Building className="w-4 h-4 inline-block mr-2" />
-                Properties
-              </Link>
-              <Link
-                to="/bookings"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-              >
-                <Calendar className="w-4 h-4 inline-block mr-2" />
-                Booking Information
-              </Link>
-              <Link
-                to="/agents"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-              >
-                <Users className="w-4 h-4 inline-block mr-2" />
-                Agents
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-2 lg:space-x-4">
-              <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
-                <Bell className="w-5 h-5" />
-              </button>
-              <button className="hidden sm:block p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">
-                <Settings className="w-5 h-5" />
-              </button>
-              <div className="hidden sm:block h-8 w-px bg-gray-200"></div>
-              <div className="flex items-center space-x-3">
-                <User className="w-5 h-5" />
-                <span className="hidden sm:inline text-sm font-medium text-gray-700">
-                  Admin
-                </span>
-              </div>
-            </div>
+            <input
+              type="text"
+              placeholder="Search properties..."
+              value={propertySearchQuery}
+              onChange={(e) => setPropertySearchQuery(e.target.value)}
+              className="block w-full pl-10 pr-4 py-3 bg-white/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-gray-400"
+            />
           </div>
-        </div>
-      </nav>
 
-      <div className="pt-16 h-screen flex">
-        <div
-          className={`fixed lg:relative lg:block w-full lg:w-96 bg-white border-r border-gray-100 h-full transform transition-transform duration-300 ease-in-out z-40 ${
-            isSidebarOpen
-              ? "translate-x-0"
-              : "-translate-x-full lg:translate-x-0"
-          }`}
-        >
-          <div className="p-4 lg:p-6 overflow-y-auto h-full">
-            <div className="relative mb-6">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search properties..."
-                value={propertySearchQuery}
-                onChange={(e) => setPropertySearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200"
-              />
-            </div>
-
-            <div className="space-y-4">
+          {/* Property Cards */}
+          <div className="space-y-4">
               {filteredProperties.map((property) => (
                 <Link
                   key={property._id}
                   to={`/properties/${property._id}`}
-                  className="block p-4 bg-white rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 group"
+                  className="group block p-4 bg-white rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-200"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+                    <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50">
                       {property.photos?.[0] ? (
                         <img
                           src={property.photos[0].url}
@@ -627,27 +564,27 @@ const Dashboard = () => {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Home className="w-6 h-6 text-gray-400" />
+                          <Home className="w-8 h-8 text-blue-400" />
                         </div>
                       )}
                     </div>
 
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {property.title}
-                      </h3>
-                      <p className="text-sm text-gray-500 capitalize">
-                        {property.type}
+                      <h3 className="font-medium text-gray-900">{property.title}</h3>
+                      <p className="flex items-center gap-1 mt-1 text-sm text-gray-500">
+                        <MapPin className="w-4 h-4" />
+                        {property.location.address || "Location not specified"}
                       </p>
-                      <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
-                        <span className="flex items-center gap-1">
-                          🏠 {property.bedrooms} beds
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded-lg text-sm text-gray-600">
+                          <BedDouble className="w-4 h-4" /> {property.bedrooms}
                         </span>
-                        <span className="flex items-center gap-1">
-                          🚿 {property.bathrooms} baths
+                        <span className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded-lg text-sm text-gray-600">
+                          <Bath className="w-4 h-4" /> {property.bathrooms}
                         </span>
                       </div>
                     </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-500 transition-colors" />
                   </div>
                 </Link>
               ))}
@@ -655,8 +592,9 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="flex-1 p-4 lg:p-6 bg-gray-50">
-          <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Calendar Section */}
+        <div className="flex-1 p-4 lg:p-6 bg-transparent">
+          <div className="h-full bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-blue-500/5 border border-gray-100/50 overflow-hidden">
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
@@ -694,15 +632,16 @@ const Dashboard = () => {
       </div>
 
       {showEventModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[9999] overflow-y-auto">
-          <div
-            className="my-8 bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative"
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center p-4 z-[9999] overflow-y-auto">
+          <div 
+            className="my-8 bg-white rounded-3xl w-full max-w-3xl shadow-2xl relative border border-gray-100"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white px-8 py-6 border-b border-gray-100 z-10">
+              {/* Header */}
+              <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-b border-gray-100 z-10">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
                     {isEditMode ? "Edit Booking" : "New Booking"}
                   </h2>
                   <button
@@ -719,15 +658,15 @@ const Dashboard = () => {
 
               <div className="px-8 py-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Property Selection */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Property
                     </label>
                     <select
                       value={newEvent.propertyId}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, propertyId: e.target.value })
-                      }
+                      onChange={(e) => setNewEvent({ ...newEvent, propertyId: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     >
                       <option value="">Select Property</option>
                       {properties.map((property) => (
@@ -738,17 +677,16 @@ const Dashboard = () => {
                     </select>
                   </div>
 
+                  {/* Guest Information */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Guest Name
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.guestName}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, guestName: e.target.value })
-                      }
+                      onChange={(e) => setNewEvent({ ...newEvent, guestName: e.target.value })}
                       placeholder="Enter guest name"
                     />
                   </div>
@@ -759,7 +697,7 @@ const Dashboard = () => {
                     </label>
                     <input
                       type="text"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.reservationCode}
                       readOnly
                     />
@@ -772,30 +710,24 @@ const Dashboard = () => {
                     <input
                       type="number"
                       min="1"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.numberOfGuests}
-                      onChange={(e) =>
-                        setNewEvent({
-                          ...newEvent,
-                          numberOfGuests: e.target.value,
-                        })
-                      }
+                      onChange={(e) => setNewEvent({ ...newEvent, numberOfGuests: e.target.value })}
                     />
                   </div>
 
+                  {/* Contact Information */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Phone Number
                     </label>
                     <div className="relative">
-                      <Phone className="absolute left-4 top-3.5 h-4 w-4 text-gray-400" />
+                      <Phone className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
                       <input
                         type="tel"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.phone}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, phone: e.target.value })
-                        }
+                        onChange={(e) => setNewEvent({ ...newEvent, phone: e.target.value })}
                         placeholder="Enter phone number"
                       />
                     </div>
@@ -806,52 +738,45 @@ const Dashboard = () => {
                       Email Address
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-3.5 h-4 w-4 text-gray-400" />
+                      <Mail className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
                       <input
                         type="email"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.email}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, email: e.target.value })
-                        }
+                        onChange={(e) => setNewEvent({ ...newEvent, email: e.target.value })}
                         placeholder="Enter email address"
                       />
                     </div>
                   </div>
+
+                  {/* Pricing */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Price per Night
                     </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-3 text-gray-500">
-                        $
-                      </span>
+                      <span className="absolute left-4 top-3.5 text-gray-500">$</span>
                       <input
                         type="number"
                         min="0"
                         step="0.01"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-8 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-8 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         value={newEvent.pricePerNight}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            pricePerNight: e.target.value,
-                          })
-                        }
+                        onChange={(e) => setNewEvent({ ...newEvent, pricePerNight: e.target.value })}
                       />
                     </div>
                   </div>
+
+                  {/* Dates */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Check-in
                     </label>
                     <input
                       type="datetime-local"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.startDate}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, startDate: e.target.value })
-                      }
+                      onChange={(e) => setNewEvent({ ...newEvent, startDate: e.target.value })}
                     />
                   </div>
 
@@ -861,11 +786,9 @@ const Dashboard = () => {
                     </label>
                     <input
                       type="datetime-local"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.endDate}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, endDate: e.target.value })
-                      }
+                      onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
                     />
                   </div>
 
@@ -874,86 +797,64 @@ const Dashboard = () => {
                       Approximate Arrival Time
                     </label>
                     <div className="relative">
-                      <Clock className="absolute left-4 top-3.5 h-4 w-4 text-gray-400" />
+                      <Clock className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
                       <input
                         type="time"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.arrivalTime}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            arrivalTime: e.target.value,
-                          })
-                        }
+                        onChange={(e) => setNewEvent({ ...newEvent, arrivalTime: e.target.value })}
                       />
                     </div>
                   </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Payment Date
                     </label>
                     <div className="relative">
-                      <Calendar className="absolute left-4 top-3.5 h-4 w-4 text-gray-400" />
+                      <Calendar className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
                       <input
                         type="date"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.paymentDate}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            paymentDate: e.target.value,
-                          })
-                        }
+                        onChange={(e) => setNewEvent({ ...newEvent, paymentDate: e.target.value })}
                       />
                     </div>
                   </div>
 
+                  {/* Payment Method */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Payment Method
                     </label>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      {[
-                        "cash",
-                        "credit_card",
-                        "bank_deposit",
-                        "stripe",
-                        "other",
-                      ].map((method) => (
+                      {["cash", "credit_card", "bank_deposit", "stripe", "other"].map((method) => (
                         <button
                           key={method}
                           type="button"
-                          onClick={() =>
-                            setNewEvent({ ...newEvent, paymentMethod: method })
-                          }
-                          className={`flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
+                          onClick={() => setNewEvent({ ...newEvent, paymentMethod: method })}
+                          className={`flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:shadow-md ${
                             newEvent.paymentMethod === method
                               ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
                               : "border-gray-200 hover:border-blue-300"
                           }`}
                         >
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                            newEvent.paymentMethod === method
+                              ? "bg-blue-500"
+                              : "bg-gray-100"
+                          }`}>
+                            <DollarSign className={`w-5 h-5 ${
                               newEvent.paymentMethod === method
-                                ? "bg-blue-500"
-                                : "bg-gray-100"
-                            }`}
-                          >
-                            <DollarSign
-                              className={`w-4 h-4 ${
-                                newEvent.paymentMethod === method
-                                  ? "text-white"
-                                  : "text-gray-500"
-                              }`}
-                            />
+                                ? "text-white"
+                                : "text-gray-500"
+                            }`} />
                           </div>
-                          <span
-                            className={`text-sm font-medium capitalize ${
-                              newEvent.paymentMethod === method
-                                ? "text-blue-600"
-                                : "text-gray-700"
-                            }`}
-                          >
+                          <span className={`text-sm font-medium capitalize ${
+                            newEvent.paymentMethod === method
+                              ? "text-blue-600"
+                              : "text-gray-700"
+                          }`}>
                             {method.replace("_", " ")}
                           </span>
                         </button>
@@ -968,19 +869,15 @@ const Dashboard = () => {
                       </label>
                       <input
                         type="text"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.customPaymentText}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            customPaymentText: e.target.value,
-                          })
-                        }
+                        onChange={(e) => setNewEvent({ ...newEvent, customPaymentText: e.target.value })}
                         placeholder="Enter custom payment details"
                       />
                     </div>
                   )}
 
+                  {/* Booking Source */}
                   <div className="md:col-span-2">
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-medium text-gray-700">
@@ -993,34 +890,28 @@ const Dashboard = () => {
                           <button
                             type="button"
                             onClick={() => setNewEvent({ ...newEvent, source })}
-                            className={`w-full flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
+                            className={`w-full flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:shadow-md ${
                               newEvent.source === source
                                 ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
                                 : "border-gray-200 hover:border-blue-300"
                             }`}
                           >
-                            <div
-                              className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                              newEvent.source === source
+                                ? "bg-blue-500"
+                                : "bg-gray-100"
+                            }`}>
+                              <Building className={`w-5 h-5 ${
                                 newEvent.source === source
-                                  ? "bg-blue-500"
-                                  : "bg-gray-100"
-                              }`}
-                            >
-                              <Building
-                                className={`w-4 h-4 ${
-                                  newEvent.source === source
-                                    ? "text-white"
-                                    : "text-gray-500"
-                                }`}
-                              />
+                                  ? "text-white"
+                                  : "text-gray-500"
+                              }`} />
                             </div>
-                            <span
-                              className={`text-sm font-medium capitalize ${
-                                newEvent.source === source
-                                  ? "text-blue-600"
-                                  : "text-gray-700"
-                              }`}
-                            >
+                            <span className={`text-sm font-medium capitalize ${
+                              newEvent.source === source
+                                ? "text-blue-600"
+                                : "text-gray-700"
+                            }`}>
                               {source}
                             </span>
                           </button>
@@ -1029,48 +920,36 @@ const Dashboard = () => {
                     </div>
                   </div>
 
+                  {/* Summary Section */}
                   <div className="md:col-span-2">
-                    <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                    <div className="bg-gray-50 rounded-2xl p-6 space-y-4">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Total Nights</span>
+                      <span className="text-gray-600">Total Nights</span>
                         <span className="text-lg font-semibold text-gray-900">
                           {newEvent.startDate && newEvent.endDate
-                            ? calculateNights(
-                                newEvent.startDate,
-                                newEvent.endDate
-                              )
+                            ? calculateNights(newEvent.startDate, newEvent.endDate)
                             : 0}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600">Total Price</span>
                         <span className="text-lg font-semibold text-gray-900">
-                          $
-                          {newEvent.startDate &&
-                          newEvent.endDate &&
-                          newEvent.pricePerNight
-                            ? (
-                                calculateNights(
-                                  newEvent.startDate,
-                                  newEvent.endDate
-                                ) * parseFloat(newEvent.pricePerNight)
-                              ).toFixed(2)
+                          ${newEvent.startDate && newEvent.endDate && newEvent.pricePerNight
+                            ? (calculateNights(newEvent.startDate, newEvent.endDate) * 
+                               parseFloat(newEvent.pricePerNight)).toFixed(2)
                             : "0.00"}
                         </span>
                       </div>
-                      <div className="md:col-span-2">
+                      
+                      {/* Comments Section */}
+                      <div className="pt-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Comments
                         </label>
                         <textarea
-                          className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px]"
+                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px] resize-none"
                           value={newEvent.comments}
-                          onChange={(e) =>
-                            setNewEvent({
-                              ...newEvent,
-                              comments: e.target.value,
-                            })
-                          }
+                          onChange={(e) => setNewEvent({ ...newEvent, comments: e.target.value })}
                           placeholder="Add any additional comments or special requests..."
                         />
                       </div>
@@ -1078,8 +957,9 @@ const Dashboard = () => {
                   </div>
                 </div>
 
+                {/* Error Display */}
                 {error && (
-                  <div className="mt-6 p-4 bg-red-50 rounded-xl border border-red-200">
+                  <div className="mt-6 p-4 bg-red-50 rounded-2xl border border-red-200">
                     <div className="flex items-center text-red-600">
                       <svg
                         className="w-5 h-5 mr-2"
@@ -1098,7 +978,8 @@ const Dashboard = () => {
                 )}
               </div>
 
-              <div className="sticky bottom-0 bg-white px-8 py-6 border-t border-gray-100">
+              {/* Footer Actions */}
+              <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
                     {isEditMode && (
@@ -1106,7 +987,7 @@ const Dashboard = () => {
                         type="button"
                         onClick={handleDeleteBooking}
                         disabled={loading}
-                        className="flex items-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
+                        className="flex items-center px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors duration-200"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete Booking
@@ -1121,21 +1002,17 @@ const Dashboard = () => {
                         setShowEventModal(false);
                         resetForm();
                       }}
-                      className="px-6 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all duration-200"
+                      className="px-6 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
-                      onClick={
-                        isEditMode ? handleUpdateBooking : handleSaveEvent
-                      }
+                      onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
                       disabled={loading}
-                      className="flex items-center px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200"
+                      className="flex items-center px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                      {loading && (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      )}
+                      {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                       {isEditMode ? "Update Booking" : "Create Booking"}
                     </button>
                   </div>

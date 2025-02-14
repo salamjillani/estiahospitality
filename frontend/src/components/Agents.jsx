@@ -1,8 +1,8 @@
-// src/components/Agents.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { Loader2, Plus, Trash2, PencilLine, Save, X } from 'lucide-react';
+import Navbar from "./Navbar";
 
 const Agents = () => {
   const [agents, setAgents] = useState([]);
@@ -63,121 +63,154 @@ const Agents = () => {
     }
   };
 
-  if (loading) return <div className="text-center p-8"><Loader2 className="animate-spin" /></div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Booking Agents Management</h1>
-        <Link to="/dashboard" className="text-blue-600 hover:text-blue-800">
-          ← Back to Dashboard
-        </Link>
-      </div>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Navbar />
+      {/* Main content with top padding to account for fixed navbar */}
+      <main className="flex-1 pt-16"> {/* pt-16 matches navbar height */}
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Booking Agents</h1>
+            <Link 
+              to="/dashboard" 
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              ← Back to Dashboard
+            </Link>
+          </div>
 
-      <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
-        <div className="grid grid-cols-5 gap-4 mb-4">
-          <input
-            type="text"
-            placeholder="Agent Name"
-            className="col-span-2 p-2 border rounded"
-            value={newAgent.name}
-            onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
-          />
-          <input
-            type="number"
-            placeholder="Commission %"
-            className="col-span-2 p-2 border rounded"
-            value={newAgent.commission}
-            onChange={(e) => setNewAgent({ ...newAgent, commission: e.target.value })}
-          />
-          <button 
-            onClick={handleCreate}
-            className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 flex items-center justify-center"
-          >
-            <Plus className="w-4 h-4 mr-2" /> Add Agent
-          </button>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8 transition-all duration-200 hover:shadow-md">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <input
+                type="text"
+                placeholder="Agent Name"
+                className="md:col-span-2 w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                value={newAgent.name}
+                onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
+              />
+              <input
+                type="number"
+                placeholder="Commission %"
+                className="md:col-span-2 w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                value={newAgent.commission}
+                onChange={(e) => setNewAgent({ ...newAgent, commission: e.target.value })}
+              />
+              <button 
+                onClick={handleCreate}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors duration-200 flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Agent</span>
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 flex items-center">
+              <span className="text-sm">{error}</span>
+            </div>
+          )}
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-900">Agent Name</th>
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-900">Commission</th>
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-900">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agents.map((agent) => (
+                    <tr 
+                      key={agent._id} 
+                      className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      <td className="py-4 px-6">
+                        {editingId === agent._id ? (
+                          <input
+                            value={agent.name}
+                            onChange={(e) => setAgents(agents.map(a => 
+                              a._id === agent._id ? {...a, name: e.target.value} : a
+                            ))}
+                            className="w-full px-3 py-1 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        ) : (
+                          <span className="text-gray-900">{agent.name}</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6">
+                        {editingId === agent._id ? (
+                          <input
+                            type="number"
+                            value={agent.commissionPercentage}
+                            onChange={(e) => setAgents(agents.map(a => 
+                              a._id === agent._id ? {...a, commissionPercentage: e.target.value} : a
+                            ))}
+                            className="w-32 px-3 py-1 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                            {agent.commissionPercentage}%
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex gap-2">
+                          {editingId === agent._id ? (
+                            <>
+                              <button
+                                onClick={() => handleUpdate(agent._id)}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-150"
+                                title="Save"
+                              >
+                                <Save className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+                                title="Cancel"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setEditingId(agent._id)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-150"
+                                title="Edit"
+                              >
+                                <PencilLine className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(agent._id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-150"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {error && <div className="bg-red-100 p-3 rounded mb-4 text-red-700">{error}</div>}
-
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="p-3 text-left">Agent Name</th>
-              <th className="p-3 text-left">Commission</th>
-              <th className="p-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agents.map((agent) => (
-              <tr key={agent._id} className="border-t">
-                <td className="p-3">
-                  {editingId === agent._id ? (
-                    <input
-                      value={agent.name}
-                      onChange={(e) => setAgents(agents.map(a => 
-                        a._id === agent._id ? {...a, name: e.target.value} : a
-                      ))}
-                      className="w-full p-1 border"
-                    />
-                  ) : (
-                    agent.name
-                  )}
-                </td>
-                <td className="p-3">
-                  {editingId === agent._id ? (
-                    <input
-                      type="number"
-                      value={agent.commissionPercentage}
-                      onChange={(e) => setAgents(agents.map(a => 
-                        a._id === agent._id ? {...a, commissionPercentage: e.target.value} : a
-                      ))}
-                      className="w-full p-1 border"
-                    />
-                  ) : (
-                    `${agent.commissionPercentage}%`
-                  )}
-                </td>
-                <td className="p-3 flex gap-2">
-                  {editingId === agent._id ? (
-                    <>
-                      <button
-                        onClick={() => handleUpdate(agent._id)}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded"
-                      >
-                        <Save className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="p-2 text-gray-500 hover:bg-gray-100 rounded"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => setEditingId(agent._id)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                      >
-                        <PencilLine className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(agent._id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      </main>
     </div>
   );
 };

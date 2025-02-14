@@ -33,7 +33,10 @@ const propertySchema = new mongoose.Schema({
     bankName: String,
     swiftCode: String,
     iban: String,
-    currency: String
+    currency: {
+      type: String,
+      default: 'USD'
+    }
   },
   photos: [{
     url: String,
