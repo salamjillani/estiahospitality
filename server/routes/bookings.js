@@ -10,17 +10,17 @@ const BookingAgent = require("../models/BookingAgent");
 const defaultCommissions = {
   direct: 0,
   airbnb: 12,
-  'booking.com': 15,
-  vrbo: 8
+  "booking.com": 15,
+  vrbo: 8,
 };
 
 const getCommission = async (source) => {
   if (defaultCommissions.hasOwnProperty(source)) {
     return defaultCommissions[source];
   }
-  
+
   const agent = await BookingAgent.findOne({ name: source });
-  if (!agent) throw new Error('Invalid booking source');
+  if (!agent) throw new Error("Invalid booking source");
   return agent.commissionPercentage;
 };
 
@@ -30,10 +30,14 @@ router.get("/", auth, async (req, res) => {
     const { startDate, endDate, propertyId } = req.query;
     let query = {};
 
+    if (req.user.role !== 'admin') {
+      query.user = req.user._id;
+    }
+
     if (startDate && endDate) {
       query.$or = [
-        { startDate: { $lt: new Date(endDate) } }, 
-        { endDate: { $gt: new Date(startDate) } }
+        { startDate: { $lt: new Date(endDate) } },
+        { endDate: { $gt: new Date(startDate) } },
       ];
     }
 
@@ -64,15 +68,20 @@ router.get("/", auth, async (req, res) => {
 router.post("/", auth, validateBooking, async (req, res) => {
   try {
     const commissionPercentage = await getCommission(req.body.source);
-    
+
     // Property access check
     const property = await Property.findById(req.validatedBooking.property);
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    if (req.user.role !== "admin" && !req.user.assignedProperties.includes(property._id)) {
-      return res.status(403).json({ message: "Access denied to this property" });
+    if (
+      req.user.role !== "admin" &&
+      !req.user.assignedProperties.includes(property._id)
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Access denied to this property" });
     }
 
     const booking = new Booking({
@@ -94,13 +103,24 @@ router.post("/", auth, validateBooking, async (req, res) => {
         select: "name email",
       });
 
+      const notification = new Notification({
+        type: "booking-request",
+        booking: booking._id,
+        message: `New booking from ${req.user.name}`,
+        status: "pending"
+      });
+      await notification.save();
+  
+      // Broadcast via WebSocket
+      req.app.locals.broadcast('new_booking', notification);
+
     res.status(201).json(populatedBooking);
   } catch (error) {
     console.error("Booking creation error:", error);
-    res.status(400).json({ 
-      message: error.message.includes('Invalid booking source') 
-        ? 'Invalid booking source - please select a valid agent'
-        : error.message 
+    res.status(400).json({
+      message: error.message.includes("Invalid booking source")
+        ? "Invalid booking source - please select a valid agent"
+        : error.message,
     });
   }
 });
@@ -119,28 +139,34 @@ router.put("/:id", auth, validateBooking, async (req, res) => {
       return res.status(404).json({ message: "Property not found" });
     }
 
-    if (req.user.role !== "admin" && !req.user.assignedProperties.includes(property._id)) {
-      return res.status(403).json({ message: "Access denied to this property" });
+    if (
+      req.user.role !== "admin" &&
+      !req.user.assignedProperties.includes(property._id)
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Access denied to this property" });
     }
 
     booking.set({
       ...req.validatedBooking,
       commissionPercentage,
       updatedBy: req.user._id,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
 
     await booking.save();
 
-    const populatedBooking = await Booking.findById(booking._id)
-      .populate('property createdBy');
+    const populatedBooking = await Booking.findById(booking._id).populate(
+      "property createdBy"
+    );
 
     res.json(populatedBooking);
   } catch (error) {
-    res.status(400).json({ 
-      message: error.message.includes('Invalid booking source') 
-        ? 'Invalid booking source - please select a valid agent'
-        : error.message 
+    res.status(400).json({
+      message: error.message.includes("Invalid booking source")
+        ? "Invalid booking source - please select a valid agent"
+        : error.message,
     });
   }
 });
@@ -154,7 +180,10 @@ router.delete("/:id", auth, async (req, res) => {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    if (req.user.role !== "admin" && !req.user.assignedProperties.includes(booking.property._id)) {
+    if (
+      req.user.role !== "admin" &&
+      !req.user.assignedProperties.includes(booking.property._id)
+    ) {
       return res.status(403).json({ message: "Access denied to this booking" });
     }
 
@@ -170,13 +199,29 @@ router.delete("/:id", auth, async (req, res) => {
 router.patch("/:id/status", auth, async (req, res) => {
   try {
     const { status } = req.body;
-    const booking = await Booking.findById(req.params.id).populate("property");
+    const booking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      { status: req.body.status },
+      { new: true }
+    );
+
+    // Create notification
+    const notification = new Notification({
+      type: "status_update",
+      booking: booking._id,
+      message: `Booking status updated to ${req.body.status}`,
+      recipient: booking.user,
+    });
+    await notification.save();
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    if (req.user.role !== "admin" && !req.user.assignedProperties.includes(booking.property._id)) {
+    if (
+      req.user.role !== "admin" &&
+      !req.user.assignedProperties.includes(booking.property._id)
+    ) {
       return res.status(403).json({ message: "Access denied" });
     }
 

@@ -1,5 +1,4 @@
 // frontend/src/utils/api.js
-
 const BASE_URL = 'http://localhost:5000';
 
 let authToken = null;
@@ -23,14 +22,14 @@ export const api = {
 
   get: async (endpoint) => {
     try {
+      const token = getAuthToken();
       const response = await fetch(`${BASE_URL}${endpoint}`, {
-        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${getAuthToken()}`,
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-      })
-      
+        credentials: 'include'
+      });
 
       const contentType = response.headers.get('content-type');
       if (!contentType?.includes('application/json')) {
@@ -97,30 +96,30 @@ export const api = {
       console.error('API call failed:', err);
       throw err;
     }
-},
+  },
 
-put: async (endpoint, data) => {
-  try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAuthToken()}`
-      },
-      credentials: 'include',
-      body: JSON.stringify(data)
-    });
+  put: async (endpoint, data) => {
+    try {
+      const response = await fetch(`${BASE_URL}${endpoint}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'API request failed');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'API request failed');
+      }
+      return response.json();
+    } catch (err) {
+      console.error('API call failed:', err);
+      throw err;
     }
-    return response.json();
-  } catch (err) {
-    console.error('API call failed:', err);
-    throw err;
-  }
-},
+  },
 
   delete: async (endpoint) => {
     try {
@@ -141,3 +140,4 @@ put: async (endpoint, data) => {
     }
   },
 };
+

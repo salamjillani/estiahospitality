@@ -140,6 +140,18 @@ exports.generateInvoice = async (req, res) => {
   }
 };
 
+// In property controller
+exports.getProperty = async (req, res) => {
+  const property = await Property.findById(req.params.id);
+  if (!property) return res.status(404).json({ error: 'Property not found' });
+  
+  if (req.user.role !== 'admin') {
+    property.bankDetails = undefined;
+  }
+  
+  res.json({ success: true, data: property });
+};
+
 exports.uploadPhotos = async (req, res) => {
   try {
     const { propertyId } = req.params;

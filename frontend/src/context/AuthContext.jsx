@@ -18,18 +18,16 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       try {
         const userData = await api.get("/api/auth/me");
-        setUser(userData);
-        setToken(userData.token);
-        setAuthToken(userData.token); // Set auth token for API calls
-      } catch (error) {
-        console.error("Auth check failed:", error.message);
+        setUser(userData); // Only set user data, not the token
+      } catch (err) {
+        console.error("Auth check failed:", err);
         logout();
       } finally {
         setLoading(false);
       }
     };
     if (token) {
-      setAuthToken(token);
+      setAuthToken(token); // Set token from localStorage
       checkAuthStatus();
     } else {
       setLoading(false);
@@ -39,13 +37,12 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await api.post("/api/auth/login", credentials);
-      const { token, user } = response;
-      
+      const { token, user: userData } = response;
+  
       localStorage.setItem("token", token);
       setAuthToken(token);
-      setUser(user);
-      setToken(token);
-      navigate("/dashboard");
+      setUser(userData);
+      navigate(userData.role === 'admin' ? '/dashboard' : '/properties');
     } catch (error) {
       console.error('Login error:', error);
       setAuthError(error.message || "Failed to log in");
@@ -57,7 +54,12 @@ export const AuthProvider = ({ children }) => {
   const register = async (data) => {
     try {
       setAuthError(null);
-      const response = await api.post("/api/auth/register", data);
+      delete data.role;
+      const response = await api.post("/api/auth/register", {
+        ...data,
+        role: 'owner'
+      });
+
       setUser(response.user);
       setToken(response.token);
       localStorage.setItem("token", response.token);

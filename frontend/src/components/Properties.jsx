@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
 import {
   Loader2,
@@ -12,7 +12,7 @@ import {
   Bed,
 } from "lucide-react";
 import Navbar from "./Navbar";
-
+import { useAuth } from "../context/AuthContext";
 import PropTypes from "prop-types";
 
 const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
@@ -69,27 +69,40 @@ const Properties = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [animation, setAnimation] = useState(false);
+
   const [deleteDialog, setDeleteDialog] = useState({ 
     isOpen: false, 
     propertyId: null,
     propertyTitle: null 
   });
+  const navigate = useNavigate();
+  const { user } = useAuth();
+ // In fetchProperties function
+const fetchProperties = async () => {
+  try {
+    const data = await api.get("/api/properties");
+    setProperties(data || []); // Ensure data is an array
+  } catch (err) {
+    if (err.message.includes('401')) {
+      navigate('/auth');
+      return;
+    }
+    setError("Failed to load properties: " + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
-    const fetchProperties = async () => {
-      try {
-        const data = await api.get("/api/properties");
-        setProperties(data);
-        setAnimation(true);
-      } catch (err) {
-        setError("Failed to load properties", err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchProperties();
   }, []);
+
+
+  useEffect(() => {
+    if (!user && !loading) {
+      navigate('/auth', { state: { from: '/properties' } });
+    }
+  }, [user, loading, navigate]);
 
   const handleDeleteClick = (id, title) => {
     setDeleteDialog({ 
@@ -180,8 +193,7 @@ const Properties = () => {
           {properties.map((property, index) => (
             <div
               key={property._id}
-              className={`bg-white rounded-2xl border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 ${
-                animation ? "animate-fade-slide-up" : ""
+              className={`bg-white rounded-2xl border border-gray-100 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2
               }`}
               style={{ animationDelay: `${index * 100}ms` }}
             >

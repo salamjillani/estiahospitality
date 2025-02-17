@@ -3,7 +3,8 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { websocketService } from "../services/webSocketService";
+import { websocketService } from "../services/websocketService";
+import { api } from "../utils/api";
 import {
   Loader2,
   Trash2,
@@ -22,7 +23,7 @@ import {
   ChevronRight,
   Bath,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getAuthToken } from "../utils/api";
 import Navbar from "./Navbar";
@@ -47,7 +48,7 @@ const Dashboard = () => {
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [bookingAgents, setBookingAgents] = useState([]);
-
+  const navigate = useNavigate();
   const [newEvent, setNewEvent] = useState({
     propertyId: "",
     guestName: "",
@@ -101,18 +102,20 @@ const Dashboard = () => {
 
   const fetchProperties = useCallback(async () => {
     try {
-      setError("");
       const response = await fetch("http://localhost:5000/api/properties", {
-        credentials: "include",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
+          "Authorization": `Bearer ${getAuthToken()}`, // Ensure token usage
+          "Content-Type": "application/json"
         },
+        credentials: "include"
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch properties");
+        if (response.status === 401) {
+          navigate("/auth");
+          return;
+        }
+        throw new Error("Failed to fetch properties");
       }
 
       const data = await response.json();
@@ -120,9 +123,10 @@ const Dashboard = () => {
       setFilteredProperties(data || []);
     } catch (err) {
       setError("Error fetching properties: " + err.message);
-      console.error("Error fetching properties:", err);
     }
-  }, []);
+  }, [navigate]);
+
+  
 
   const fetchAgents = async () => {
     try {
@@ -160,13 +164,16 @@ const Dashboard = () => {
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:5000/api/bookings", {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to fetch bookings");
+      setError("");
+      
+      const endpoint = user.role === "admin" 
+        ? "/api/bookings" 
+        : `/api/bookings?user=${user._id}`;
 
-      const data = await response.json();
-      const bookingsData = Array.isArray(data) ? data : data.bookings || [];
+      const data = await api.get(endpoint);
+      
+      // Handle empty data case
+      const bookingsData = Array.isArray(data?.bookings) ? data.bookings : [];
 
       const formattedEvents = bookingsData.map((booking) => ({
         id: booking._id,
@@ -189,12 +196,16 @@ const Dashboard = () => {
         },
       }));
       setEvents(formattedEvents);
-    } catch (error) {
-      setError("Error fetching bookings: " + error.message);
+    } catch (err) {
+      if (err.message.includes("401")) {
+        navigate("/auth");
+        return;
+      }
+      setError("Failed to load bookings: " + err.message);
     } finally {
       setLoading(false);
     }
-  }, [getEventColor]);
+  }, [getEventColor, user, navigate]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -417,7 +428,9 @@ const Dashboard = () => {
   const eventContent = useCallback(
     (eventInfo) => {
       const property = properties.find(
-        (p) => p._id.toString() === eventInfo.event.extendedProps.propertyId.toString()
+        (p) =>
+          p._id.toString() ===
+          eventInfo.event.extendedProps.propertyId.toString()
       );
       const checkInDate = formatDate(eventInfo.event.start);
       const checkOutDate = formatDate(eventInfo.event.end);
@@ -430,6 +443,7 @@ const Dashboard = () => {
       ).toFixed(2);
 
       return (
+        
         <div
           className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
           style={{
@@ -549,7 +563,41 @@ const Dashboard = () => {
       </div>
     );
   };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
+      </div>
+    );
+  }
 
+  // 2. Error State - Show if loading is done but error exists
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-red-600 p-4 border border-red-300 rounded-lg bg-white">
+          Error: {error}
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Empty State - Show if no data after loading
+  if (events.length === 0 && filteredProperties.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center bg-white p-8 rounded-xl shadow-sm">
+          <Calendar className="h-16 w-16 mx-auto text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900">
+            No bookings or properties found
+          </h3>
+          <p className="mt-1 text-gray-500">
+            Get started by creating your first booking or property
+          </p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50">
       <Navbar

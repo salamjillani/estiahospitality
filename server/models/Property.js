@@ -38,6 +38,20 @@ const propertySchema = new mongoose.Schema({
       default: 'USD'
     }
   },
+  amenities: {
+    swimmingPool: Boolean,
+    parking: Boolean,
+    wifi: Boolean,
+    airConditioning: Boolean,
+    kitchen: Boolean
+  },
+  guestCapacity: Number,
+  rules: [String],
+  rates: {
+    nightly: Number,
+    weekly: Number,
+    monthly: Number
+  },
   photos: [{
     url: String,
     publicId: String

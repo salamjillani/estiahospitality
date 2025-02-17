@@ -21,9 +21,18 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "manager", "viewer"],
-      default: "viewer",
+      enum: ["admin", "owner"],
+      default: "owner"
     },
+    permissions: {
+      canManageProperties: { type: Boolean, default: false },
+      canManageBookings: { type: Boolean, default: false },
+      canManageUsers: { type: Boolean, default: false }
+    },
+    managedProperties: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Property"
+    }],
     assignedProperties: [
       {
         type: mongoose.Schema.Types.ObjectId,

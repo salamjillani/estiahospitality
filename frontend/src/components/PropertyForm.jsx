@@ -364,6 +364,7 @@ const PropertyForm = () => {
           </div>
 
           {/* Bank Information */}
+          
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
             <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
               <Banknote className="w-6 h-6 text-blue-600" /> Bank Information

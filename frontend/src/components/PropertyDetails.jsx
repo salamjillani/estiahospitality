@@ -11,18 +11,27 @@ import {
   Bath,
   ArrowLeft,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const PropertyDetails = () => {
   const { id } = useParams();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { user } = useAuth();
+
+  
 
   useEffect(() => {
     const fetchProperty = async () => {
       try {
         const data = await api.get(`/api/properties/${id}`);
+        const response = user?.role === 'admin' ? data : {
+          ...data,
+          bankDetails: null
+        };
         setProperty({
+          ...response,
           ...data,
           location: {
             address: "",
@@ -49,7 +58,7 @@ const PropertyDetails = () => {
       }
     };
     fetchProperty();
-  }, [id]);
+  }, [id, user]);
 
   if (loading) {
     return (
@@ -113,7 +122,7 @@ const PropertyDetails = () => {
   };
 
   const renderBankDetails = () => {
-    if (!property?.bankDetails) return null;
+    if (!property?.bankDetails || user?.role !== 'admin') return null;
 
     const bankDetailsMapping = {
       accountHolder: "Account Holder",
@@ -129,6 +138,28 @@ const PropertyDetails = () => {
     );
 
     if (!hasAnyBankDetails) return null;
+
+      // Add authentication check at the top
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <h2 className="text-3xl font-bold text-gray-800 mb-4">
+          Authentication Required
+        </h2>
+        <p className="text-gray-600 mb-8">
+          Please sign in to view property details
+        </p>
+        <Link
+          to="/auth"
+          state={{ from: `/properties/${id}` }}
+          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          Go to Sign In
+        </Link>
+      </div>
+    );
+  }
 
     return (
       <div className="bg-gray-50 p-6 rounded-2xl hover:shadow-md transition-shadow">
@@ -155,19 +186,19 @@ const PropertyDetails = () => {
       </div>
     );
   };
-
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <Link
-            to="/properties"
-            className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Back to Properties</span>
-          </Link>
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <Link
+          to="/properties"
+          className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-medium">Back to Properties</span>
+        </Link>
+        {user?.role === 'admin' && (
           <Link
             to={`/properties/${id}/edit`}
             className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
@@ -175,7 +206,8 @@ const PropertyDetails = () => {
             <Edit className="w-5 h-5" />
             <span className="font-medium">Edit Property</span>
           </Link>
-        </div>
+        )}
+      </div>
 
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-8">

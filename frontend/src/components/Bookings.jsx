@@ -31,7 +31,7 @@ const Bookings = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screena bg-gray-50">
         <Navbar />
         <div className="h-[calc(100vh-64px)] flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
