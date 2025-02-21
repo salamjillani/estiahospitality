@@ -24,11 +24,12 @@ export const api = {
     try {
       const token = getAuthToken();
       const response = await fetch(`${BASE_URL}${endpoint}`, {
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        credentials: 'include'
+        
       });
 
       const contentType = response.headers.get('content-type');

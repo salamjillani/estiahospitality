@@ -36,7 +36,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      const response = await api.post("/api/auth/login", credentials);
+      const normalizedCredentials = {
+        ...credentials,
+        email: credentials.email.toLowerCase()
+      };
+      
+      const response = await api.post("/api/auth/login", normalizedCredentials);
       const { token, user: userData } = response;
   
       localStorage.setItem("token", token);

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Property = require('../models/Property');
-const { auth, checkRole } = require('../middleware/auth');
+const { auth, checkRole, adminOnly} = require('../middleware/auth');
 
 router.get('/', auth, async (req, res) => {
   try {
@@ -46,7 +46,7 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, adminOnly, async (req, res) => {
   try {
     const property = await Property.findByIdAndUpdate(
       req.params.id,
@@ -60,7 +60,7 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, checkRole(['admin']), adminOnly, async (req, res) => {
   try {
     const property = await Property.findByIdAndDelete(req.params.id);
     if (!property) return res.status(404).json({ message: 'Property not found' });

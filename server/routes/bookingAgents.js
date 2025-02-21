@@ -2,8 +2,9 @@
 const express = require('express');
 const router = express.Router();
 const BookingAgent = require('../models/BookingAgent');
+const { auth, checkRole} = require('../middleware/auth');
 
-router.get('/', async (req, res) => {
+router.get('/',  auth, checkRole(['admin']), async (req, res) => {
   try {
     const agents = await BookingAgent.find().sort({ name: 1 });
     res.json(agents);
@@ -12,7 +13,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', auth, checkRole(['admin']), async (req, res) => {
   try {
     const { name, commissionPercentage } = req.body;
     const agent = new BookingAgent({ name, commissionPercentage });

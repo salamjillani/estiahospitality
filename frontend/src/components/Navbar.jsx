@@ -12,14 +12,14 @@ const Navbar = () => {
 
   const handlePropertyNavigation = () => {
     if (!user) {
-      navigate('/auth', { state: { from: '/properties' } });
+      navigate("/auth", { state: { from: "/properties" } });
     } else {
-      navigate('/properties');
+      navigate("/properties");
     }
   };
 
   return (
-   <nav className="bg-white shadow-sm fixed w-full z-50">
+    <nav className="bg-white shadow-sm fixed w-full z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <Link to="/" className="flex items-center">
@@ -40,8 +40,23 @@ const Navbar = () => {
               >
                 Calendar
               </Link>
-               )}
-
+            )}
+            {user?.role === "admin" && (
+              <>
+                <Link
+                  to="/agents"
+                  className="px-3 py-2 text-gray-700 hover:text-blue-600"
+                >
+                  Agents
+                </Link>
+                <Link
+                  to="/bookings"
+                  className="px-3 py-2 text-gray-700 hover:text-blue-600"
+                >
+                  Bookings
+                </Link>
+              </>
+            )}
             {user ? (
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-1">

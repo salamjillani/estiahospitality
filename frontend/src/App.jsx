@@ -25,7 +25,7 @@ const App = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/*" element={<Auth />} />
           <Route path="/properties/:id" element={<PropertyDetails />} />
 
           {/* Protected User Routes */}
@@ -40,6 +40,7 @@ const App = () => {
             <Route path="/properties/new" element={<PropertyForm />} />
             <Route path="/properties/:id/edit" element={<PropertyForm />} />
             <Route path="/agents" element={<Agents />} />
+            <Route path="/bookings" element={<Bookings />} />
             <Route path="/notifications" element={<Notifications />} />
           </Route>
 

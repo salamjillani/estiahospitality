@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from "../context/AuthContext";
 import { api } from '../utils/api';
 import { Loader2, Plus, Trash2, PencilLine, Save, X } from 'lucide-react';
 import Navbar from "./Navbar";
@@ -10,21 +11,33 @@ const Agents = () => {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchAgents();
-  }, []);
-
-  const fetchAgents = async () => {
-    try {
-      const data = await api.get('/api/booking-agents');
-      setAgents(data);
-    } catch (err) {
-      setError('Failed to load agents', err);
-    } finally {
-      setLoading(false);
+    const fetchAgents = async () => {
+      try {
+        setLoading(true);
+        const data = await api.get('/api/booking-agents');
+        setAgents(data);
+      } catch (err) {
+        setError(err.message || 'Failed to load agents');
+        if (err.response?.status === 403) {
+          navigate('/');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (user?.role === 'admin') {
+      fetchAgents();
+    } else {
+      navigate('/');
     }
-  };
+  }, [user, navigate]);
+
+  if (!user || user.role !== 'admin') return null;
 
   const handleCreate = async () => {
     if (!newAgent.name || !newAgent.commission) return;

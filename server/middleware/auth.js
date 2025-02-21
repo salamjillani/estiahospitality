@@ -1,36 +1,32 @@
-// server/middleware/auth.js
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const mongoose = require("mongoose");
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ message: "Authentication required" });
-
+    const token =
+      req.cookies.token || req.headers.authorization?.replace("Bearer ", "");
+    if (!token) throw new Error("Authentication required");
 
     if (mongoose.connection.readyState !== 1) {
       return res.status(500).json({ message: "Database not connected" });
     }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password');
-    
-    if (!user) return res.status(401).json({ message: "User not found" });
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) throw new Error("User not found");
 
     req.user = user;
     next();
   } catch (error) {
-    console.error('Auth error:', error.message);
-    return res.status(401).json({ message: "Invalid token" });
+    res.status(401).json({ message: error.message });
   }
 };
 
+// ✅ Move adminOnly here before exporting
 const adminOnly = (req, res, next) => {
   if (req.user.role !== "admin") {
-    return res.status(403).json({
-      success: false,
-      error: "Admin access required",
-    });
+    return res.status(403).json({ message: "Admin access required" });
   }
   next();
 };
@@ -44,6 +40,7 @@ const ownerOnly = (req, res, next) => {
   }
   next();
 };
+
 // Server-side auth.js route handler
 const login = async (req, res) => {
   try {
@@ -58,7 +55,6 @@ const login = async (req, res) => {
       expiresIn: "24h",
     });
 
-    // Send both token and user data in the response
     res.status(200).json({
       token,
       user: {
@@ -74,7 +70,8 @@ const login = async (req, res) => {
     res.status(500).json({ message: "Server error during login" });
   }
 };
-// Update the checkRole middleware in server/middleware/auth.js
+
+// Update the checkRole middleware
 const checkRole = (roles) => {
   return (req, res, next) => {
     console.log("Checking role:", {
@@ -94,6 +91,7 @@ const checkRole = (roles) => {
   };
 };
 
+// ✅ Now, export everything correctly
 module.exports = {
   auth,
   adminOnly,

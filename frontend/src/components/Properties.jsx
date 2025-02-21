@@ -10,6 +10,7 @@ import {
   MapPin,
   Bath,
   Bed,
+  Edit,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import { useAuth } from "../context/AuthContext";
@@ -35,10 +36,12 @@ const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
             </div>
             <div>
               <h3 className="text-xl font-semibold text-gray-900">
-                Delete {propertyTitle || 'Property'}
+                Delete {propertyTitle || "Property"}
               </h3>
               <p className="text-sm text-gray-500 mt-1">
-                Are you sure you want to delete {propertyTitle ? `"${propertyTitle}"` : 'this property'}? This action cannot be undone.
+                Are you sure you want to delete{" "}
+                {propertyTitle ? `"${propertyTitle}"` : "this property"}? This
+                action cannot be undone.
               </p>
             </div>
           </div>
@@ -67,48 +70,47 @@ const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
 const Properties = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const [deleteDialog, setDeleteDialog] = useState({ 
-    isOpen: false, 
+  const [deleteDialog, setDeleteDialog] = useState({
+    isOpen: false,
     propertyId: null,
-    propertyTitle: null 
+    propertyTitle: null,
   });
   const navigate = useNavigate();
   const { user } = useAuth();
- // In fetchProperties function
-const fetchProperties = async () => {
-  try {
-    const data = await api.get("/api/properties");
-    setProperties(data || []); // Ensure data is an array
-  } catch (err) {
-    if (err.message.includes('401')) {
-      navigate('/auth');
-      return;
+  // In fetchProperties function
+  const fetchProperties = async () => {
+    try {
+      const data = await api.get("/api/properties");
+      setProperties(data || []); // Ensure data is an array
+    } catch (err) {
+      if (err.message.includes("401")) {
+        navigate("/auth");
+        return;
+      }
+      setError("Failed to load properties: " + err.message);
+    } finally {
+      setLoading(false);
     }
-    setError("Failed to load properties: " + err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchProperties();
   }, []);
 
-
   useEffect(() => {
     if (!user && !loading) {
-      navigate('/auth', { state: { from: '/properties' } });
+      navigate("/auth", { state: { from: "/properties" } });
     }
   }, [user, loading, navigate]);
 
   const handleDeleteClick = (id, title) => {
-    setDeleteDialog({ 
-      isOpen: true, 
+    setDeleteDialog({
+      isOpen: true,
       propertyId: id,
-      propertyTitle: title 
+      propertyTitle: title,
     });
   };
 
@@ -143,9 +145,15 @@ const fetchProperties = async () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-     <DeleteDialog 
+      <DeleteDialog
         isOpen={deleteDialog.isOpen}
-        onClose={() => setDeleteDialog({ isOpen: false, propertyId: null, propertyTitle: null })}
+        onClose={() =>
+          setDeleteDialog({
+            isOpen: false,
+            propertyId: null,
+            propertyTitle: null,
+          })
+        }
         onConfirm={handleDeleteConfirm}
         propertyTitle={deleteDialog.propertyTitle}
       />
@@ -157,7 +165,9 @@ const fetchProperties = async () => {
       <main className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">All Listings</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+              All Listings
+            </h1>
           </div>
           <Link
             to="/properties/new"
@@ -249,6 +259,15 @@ const fetchProperties = async () => {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {user?.role === "admin" && (
+                      <Link
+                        to={`/properties/${property._id}/edit`}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 group"
+                        title="Edit property"
+                      >
+                        <Edit className="w-5 h-5" />
+                      </Link>
+                    )}
                     <Link
                       to={`/properties/${property._id}`}
                       className="p-2 hover:bg-blue-50 rounded-lg transition-colors duration-200 group"
@@ -256,15 +275,17 @@ const fetchProperties = async () => {
                     >
                       <Eye className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform duration-200" />
                     </Link>
-                    <button
-                      onClick={() =>
-                        handleDeleteClick(property._id, property.title)
-                      }
-                      className="p-2 hover:bg-red-50 rounded-lg transition-colors duration-200 group"
-                      title="Delete property"
-                    >
-                      <Trash2 className="w-5 h-5 text-red-600 group-hover:scale-110 transition-transform duration-200" />
-                    </button>
+                    {user?.role === "admin" && (
+                      <button
+                        onClick={() =>
+                          handleDeleteClick(property._id, property.title)
+                        }
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors duration-200 group"
+                        title="Delete property"
+                      >
+                        <Trash2 className="w-5 h-5 text-red-600 group-hover:scale-110 transition-transform duration-200" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

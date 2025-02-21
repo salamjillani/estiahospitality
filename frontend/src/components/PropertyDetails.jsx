@@ -20,16 +20,17 @@ const PropertyDetails = () => {
   const [error, setError] = useState("");
   const { user } = useAuth();
 
-  
-
   useEffect(() => {
     const fetchProperty = async () => {
       try {
         const data = await api.get(`/api/properties/${id}`);
-        const response = user?.role === 'admin' ? data : {
-          ...data,
-          bankDetails: null
-        };
+        const response =
+          user?.role === "admin"
+            ? data
+            : {
+                ...data,
+                bankDetails: null,
+              };
         setProperty({
           ...response,
           ...data,
@@ -111,7 +112,9 @@ const PropertyDetails = () => {
                   key={key}
                   className="flex justify-between items-center border-b border-gray-200 pb-3"
                 >
-                  <dt className="text-gray-600 capitalize font-medium">{key}</dt>
+                  <dt className="text-gray-600 capitalize font-medium">
+                    {key}
+                  </dt>
                   <dd className="text-gray-900 font-semibold">{value}</dd>
                 </div>
               )
@@ -122,7 +125,7 @@ const PropertyDetails = () => {
   };
 
   const renderBankDetails = () => {
-    if (!property?.bankDetails || user?.role !== 'admin') return null;
+    if (!property?.bankDetails || user?.role !== "admin") return null;
 
     const bankDetailsMapping = {
       accountHolder: "Account Holder",
@@ -139,27 +142,27 @@ const PropertyDetails = () => {
 
     if (!hasAnyBankDetails) return null;
 
-      // Add authentication check at the top
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-        <h2 className="text-3xl font-bold text-gray-800 mb-4">
-          Authentication Required
-        </h2>
-        <p className="text-gray-600 mb-8">
-          Please sign in to view property details
-        </p>
-        <Link
-          to="/auth"
-          state={{ from: `/properties/${id}` }}
-          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Go to Sign In
-        </Link>
-      </div>
-    );
-  }
+    // Add authentication check at the top
+    if (!user) {
+      return (
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">
+            Authentication Required
+          </h2>
+          <p className="text-gray-600 mb-8">
+            Please sign in to view property details
+          </p>
+          <Link
+            to="/auth"
+            state={{ from: `/properties/${id}` }}
+            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Go to Sign In
+          </Link>
+        </div>
+      );
+    }
 
     return (
       <div className="bg-gray-50 p-6 rounded-2xl hover:shadow-md transition-shadow">
@@ -188,26 +191,26 @@ const PropertyDetails = () => {
   };
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <Link
-          to="/properties"
-          className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">Back to Properties</span>
-        </Link>
-        {user?.role === 'admin' && (
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
           <Link
-            to={`/properties/${id}/edit`}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+            to="/properties"
+            className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors"
           >
-            <Edit className="w-5 h-5" />
-            <span className="font-medium">Edit Property</span>
+            <ArrowLeft className="w-5 h-5" />
+            <span className="font-medium">Back to Properties</span>
           </Link>
-        )}
-      </div>
+          {user?.role === "admin" && (
+            <Link
+              to={`/properties/${property._id}/edit`}
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 group"
+              title="Edit property"
+            >
+              <Edit className="w-5 h-5" />
+            </Link>
+          )}
+        </div>
 
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-8">

@@ -20,7 +20,8 @@ const checkRole = (roles) => {
 // Register route
 router.post("/register", async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name, adminSecret } = req.body;
+    const lowerEmail = email.toLowerCase();
 
     // Validate input fields
     if (!email || !password || !name) {
@@ -28,6 +29,9 @@ router.post("/register", async (req, res) => {
         message: "All fields are required: name, email, and password",
       });
     }
+
+    const role = adminSecret === process.env.ADMIN_SECRET_KEY ? "admin" : "owner";
+    
 
     // Check if user already exists
     let user = await User.findOne({ email });
@@ -37,15 +41,12 @@ router.post("/register", async (req, res) => {
 
     // Create new user
     user = new User({
-      email,
+      email: lowerEmail,
       password,
       name,
-      role: "owner",
+      role,
     });
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
 
     await user.save();
 
@@ -56,8 +57,9 @@ router.post("/register", async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: process.env.NODE_ENV === "production", // false in development
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     });
 
     res.status(201).json({
@@ -86,15 +88,12 @@ router.post("/admin/register", auth, checkRole(["admin"]), async (req, res) => {
 
     // Create new admin user
     user = new User({
-      email,
+      email: lowerEmail,
       password,
       name,
-      role: "admin",
+      role,
     });
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
 
     await user.save();
     res.status(201).json(user);
@@ -106,50 +105,62 @@ router.post("/admin/register", auth, checkRole(["admin"]), async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
+    
     // Validate input
     if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
+      return res.status(400).json({ message: "Email and password are required" });
     }
 
-    // Find user
-    const user = await User.findOne({ email });
+    const lowerEmail = email.toLowerCase();
+
+    // Find user - Use debug logging
+    const user = await User.findOne({ email: lowerEmail });
+    console.log('Login attempt:', { 
+      emailProvided: lowerEmail,
+      userFound: !!user 
+    });
+
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Check password
+    // Check password - Add debug logging
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log('Password check:', { 
+      isMatch,
+      userEmail: user.email 
+    });
+
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     // Generate token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
+      expiresIn: "7d"
     });
 
     // Set cookie
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
     });
 
-    // Send response with both token and user data
+    // Send response
     res.json({
-      token, // Include token in response
+      token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        assignedProperties: user.assignedProperties,
-      },
+        assignedProperties: user.assignedProperties
+      }
     });
   } catch (error) {
+    console.error('Server login error:', error);
     res.status(500).json({ message: error.message });
   }
 });

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { AlertCircle, X, Loader2 } from "lucide-react";
 import PropTypes from "prop-types";
+
 
 const AuthError = ({ message, onClose }) => (
   <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
@@ -34,11 +35,13 @@ AuthError.propTypes = {
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     name: "",
+    adminSecret: "",
   });
   const { user, login, register, authError, clearAuthError } = useAuth();
   const navigate = useNavigate();
@@ -55,6 +58,11 @@ const Auth = () => {
       navigate(redirectPath);
     }
   }, [user, navigate, location.state]);
+
+  useEffect(() => {
+    const path = location.pathname;
+    setIsLogin(path.includes('/login'));
+  }, [location.pathname]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -128,6 +136,22 @@ const Auth = () => {
               }
             />
           </div>
+
+          {/* Show Admin Secret Key only during Registration */}
+          {!isLogin && (
+            <div>
+              <label className="block mb-1">Admin Secret Key (optional)</label>
+              <input
+                type="password"
+                className="w-full p-2 border rounded"
+                value={formData.adminSecret}
+                onChange={(e) =>
+                  setFormData({ ...formData, adminSecret: e.target.value })
+                }
+                placeholder="Enter admin secret key"
+              />
+            </div>
+          )}
 
           <button
             type="submit"
