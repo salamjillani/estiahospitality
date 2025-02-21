@@ -1,18 +1,10 @@
-import { Navigate } from "react-router-dom";
+// AdminRoute.jsx
+import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import PropTypes from 'prop-types';
 
-const AdminRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-
-  if (loading) return <div>Loading...</div>;
-  if (!user || user.role !== 'admin') return <Navigate to="/" replace />;
-  
-  return <>{children}</>;
-};
-
-AdminRoute.propTypes = {
-  children: PropTypes.node.isRequired,
+const AdminRoute = () => {
+  const { user } = useAuth();
+  return user?.role === "admin" ? <Outlet /> : <Navigate to="/" replace />;
 };
 
 export default AdminRoute;

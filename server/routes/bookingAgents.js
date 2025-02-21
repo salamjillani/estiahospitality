@@ -24,15 +24,13 @@ router.post('/', auth, checkRole(['admin']), async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', auth, checkRole(['admin']), async (req, res) => {
   try {
-    const { name, commissionPercentage } = req.body;
     const agent = await BookingAgent.findByIdAndUpdate(
       req.params.id,
-      { name, commissionPercentage },
+      req.body,
       { new: true, runValidators: true }
     );
-    
     if (!agent) return res.status(404).json({ message: 'Agent not found' });
     res.json(agent);
   } catch (error) {
@@ -40,7 +38,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', auth, checkRole(['admin']), async (req, res) => {
   try {
     const agent = await BookingAgent.findByIdAndDelete(req.params.id);
     if (!agent) return res.status(404).json({ message: 'Agent not found' });

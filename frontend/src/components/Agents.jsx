@@ -14,30 +14,54 @@ const Agents = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchAgents = async () => {
-      try {
-        setLoading(true);
-        const data = await api.get('/api/booking-agents');
-        setAgents(data);
-      } catch (err) {
-        setError(err.message || 'Failed to load agents');
-        if (err.response?.status === 403) {
-          navigate('/');
-        }
-      } finally {
-        setLoading(false);
+ // In Agents.jsx
+useEffect(() => {
+  const fetchAgents = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await api.get('/api/booking-agents');
+      
+      if (!Array.isArray(response)) {
+        throw new Error('Invalid data format received');
       }
-    };
-    
-    if (user?.role === 'admin') {
-      fetchAgents();
-    } else {
-      navigate('/');
+      
+      setAgents(response);
+    } catch (err) {
+      console.error('Error fetching agents:', err);
+      setError(err.message || 'Failed to load agents');
+      if (err.response?.status === 403) {
+        navigate('/');
+      }
+    } finally {
+      setLoading(false);
     }
-  }, [user, navigate]);
+  };
 
-  if (!user || user.role !== 'admin') return null;
+  if (user?.role === 'admin') {
+    fetchAgents();
+  } else {
+    setError('Admin access required');
+    navigate('/');
+  }
+}, [user, navigate]);
+
+  // Add proper error boundary
+  if (error) {
+    return <div className="p-4 bg-red-100 text-red-700">{error}</div>;
+  }
+
+
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">You need admin privileges to access this page.</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleCreate = async () => {
     if (!newAgent.name || !newAgent.commission) return;

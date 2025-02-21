@@ -20,6 +20,8 @@ export const api = {
     return headers;
   },
 
+  
+
   get: async (endpoint) => {
     try {
       const token = getAuthToken();

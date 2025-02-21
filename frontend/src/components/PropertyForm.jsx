@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 import {
   Loader2,
   X,
@@ -10,6 +11,7 @@ import {
   Save,
   Trash2,
   Upload,
+  ArrowLeft,
 } from "lucide-react";
 import PropTypes from "prop-types";
 
@@ -17,8 +19,10 @@ const PropertyForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingProperty, setLoadingProperty] = useState(!!id);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const { user } = useAuth();
   const [property, setProperty] = useState({
     title: "",
     type: "Apartment",
@@ -41,41 +45,6 @@ const PropertyForm = () => {
     },
     photos: [],
   });
-
-  useEffect(() => {
-    if (id) {
-      const fetchProperty = async () => {
-        try {
-          const data = await api.get(`/api/properties/${id}`);
-          // Initialize with correct casing for bank details
-          setProperty({
-            ...data,
-            location: {
-              address: "",
-              city: "",
-              country: "",
-              postalCode: "",
-              ...data.location,
-            },
-            bankDetails: {
-              accountHolder: data.bankDetails?.accountHolder || "",
-              accountNumber: data.bankDetails?.accountNumber || "",
-              bankName: data.bankDetails?.bankName || "",
-              swiftCode: data.bankDetails?.swiftCode || "",
-              iban: data.bankDetails?.iban || "",
-              currency: data.bankDetails?.currency || "USD",
-            },
-            photos: data.photos || [],
-          });
-        } catch (err) {
-          setError(
-            "Failed to load property data: " + (err.message || "Unknown error")
-          );
-        }
-      };
-      fetchProperty();
-    }
-  }, [id]);
 
   const bankDetailsFields = [
     { key: "accountHolder", label: "Account Holder" },
@@ -117,56 +86,6 @@ const PropertyForm = () => {
       }));
     }
   }, []);
-
-  const handleUpload = async (e) => {
-    try {
-      setUploading(true);
-      const files = Array.from(e.target.files);
-      const formData = new FormData();
-      files.forEach((file) => formData.append("photos", file));
-
-      const { photoUrls } = await api.post("/api/properties/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      setProperty((prev) => ({
-        ...prev,
-        photos: [...prev.photos, ...photoUrls],
-      }));
-    } catch (err) {
-      setError("Image upload failed: " + err.message);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (id) {
-        await api.put(`/api/properties/${id}`, property);
-      } else {
-        await api.post("/api/properties", property);
-      }
-      navigate("/properties");
-    } catch (err) {
-      setError(err.message || "Failed to save property");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (window.confirm("Are you sure you want to delete this property?")) {
-      try {
-        await api.delete(`/api/properties/${id}`);
-        navigate("/properties");
-      } catch (err) {
-        setError("Delete failed: " + err.message);
-      }
-    }
-  };
 
   const InputField = useCallback(
     ({
@@ -239,6 +158,132 @@ const PropertyForm = () => {
     required: PropTypes.bool,
   };
 
+// In PropertyForm.jsx
+useEffect(() => {
+  const fetchProperty = async () => {
+    try {
+      setLoadingProperty(true);
+      if (!id) return;
+      
+      const data = await api.get(`/api/properties/${id}`);
+      if (!data) throw new Error('Property not found');
+      
+      // Correctly set property data
+      setProperty({
+        ...data,
+        location: {
+          address: data.location?.address || "",
+          city: data.location?.city || "",
+          country: data.location?.country || "",
+          postalCode: data.location?.postalCode || "",
+        },
+        bankDetails: {
+          accountHolder: data.bankDetails?.accountHolder || "",
+          accountNumber: data.bankDetails?.accountNumber || "",
+          bankName: data.bankDetails?.bankName || "",
+          swiftCode: data.bankDetails?.swiftCode || "",
+          iban: data.bankDetails?.iban || "",
+          currency: data.bankDetails?.currency || "USD",
+        },
+        photos: data.photos || [],
+      });
+    } catch (err) {
+      setError(err.message || "Failed to load property");
+    } finally {
+      setLoadingProperty(false);
+    }
+  };
+
+  if (id) fetchProperty();
+}, [id]);
+
+  if (loadingProperty) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error && id) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-8">
+        <div className="max-w-md text-center">
+          <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4">
+            {error}
+          </div>
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back to Properties
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">You need admin privileges to access this page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleUpload = async (e) => {
+    try {
+      setUploading(true);
+      const files = Array.from(e.target.files);
+      const formData = new FormData();
+      files.forEach((file) => formData.append("photos", file));
+
+      const { photoUrls } = await api.post("/api/properties/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      setProperty((prev) => ({
+        ...prev,
+        photos: [...prev.photos, ...photoUrls],
+      }));
+    } catch (err) {
+      setError("Image upload failed: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (id) {
+        await api.put(`/api/properties/${id}`, property);
+      } else {
+        await api.post("/api/properties", property);
+      }
+      navigate("/properties");
+    } catch (err) {
+      setError(err.message || "Failed to save property");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm("Are you sure you want to delete this property?")) {
+      try {
+        await api.delete(`/api/properties/${id}`);
+        navigate("/properties");
+      } catch (err) {
+        setError("Delete failed: " + err.message);
+      }
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-5xl mx-auto px-4">

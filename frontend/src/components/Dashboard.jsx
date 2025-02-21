@@ -69,8 +69,9 @@ const Dashboard = () => {
 
   const allBookingSources = [
     ...Object.keys(defaultCommissions),
-    ...bookingAgents.map((agent) => agent.name),
+    ...(bookingAgents?.map((agent) => agent.name) || [])
   ];
+  
 
   const getEventColor = useCallback((source) => {
     const colors = {
@@ -130,15 +131,16 @@ const Dashboard = () => {
 
   const fetchAgents = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/booking-agents", {
-        credentials: "include",
-      });
-      const data = await response.json();
-      setBookingAgents(data);
+      const response = await api.get('/api/booking-agents');
+      setBookingAgents(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error("Error fetching agents:", error);
+      setBookingAgents([]);
     }
   };
+
+ 
+  
 
   useEffect(() => {
     fetchAgents();
