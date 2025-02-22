@@ -98,8 +98,13 @@ const Auth = () => {
       <div className="fixed top-0 left-0 w-full h-screen bg-[url('https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center opacity-[0.04] z-0"></div>
       
       <div className="max-w-md w-full space-y-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 relative z-10">
-        <div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold mb-8 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent drop-shadow-sm">
+        <div className="flex flex-col items-center">
+          <img
+            src="/logo.png"
+            alt="Logo"
+            className="h-16 w-auto mb-6"
+          />
+          <h2 className="mt-2 text-center text-3xl font-extrabold mb-8 bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent drop-shadow-sm">
             {isLogin ? "Welcome Back" : "Create Your Account"}
           </h2>
         </div>

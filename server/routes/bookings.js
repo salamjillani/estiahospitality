@@ -50,7 +50,7 @@ router.get("/", auth, async (req, res) => {
     const bookings = await Booking.find(query)
       .populate({
         path: "property",
-        select: "title identifier type photos",
+        select: "title identifier type photos location",
       })
       .populate({
         path: "createdBy",
@@ -198,12 +198,11 @@ router.delete("/:id", auth, async (req, res) => {
 // PATCH update booking status
 router.patch("/:id/status", auth, async (req, res) => {
   try {
-    const { status } = req.body;
     const booking = await Booking.findByIdAndUpdate(
       req.params.id,
       { status: req.body.status },
-      { new: true }
-    );
+      { new: true } // This ensures the updated document is returned
+    ).populate('property');
 
     // Create notification
     const notification = new Notification({
@@ -228,7 +227,7 @@ router.patch("/:id/status", auth, async (req, res) => {
     booking.status = status;
     await booking.save();
 
-    res.json(booking);
+    res.json(booking); 
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
