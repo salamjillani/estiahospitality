@@ -169,13 +169,15 @@ const Properties = () => {
               All Listings
             </h1>
           </div>
-          <Link
-            to="/properties/new"
-            className="group bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 w-full sm:w-auto justify-center shadow-lg hover:shadow-xl"
-          >
-            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
-            <span>Add Property</span>
-          </Link>
+          {user?.role === "admin" && (
+            <Link
+              to="/properties/new"
+              className="group bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 w-full sm:w-auto justify-center shadow-lg hover:shadow-xl"
+            >
+              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-200" />
+              <span>Add Property</span>
+            </Link>
+          )}
         </div>
 
         {error && (

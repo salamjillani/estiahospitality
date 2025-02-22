@@ -22,6 +22,7 @@ import {
   BedDouble,
   ChevronRight,
   Bath,
+  Save
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -69,9 +70,8 @@ const Dashboard = () => {
 
   const allBookingSources = [
     ...Object.keys(defaultCommissions),
-    ...(bookingAgents?.map((agent) => agent.name) || [])
+    ...(bookingAgents?.map((agent) => agent.name) || []),
   ];
-  
 
   const getEventColor = useCallback((source) => {
     const colors = {
@@ -105,10 +105,10 @@ const Dashboard = () => {
     try {
       const response = await fetch("http://localhost:5000/api/properties", {
         headers: {
-          "Authorization": `Bearer ${getAuthToken()}`, // Ensure token usage
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${getAuthToken()}`, // Ensure token usage
+          "Content-Type": "application/json",
         },
-        credentials: "include"
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -127,20 +127,15 @@ const Dashboard = () => {
     }
   }, [navigate]);
 
-  
-
   const fetchAgents = async () => {
     try {
-      const response = await api.get('/api/booking-agents');
+      const response = await api.get("/api/booking-agents");
       setBookingAgents(Array.isArray(response) ? response : []);
     } catch (error) {
       console.error("Error fetching agents:", error);
       setBookingAgents([]);
     }
   };
-
- 
-  
 
   useEffect(() => {
     fetchAgents();
@@ -166,15 +161,10 @@ const Dashboard = () => {
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
-      setError("");
-      
-      const endpoint = user.role === "admin" 
-        ? "/api/bookings" 
-        : `/api/bookings?user=${user._id}`;
+      const endpoint =
+        user?.role === "admin" ? "/api/bookings" : `/api/bookings`;
 
       const data = await api.get(endpoint);
-      
-      // Handle empty data case
       const bookingsData = Array.isArray(data?.bookings) ? data.bookings : [];
 
       const formattedEvents = bookingsData.map((booking) => ({
@@ -195,6 +185,8 @@ const Dashboard = () => {
           arrivalTime: booking.arrivalTime,
           source: booking.source,
           status: booking.status,
+          isCurrentUser: booking.createdBy?._id === user?._id,
+          reservationCode: booking.reservationCode,
         },
       }));
       setEvents(formattedEvents);
@@ -263,6 +255,7 @@ const Dashboard = () => {
         source: validatedBooking.source,
         startDate: new Date(validatedBooking.startDate).toISOString(),
         endDate: new Date(validatedBooking.endDate).toISOString(),
+        user: user._id,
         createdBy: user._id,
         phone: validatedBooking.phone,
         email: validatedBooking.email,
@@ -445,12 +438,14 @@ const Dashboard = () => {
       ).toFixed(2);
 
       return (
-        
         <div
           className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
           style={{
-            backgroundColor: eventInfo.event.backgroundColor,
-            color: "white",
+            backgroundColor:
+              eventInfo.event.extendedProps.isCurrentUser ||
+              user?.role === "admin"
+                ? getEventColor(eventInfo.event.extendedProps.source)
+                : "#e5e7eb",
           }}
         >
           <div className="flex-1 font-medium truncate pl-2">
@@ -1142,7 +1137,7 @@ const Dashboard = () => {
               <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    {isEditMode && (
+                    {selectedEventId && user?.role === "admin" && isEditMode ? (
                       <button
                         type="button"
                         onClick={handleDeleteBooking}
@@ -1152,7 +1147,7 @@ const Dashboard = () => {
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete Booking
                       </button>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="flex items-center space-x-3">
@@ -1166,19 +1161,23 @@ const Dashboard = () => {
                     >
                       Cancel
                     </button>
-                    <button
-                      type="button"
-                      onClick={
-                        isEditMode ? handleUpdateBooking : handleSaveEvent
-                      }
-                      disabled={loading}
-                      className="flex items-center px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
-                    >
-                      {loading && (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      )}
-                      {isEditMode ? "Update Booking" : "Create Booking"}
-                    </button>
+                    {user?.role === "admin" && ( // Add admin check
+                      <button
+                        type="button"
+                        onClick={
+                          isEditMode ? handleUpdateBooking : handleSaveEvent
+                        }
+                        disabled={loading}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2 w-full sm:w-auto transition-colors duration-200 shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
+                      >
+                        {loading ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Save className="w-5 h-5" />
+                        )}
+                        {isEditMode ? "Update Booking" : "Create Booking"}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

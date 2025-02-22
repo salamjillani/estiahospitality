@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useLocation  } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../utils/api";
 import {
@@ -43,19 +43,19 @@ import {
   MdBreakfastDining,
 } from "react-icons/md";
 
-
 const LandingPage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [bookings, setBookings] = useState([]);
   const [properties, setProperties] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
+  const [error, setError] = useState('');
 
   const scrollToSection = (sectionId) => {
     if (location.pathname === "/") {
       const section = document.getElementById(sectionId);
-      if (section) {
-        section.scrollIntoView({ behavior: "smooth" });
-      }
+      section?.scrollIntoView({ behavior: "smooth" });
     } else {
       navigate("/", { state: { scrollTo: sectionId }, replace: true });
     }
@@ -64,27 +64,46 @@ const LandingPage = () => {
   useEffect(() => {
     if (location.state?.scrollTo) {
       const section = document.getElementById(location.state.scrollTo);
-      if (section) {
-        setTimeout(() => {
-          section.scrollIntoView({ behavior: "smooth" });
-        }, 100); // Small delay to ensure component mounts
-      }
-      // Clear the scroll state
+      setTimeout(() => section?.scrollIntoView({ behavior: "smooth" }), 100);
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state?.scrollTo, navigate, location.pathname]);
 
-  const handleAuthNavigation = (path) => {
-    if (!user) {
-      navigate("/auth", { state: { from: path } });
-    } else {
-      navigate(path);
+  const fetchProperties = async () => {
+    try {
+      const data = await api.get("/api/properties/public");
+      setProperties(data);
+    } catch (err) {
+      console.error("Error fetching properties:", err);
     }
   };
 
-  const handleBookingClick = () => {
-    handleAuthNavigation("/dashboard");
+  const fetchBookings = async () => {
+    try {
+      setLoadingBookings(true);
+      setError('');
+      const endpoint = '/api/bookings'; 
+      
+      const data = await api.get(endpoint);
+      setBookings(data.bookings || []);
+    } catch (err) {
+      setError('Failed to load bookings');
+      console.error("Error fetching bookings:", err);
+    } finally {
+      setLoadingBookings(false);
+    }
   };
+  
+  useEffect(() => {
+    fetchProperties();
+    if (user) fetchBookings();
+  }, [user]);
+
+  const handleAuthNavigation = (path) => {
+    navigate(user ? path : "/auth", { state: { from: path } });
+  };
+
+  const handleBookingClick = () => handleAuthNavigation("/dashboard");
 
   // Enhanced amenities
   const featuredAmenities = [
@@ -226,18 +245,8 @@ const LandingPage = () => {
       description: "Exclusive guided excursions to hidden gems",
     },
   ];
-  const fetchProperties = async () => {
-    try {
-      const data = await api.get("/api/properties/public");
-      setProperties(data);
-    } catch (err) {
-      console.error("Error fetching properties:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchProperties();
-  }, []);
+  
+ 
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -246,7 +255,6 @@ const LandingPage = () => {
 
       {/* Navigation Bar with Glass Effect */}
       <nav className="bg-white/90 backdrop-blur-md shadow-sm fixed w-full z-50 transition-all duration-300">
-      
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
             <Link to="/" className="flex items-center space-x-3 group">
@@ -310,7 +318,11 @@ const LandingPage = () => {
                       className="block px-4 py-3 text-gray-700 hover:bg-gray-50 flex items-center space-x-2 transition-colors"
                     >
                       <Clock className="h-5 w-5 text-blue-600" />
-                      <span>My Bookings</span>
+                      <h3>
+                        {user?.role === "admin"
+                          ? "All Bookings"
+                          : "My Bookings"}
+                      </h3>
                     </Link>
                     <button
                       onClick={logout}
@@ -369,7 +381,60 @@ const LandingPage = () => {
             </Link>
           </div>
         </div>
-
+        <section className="mb-24 px-4">
+        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+          {user?.role === 'admin' ? 'All Bookings' : 'My Bookings'}
+        </h2>
+        
+        {loadingBookings ? (
+          <div className="text-center py-8">
+            <span className="animate-pulse">Loading bookings...</span>
+          </div>
+        ) : error ? (
+          <div className="text-red-500 text-center">{error}</div>
+        ) : (
+          <div className="max-w-6xl mx-auto grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {bookings.map(booking => (
+              <div key={booking._id} className="bg-white p-6 rounded-xl shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                    {booking.status}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {new Date(booking.startDate).toLocaleDateString()} - 
+                    {new Date(booking.endDate).toLocaleDateString()}
+                  </span>
+                </div>
+                <h3 className="text-xl font-semibold mb-2">
+                  {booking.property?.title || 'Unknown Property'}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {booking.numberOfGuests} guests · ${booking.totalPrice?.toFixed(2)}
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    Source: {booking.source}
+                  </span>
+                  <Link 
+                    to={`/bookings/${booking._id}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    View Details
+                  </Link>
+                </div>
+              </div>
+            ))}
+            
+            {bookings.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-500 text-lg">
+                  No bookings found. Start by creating a new booking!
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
         {/* Featured Locations Section */}
         <section id="popular-destinations" className="mb-24">
           <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center">

@@ -32,7 +32,7 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, checkRole(['admin']), async (req, res) => {
   try {
     const newProperty = new Property({ ...req.body, createdBy: req.user._id });
     await newProperty.save();
@@ -42,7 +42,7 @@ router.post('/', auth, async (req, res) => {
     
     res.status(201).json(newProperty);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(403).json({ message: "Admin access required" });
   }
 });
 

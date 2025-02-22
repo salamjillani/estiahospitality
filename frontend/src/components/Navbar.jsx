@@ -27,13 +27,7 @@ const Navbar = () => {
           </Link>
 
           <div className="flex items-center space-x-4">
-            <button
-              onClick={handlePropertyNavigation}
-              className="px-3 py-2 text-gray-700 hover:text-blue-600"
-            >
-              Properties
-            </button>
-            {user && (
+          {user && (
               <Link
                 to="/dashboard"
                 className="px-3 py-2 text-gray-700 hover:text-blue-600"
@@ -41,6 +35,13 @@ const Navbar = () => {
                 Calendar
               </Link>
             )}
+            <button
+              onClick={handlePropertyNavigation}
+              className="px-3 py-2 text-gray-700 hover:text-blue-600"
+            >
+              Properties
+            </button>
+           
             {user?.role === "admin" && (
               <>
                 <Link

@@ -25,15 +25,29 @@ const getCommission = async (source) => {
 };
 
 // GET all bookings
-router.get("/", auth, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
-    const { startDate, endDate, propertyId } = req.query;
+    const { startDate, endDate, propertyId, user } = req.query;
     let query = {};
 
+    // Authorization logic
     if (req.user.role !== 'admin') {
-      query.user = req.user._id;
+      // For non-admins, only show their own bookings
+      query.createdBy = req.user._id; 
+      
+      // If they have assigned properties, show those property's bookings
+      if (req.user.assignedProperties?.length) {
+        query.$or = [
+          { createdBy: req.user._id },
+          { property: { $in: req.user.assignedProperties } }
+        ];
+      }
+    } else {
+      // Admin can filter by user if specified
+      if (user) query.createdBy = user;
     }
 
+    // Add date filters
     if (startDate && endDate) {
       query.$or = [
         { startDate: { $lt: new Date(endDate) } },
@@ -41,11 +55,8 @@ router.get("/", auth, async (req, res) => {
       ];
     }
 
-    if (propertyId) {
-      query.property = propertyId;
-    } else if (req.user.role !== "admin") {
-      query.property = { $in: req.user.assignedProperties };
-    }
+    // Add property filter
+    if (propertyId) query.property = propertyId;
 
     const bookings = await Booking.find(query)
       .populate({
@@ -56,6 +67,7 @@ router.get("/", auth, async (req, res) => {
         path: "createdBy",
         select: "name email",
       })
+      .populate('property createdBy')
       .sort({ startDate: 1 });
 
     res.json({ bookings });
@@ -68,20 +80,10 @@ router.get("/", auth, async (req, res) => {
 router.post("/", auth, validateBooking, async (req, res) => {
   try {
     const commissionPercentage = await getCommission(req.body.source);
-
-    // Property access check
     const property = await Property.findById(req.validatedBooking.property);
+    
     if (!property) {
       return res.status(404).json({ message: "Property not found" });
-    }
-
-    if (
-      req.user.role !== "admin" &&
-      !req.user.assignedProperties.includes(property._id)
-    ) {
-      return res
-        .status(403)
-        .json({ message: "Access denied to this property" });
     }
 
     const booking = new Booking({

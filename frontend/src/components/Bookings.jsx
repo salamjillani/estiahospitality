@@ -14,7 +14,11 @@ const Bookings = () => {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/bookings", {
+        const endpoint = user?.role === 'admin' 
+          ? '/api/bookings' 
+          : `/api/bookings?user=${user._id}`;
+        
+        const response = await fetch(`http://localhost:5000${endpoint}`, {
           credentials: "include",
         });
 
@@ -122,7 +126,7 @@ const Bookings = () => {
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="w-32 px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider break-words whitespace-normal">
-                      ID
+                      R. Code
                     </th>
                     <th className="w-40 px-3 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider break-words whitespace-normal">
                       Guest
@@ -156,12 +160,12 @@ const Bookings = () => {
                 <tbody className="divide-y divide-gray-200">
                   {bookings.map((booking) => (
                     <tr
-                      key={booking._id}
+                      key={booking.reservationCode}
                       className="hover:bg-gray-50 transition-colors duration-150"
                     >
                       <td className="px-3 py-4">
                         <div className="text-sm text-gray-900 font-mono break-words whitespace-normal">
-                          {booking._id}
+                        {booking.reservationCode}
                         </div>
                       </td>
 
