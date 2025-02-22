@@ -207,8 +207,8 @@ const LandingPage = () => {
   const premiumServices = [
     {
       icon: <FaWineGlassAlt className="h-6 w-6" />,
-      title: "Wine Tasting",
-      description: "Curated selection of local and international wines",
+      title: "Juicy Drinks",
+      description: "Curated selection of local and international drinks",
     },
     {
       icon: <MdBreakfastDining className="h-6 w-6" />,
@@ -246,6 +246,7 @@ const LandingPage = () => {
 
       {/* Navigation Bar with Glass Effect */}
       <nav className="bg-white/90 backdrop-blur-md shadow-sm fixed w-full z-50 transition-all duration-300">
+      
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20 items-center">
             <Link to="/" className="flex items-center space-x-3 group">

@@ -31,7 +31,7 @@ const Bookings = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screena bg-gray-50">
+      <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="h-[calc(100vh-64px)] flex items-center justify-center">
           <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
@@ -56,7 +56,7 @@ const Bookings = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16">
+      <div className="pt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-200 bg-white flex justify-between items-center">
             <div>
