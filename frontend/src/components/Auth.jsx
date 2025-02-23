@@ -84,7 +84,7 @@ const Auth = () => {
       if (isLogin) {
         await login(formData);
       } else {
-        await register({ ...formData, role: "client" });
+        await register({ ...formData, role: "owner" });
       }
     } catch (error) {
       console.error("Auth error:", error);

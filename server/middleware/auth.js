@@ -31,8 +31,8 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-const clientOnly = (req, res, next) => {
-  if (req.user.role !== "client") {
+const ownerOnly = (req, res, next) => {
+  if (req.user.role !== "owner") {
     return res.status(403).json({
       success: false,
       error: "Client access required",
@@ -95,6 +95,6 @@ const checkRole = (roles) => {
 module.exports = {
   auth,
   adminOnly,
-  clientOnly,
+  ownerOnly,
   checkRole,
 };
