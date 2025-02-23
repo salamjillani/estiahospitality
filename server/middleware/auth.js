@@ -31,11 +31,11 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-const ownerOnly = (req, res, next) => {
-  if (req.user.role !== "owner") {
+const clientOnly = (req, res, next) => {
+  if (req.user.role !== "client") {
     return res.status(403).json({
       success: false,
-      error: "Owner access required",
+      error: "Client access required",
     });
   }
   next();
@@ -95,6 +95,6 @@ const checkRole = (roles) => {
 module.exports = {
   auth,
   adminOnly,
-  ownerOnly,
+  clientOnly,
   checkRole,
 };

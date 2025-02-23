@@ -5,7 +5,7 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const { auth, adminOnly, ownerOnly } = require("../middleware/auth");
+const { auth, adminOnly, clientOnly } = require("../middleware/auth");
 
 // Middleware to check user role
 const checkRole = (roles) => {
@@ -30,7 +30,7 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    const role = adminSecret === process.env.ADMIN_SECRET_KEY ? "admin" : "owner";
+    const role = adminSecret === process.env.ADMIN_SECRET_KEY ? "admin" : "client";
     
 
     // Check if user already exists

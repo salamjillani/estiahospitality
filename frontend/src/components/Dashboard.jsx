@@ -22,7 +22,7 @@ import {
   BedDouble,
   ChevronRight,
   Bath,
-  Save
+  Save,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -310,6 +310,9 @@ const Dashboard = () => {
 
   const handleEventClick = useCallback((clickInfo) => {
     const event = clickInfo.event;
+    if (!user?.role === "admin") {
+      return;
+    }
     setSelectedEventId(event.id);
     setIsEditMode(true);
     setNewEvent({
@@ -723,7 +726,7 @@ const Dashboard = () => {
               <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-b border-gray-100 z-10">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                    {isEditMode ? "Edit Booking" : "New Booking"}
+                    {isEditMode && user?.role === "admin" ? "Edit Booking" : "New Booking"}
                   </h2>
                   <button
                     onClick={() => {
@@ -1133,8 +1136,8 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {/* Footer Actions */}
-              <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-t border-gray-100">
+               {/* Footer Actions */}
+               <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
                     {selectedEventId && user?.role === "admin" && isEditMode ? (
@@ -1161,12 +1164,11 @@ const Dashboard = () => {
                     >
                       Cancel
                     </button>
-                    {user?.role === "admin" && ( // Add admin check
+
+                    {(!isEditMode || user?.role === "admin") && (
                       <button
                         type="button"
-                        onClick={
-                          isEditMode ? handleUpdateBooking : handleSaveEvent
-                        }
+                        onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
                         disabled={loading}
                         className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2 w-full sm:w-auto transition-colors duration-200 shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
                       >

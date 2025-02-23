@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
       delete data.role;
       const response = await api.post("/api/auth/register", {
         ...data,
-        role: 'owner'
+        role: 'client'
       });
 
       setUser(response.user);

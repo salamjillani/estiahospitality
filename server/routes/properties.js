@@ -5,7 +5,7 @@ const { auth, checkRole, adminOnly} = require('../middleware/auth');
 
 router.get('/', auth, async (req, res) => {
   try {
-    // Return all properties for both admins and owners
+    // Return all properties for both admins and clients
     const properties = await Property.find();
     res.json(properties);
   } catch (err) {
@@ -73,7 +73,7 @@ router.delete('/:id', auth, checkRole(['admin']), adminOnly, async (req, res) =>
 // server/routes/properties.js - Add admin routes
 router.get('/admin', auth, checkRole(['admin']), async (req, res) => {
   try {
-    const properties = await Property.find().populate('owner');
+    const properties = await Property.find().populate('client');
     res.json(properties);
   } catch (err) {
     res.status(500).json({ message: err.message });
