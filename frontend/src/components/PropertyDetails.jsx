@@ -270,6 +270,12 @@ const PropertyDetails = () => {
               <span className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full font-medium">
                 {property.type}
               </span>
+              <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
+                <Banknote className="w-5 h-5 text-blue-600" />
+                <span className="font-medium text-gray-800">
+                  ${property.pricePerNight}/night
+                </span>
+              </div>
             </div>
 
             {property.description && (

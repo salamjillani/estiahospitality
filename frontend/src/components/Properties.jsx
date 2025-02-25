@@ -11,6 +11,7 @@ import {
   Bath,
   Bed,
   Edit,
+  Banknote
 } from "lucide-react";
 import Navbar from "./Navbar";
 import { useAuth } from "../context/AuthContext";
@@ -256,6 +257,12 @@ const Properties = () => {
                       <Bath className="w-4 h-4 text-gray-700" />
                       <span className="text-sm text-gray-700">
                         {property.bathrooms}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Banknote className="w-4 h-4 text-gray-700" />
+                      <span className="text-sm font-medium text-gray-900">
+                        ${property.pricePerNight}
                       </span>
                     </div>
                   </div>

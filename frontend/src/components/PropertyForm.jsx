@@ -43,6 +43,7 @@ const PropertyForm = () => {
       iban: "",
       currency: "USD",
     },
+    pricePerNight: "",
     photos: [],
   });
 
@@ -156,46 +157,47 @@ const PropertyForm = () => {
     section: PropTypes.string,
     type: PropTypes.string,
     required: PropTypes.bool,
+    options: PropTypes.array,
   };
 
-// In PropertyForm.jsx
-useEffect(() => {
-  const fetchProperty = async () => {
-    try {
-      setLoadingProperty(true);
-      if (!id) return;
-      
-      const data = await api.get(`/api/properties/${id}`);
-      if (!data) throw new Error('Property not found');
-      
-      // Correctly set property data
-      setProperty({
-        ...data,
-        location: {
-          address: data.location?.address || "",
-          city: data.location?.city || "",
-          country: data.location?.country || "",
-          postalCode: data.location?.postalCode || "",
-        },
-        bankDetails: {
-          accountHolder: data.bankDetails?.accountHolder || "",
-          accountNumber: data.bankDetails?.accountNumber || "",
-          bankName: data.bankDetails?.bankName || "",
-          swiftCode: data.bankDetails?.swiftCode || "",
-          iban: data.bankDetails?.iban || "",
-          currency: data.bankDetails?.currency || "USD",
-        },
-        photos: data.photos || [],
-      });
-    } catch (err) {
-      setError(err.message || "Failed to load property");
-    } finally {
-      setLoadingProperty(false);
-    }
-  };
+  // In PropertyForm.jsx
+  useEffect(() => {
+    const fetchProperty = async () => {
+      try {
+        setLoadingProperty(true);
+        if (!id) return;
 
-  if (id) fetchProperty();
-}, [id]);
+        const data = await api.get(`/api/properties/${id}`);
+        if (!data) throw new Error("Property not found");
+
+        // Correctly set property data
+        setProperty({
+          ...data,
+          location: {
+            address: data.location?.address || "",
+            city: data.location?.city || "",
+            country: data.location?.country || "",
+            postalCode: data.location?.postalCode || "",
+          },
+          bankDetails: {
+            accountHolder: data.bankDetails?.accountHolder || "",
+            accountNumber: data.bankDetails?.accountNumber || "",
+            bankName: data.bankDetails?.bankName || "",
+            swiftCode: data.bankDetails?.swiftCode || "",
+            iban: data.bankDetails?.iban || "",
+            currency: data.bankDetails?.currency || "USD",
+          },
+          photos: data.photos || [],
+        });
+      } catch (err) {
+        setError(err.message || "Failed to load property");
+      } finally {
+        setLoadingProperty(false);
+      }
+    };
+
+    if (id) fetchProperty();
+  }, [id]);
 
   if (loadingProperty) {
     return (
@@ -224,12 +226,16 @@ useEffect(() => {
     );
   }
 
-  if (!user || user.role !== 'admin') {
+  if (!user || user.role !== "admin") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">You need admin privileges to access this page.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Access Denied
+          </h2>
+          <p className="text-gray-600">
+            You need admin privileges to access this page.
+          </p>
         </div>
       </div>
     );
@@ -284,6 +290,7 @@ useEffect(() => {
       }
     }
   };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-5xl mx-auto px-4">
@@ -372,6 +379,16 @@ useEffect(() => {
                 onChange={handleInputChange}
               />
 
+              <InputField
+                label="Price Per Night ($)"
+                type="number"
+                required
+                name="pricePerNight"
+                min="1"
+                value={property.pricePerNight}
+                onChange={handleInputChange}
+              />
+
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
                   Description
@@ -409,7 +426,7 @@ useEffect(() => {
           </div>
 
           {/* Bank Information */}
-          
+
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
             <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
               <Banknote className="w-6 h-6 text-blue-600" /> Bank Information

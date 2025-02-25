@@ -58,7 +58,8 @@ router.get('/owner/:ownerId', auth, async (req, res) => {
 
 router.post('/', auth, checkRole(['admin']), async (req, res) => {
   try {
-    const newProperty = new Property({ ...req.body, createdBy: req.user._id });
+    const { pricePerNight, ...rest } = req.body;
+    const newProperty = new Property({ ...req.body, pricePerNight, createdBy: req.user._id });
     await newProperty.save();
     
   
@@ -72,8 +73,10 @@ router.post('/', auth, checkRole(['admin']), async (req, res) => {
 
 router.put('/:id', auth, adminOnly, async (req, res) => {
   try {
+    const { pricePerNight, ...updateData } = req.body;
     const property = await Property.findByIdAndUpdate(
       req.params.id,
+      { ...updateData, pricePerNight },
       req.body,
       { new: true }
     );
