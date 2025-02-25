@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../utils/api";
-import { Loader2, Users, Calendar, Mail, Shield } from "lucide-react";
+import { Loader2, Users, Calendar, Shield } from "lucide-react";
 
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
