@@ -5,6 +5,23 @@ import { api } from "../utils/api";
 import { Loader2, Calendar, Home, XCircle, Info, Clock } from "lucide-react";
 import io from "socket.io-client";
 
+
+// Date formatting utility
+const formatDate = (dateString) => {
+  const options = { year: 'numeric', month: 'short', day: 'numeric' };
+  const date = new Date(dateString);
+  return isNaN(date) ? 'Invalid Date' : date.toLocaleDateString(undefined, options);
+};
+
+// Calculate nights between dates
+const calculateNights = (checkIn, checkOut) => {
+  const start = new Date(checkIn);
+  const end = new Date(checkOut);
+  if (isNaN(start) || isNaN(end)) return 0;
+  const diff = end - start;
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+};
+
 const ClientBookings = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,35 +33,46 @@ const ClientBookings = () => {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
+        setLoading(true);
         const response = await api.get(`/api/bookings/client/${user._id}`);
-        setBookings(response);
+        
+        // Process bookings with proper dates and nights calculation
+        const processedBookings = response.map(booking => ({
+          ...booking,
+          checkInDate: booking.checkInDate ? new Date(booking.checkInDate).toISOString() : null,
+          checkOutDate: booking.checkOutDate ? new Date(booking.checkOutDate).toISOString() : null,
+          totalNights: booking.totalNights || calculateNights(booking.checkInDate, booking.checkOutDate)
+        }));
+
+        setBookings(processedBookings);
       } catch (err) {
-        if (err.message.includes('403')) {
+        if (err.message.includes("403")) {
           logout();
-          navigate('/auth?session=expired');
+          navigate("/auth?session=expired");
         }
         setError(err.message);
-      }
-      finally {
+      } finally {
         setLoading(false);
       }
     };
-    
+
     if (user?._id) fetchBookings();
   }, [user?._id]);
 
-  
-
   useEffect(() => {
-    socket.on("statusUpdate", (updatedBooking) => {
+    const handleStatusUpdate = (updatedBooking) => {
       setBookings(prev => prev.map(b => 
-        b._id === updatedBooking._id ? updatedBooking : b
+        b._id === updatedBooking._id ? { 
+          ...updatedBooking,
+          checkInDate: updatedBooking.checkInDate ? new Date(updatedBooking.checkInDate).toISOString() : null,
+          checkOutDate: updatedBooking.checkOutDate ? new Date(updatedBooking.checkOutDate).toISOString() : null,
+          totalNights: updatedBooking.totalNights || calculateNights(updatedBooking.checkInDate, updatedBooking.checkOutDate)
+        } : b
       ));
-    });
-  
-    return () => {
-      socket.off("statusUpdate");
     };
+
+    socket.on("statusUpdate", handleStatusUpdate);
+    return () => socket.off("statusUpdate", handleStatusUpdate);
   }, []);
 
   useEffect(() => {
@@ -52,20 +80,22 @@ const ClientBookings = () => {
       navigate("/");
     }
   }, [user, navigate]);
-  
+
   const handleCancel = async (bookingId) => {
-    if (!window.confirm("Are you sure you want to cancel this booking?"))
-      return;
+    if (!window.confirm("Are you sure you want to cancel this booking?")) return;
 
     try {
       await api.patch(`/api/bookings/${bookingId}/status`, {
         status: "cancelled",
       });
-      setBookings(
-        bookings.map((b) =>
-          b._id === bookingId ? { ...b, status: "cancelled" } : b
-        )
-      );
+      
+      setBookings(prev => prev.map(b => 
+        b._id === bookingId ? { 
+          ...b, 
+          status: "cancelled",
+          totalNights: calculateNights(b.checkInDate, b.checkOutDate)
+        } : b
+      ));
     } catch (err) {
       setError(err.message || "Failed to cancel booking");
     }
@@ -88,7 +118,9 @@ const ClientBookings = () => {
   }
 
   return (
+    
     <div className="max-w-6xl mx-auto px-4 py-8">
+      
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Calendar className="h-8 w-8 text-blue-600" />
@@ -96,7 +128,7 @@ const ClientBookings = () => {
         </h1>
         <Link
           to="/properties"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
           Book New Property
         </Link>
@@ -111,63 +143,72 @@ const ClientBookings = () => {
         </div>
       ) : (
         <div className="grid gap-6">
-          {bookings.map((booking) => (
-            <div
-              key={booking._id}
-              className="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
-            >
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-2">
-                    {booking.property?.title || "Unknown Property"}
-                  </h3>
-                  <div className="flex items-center gap-4 text-gray-600">
-                    {booking.arrivalTime && (
+          {bookings.map((booking) => {
+            const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
+            
+            return (
+              
+              <div
+                key={booking._id}
+                className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+              >
+               
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+             
+                  <div className="flex-1">
+                    <h3 className="text-xl font-semibold mb-2">
+                      {booking.property?.title || "Unknown Property"}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-4 text-gray-600">
+                      <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                        {booking.reservationCode}
+                      </span>
+                      {booking.arrivalTime && (
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          <span>Arrival: {booking.arrivalTime}</span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        <span>Arrival: {booking.arrivalTime}</span>
+                        <Calendar className="h-4 w-4" />
+                        <span>
+                          {formatDate(booking.checkInDate)} -{" "}
+                          {formatDate(booking.checkOutDate)}
+                        </span>
                       </div>
+                      <div className="flex items-center gap-1">
+                        <Home className="h-4 w-4" />
+                        <span>{nights} night{nights !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm ${
+                        booking.status === "confirmed"
+                          ? "bg-green-100 text-green-800"
+                          : booking.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {booking.status}
+                    </span>
+                    {["pending", "confirmed"].includes(booking.status) && (
+                      <button
+                        onClick={() => handleCancel(booking._id)}
+                        className="text-red-600 hover:text-red-800 flex items-center gap-1 transition-colors"
+                      >
+                        <XCircle className="h-5 w-5" />
+                        <span>Cancel</span>
+                      </button>
                     )}
-                    <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                      {booking.reservationCode}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      {new Date(booking.startDate).toLocaleDateString()} -{" "}
-                      {new Date(booking.endDate).toLocaleDateString()}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Home className="h-4 w-4" />
-                      {booking.totalNights} nights
-                    </span>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-4">
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      booking.status === "confirmed"
-                        ? "bg-green-100 text-green-800"
-                        : booking.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {booking.status}
-                  </span>
-                  {["pending", "confirmed"].includes(booking.status) && (
-                    <button
-                      onClick={() => handleCancel(booking._id)}
-                      className="text-red-600 hover:text-red-800 flex items-center gap-1"
-                    >
-                      <XCircle className="h-5 w-5" />
-                      <span>Cancel</span>
-                    </button>
-                  )}
-                </div>
               </div>
-            </div>
-          ))}
+            )}
+          )}
         </div>
       )}
     </div>
