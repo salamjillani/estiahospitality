@@ -32,6 +32,41 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+// server/routes/properties.js
+router.get('/owned', auth, checkRole(['owner']), async (req, res) => {
+  try {
+    const properties = await Property.find({ owner: req.user._id });
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// server/routes/bookings.js
+router.get('/owner', auth, checkRole(['owner']), async (req, res) => {
+  try {
+    const properties = await Property.find({ owner: req.user._id });
+    const bookings = await Booking.find({ 
+      property: { $in: properties.map(p => p._id) }
+    });
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// properties.js
+router.get('/owner/:ownerId', auth, async (req, res) => {
+  try {
+    const properties = await Property.find({ owner: req.params.ownerId });
+    res.json(properties);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+
 router.post('/', auth, checkRole(['admin']), async (req, res) => {
   try {
     const newProperty = new Property({ ...req.body, createdBy: req.user._id });

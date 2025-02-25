@@ -27,7 +27,7 @@ const Navbar = () => {
           </Link>
 
           <div className="flex items-center space-x-4">
-          {user && (
+            {user && (
               <Link
                 to="/dashboard"
                 className="px-3 py-2 text-gray-700 hover:text-blue-600"
@@ -41,19 +41,27 @@ const Navbar = () => {
             >
               Properties
             </button>
-           
+
+            {user?.role === "owner" && (
+              <Link
+                to="/owner-dashboard"
+                className="px-3 py-2 text-gray-700 hover:text-blue-600"
+              >
+                Owner Dashboard
+              </Link>
+            )}
+            {user?.role === "client" && (
+              <Link to="/my-bookings" className="px-3 py-2">
+                My Bookings
+              </Link>
+            )}
+
             {user?.role === "admin" && (
               <>
-                <Link
-                  to="/agents"
-                  className="px-3 py-2 text-gray-700 hover:text-blue-600"
-                >
-                  Agents
+                <Link to="/admin/dashboard" className="px-3 py-2">
+                  Admin Dashboard
                 </Link>
-                <Link
-                  to="/bookings"
-                  className="px-3 py-2 text-gray-700 hover:text-blue-600"
-                >
+                <Link to="/admin/bookings" className="px-3 py-2">
                   Bookings
                 </Link>
               </>

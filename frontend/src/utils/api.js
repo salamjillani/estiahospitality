@@ -14,8 +14,9 @@ export const getAuthToken = () => {
 export const api = {
   getHeaders: () => {
     const headers = { 'Content-Type': 'application/json' };
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
     return headers;
   },
@@ -26,13 +27,17 @@ export const api = {
     try {
       const token = getAuthToken();
       const response = await fetch(`${BASE_URL}${endpoint}`, {
-        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+         credentials: 'include',
         
       });
+
+      if (response.status === 403) {
+        throw new Error('Session expired. Please login again.');
+      }
 
       const contentType = response.headers.get('content-type');
       if (!contentType?.includes('application/json')) {

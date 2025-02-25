@@ -1,6 +1,6 @@
 // server/models/User.js
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
@@ -21,26 +21,33 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "owner"],
-      default: "owner"
+      enum: ["client", "owner", "admin"],
+      default: "client",
     },
+    ownedProperties: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Property" },
+    ],
+    bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: "Booking" }],
+
     isVerified: {
       type: Boolean,
-      default: false
+      default: false,
     },
     adminSecretUsed: {
       type: Boolean,
-      default: false
+      default: false,
     },
     permissions: {
       canManageProperties: { type: Boolean, default: false },
       canManageBookings: { type: Boolean, default: false },
-      canManageUsers: { type: Boolean, default: false }
+      canManageUsers: { type: Boolean, default: false },
     },
-    managedProperties: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Property"
-    }],
+    managedProperties: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Property",
+      },
+    ],
     assignedProperties: [
       {
         type: mongoose.Schema.Types.ObjectId,

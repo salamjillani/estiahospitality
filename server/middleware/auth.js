@@ -1,9 +1,11 @@
+//server/middleware/auth.js
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const mongoose = require("mongoose");
 
 const auth = async (req, res, next) => {
   try {
+    console.log('Auth middleware - received token:', req.cookies.token);
     const token =
       req.cookies.token || req.headers.authorization?.replace("Bearer ", "");
     if (!token) throw new Error("Authentication required");
@@ -17,12 +19,17 @@ const auth = async (req, res, next) => {
     if (!user) throw new Error("User not found");
 
     req.user = user;
+    console.log('Authenticated user:', {
+      id: user._id,
+      role: user.role,
+      email: user.email
+    });
     next();
   } catch (error) {
+    console.error('Auth error:', error.message);
     res.status(401).json({ message: error.message });
   }
 };
-
 // ✅ Move adminOnly here before exporting
 const adminOnly = (req, res, next) => {
   if (req.user.role !== "admin") {
@@ -35,8 +42,15 @@ const ownerOnly = (req, res, next) => {
   if (req.user.role !== "owner") {
     return res.status(403).json({
       success: false,
-      error: "Client access required",
+      error: "Owner access required",
     });
+  }
+  next();
+};
+
+const clientAuth = (req, res, next) => {
+  if (req.user.role !== 'client') {
+    return res.status(403).json({ error: 'Client access required' });
   }
   next();
 };
@@ -97,4 +111,5 @@ module.exports = {
   adminOnly,
   ownerOnly,
   checkRole,
+  clientAuth,
 };

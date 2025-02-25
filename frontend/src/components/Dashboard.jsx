@@ -23,6 +23,10 @@ import {
   ChevronRight,
   Bath,
   Save,
+  AlertCircle,
+  Bed,
+  Globe,
+  Coins,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -42,7 +46,6 @@ const Dashboard = () => {
   const [showEventModal, setShowEventModal] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [propertySearchQuery, setPropertySearchQuery] = useState("");
@@ -50,18 +53,23 @@ const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [bookingAgents, setBookingAgents] = useState([]);
   const navigate = useNavigate();
+  
   const [newEvent, setNewEvent] = useState({
     propertyId: "",
     guestName: "",
-    numberOfGuests: "1",
+    email: "",
+    phone: "",
+    checkInDate: "",
+    checkOutDate: "",
+    rooms: 1,
+    adults: 1,
+    children: 0,
+    nationality: "",
+    currency: "USD",
+    specialRequests: "",
     pricePerNight: "0",
     source: "direct",
-    startDate: "",
-    endDate: "",
-    phone: "",
-    email: "",
     arrivalTime: "",
-    comments: "",
     paymentMethod: "cash",
     paymentDate: "",
     customPaymentText: "",
@@ -71,6 +79,20 @@ const Dashboard = () => {
   const allBookingSources = [
     ...Object.keys(defaultCommissions),
     ...(bookingAgents?.map((agent) => agent.name) || []),
+  ];
+
+  const currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR", "SGD"];
+  const nationalities = [
+    "United States",
+    "United Kingdom",
+    "Canada",
+    "Australia",
+    "India",
+    "Germany",
+    "France",
+    "China",
+    "Japan",
+    "Other",
   ];
 
   const getEventColor = useCallback((source) => {
@@ -105,7 +127,7 @@ const Dashboard = () => {
     try {
       const response = await fetch("http://localhost:5000/api/properties", {
         headers: {
-          Authorization: `Bearer ${getAuthToken()}`, // Ensure token usage
+          Authorization: `Bearer ${getAuthToken()}`,
           "Content-Type": "application/json",
         },
         credentials: "include",
@@ -161,10 +183,7 @@ const Dashboard = () => {
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
-      const endpoint =
-        user?.role === "admin" ? "/api/bookings" : `/api/bookings`;
-
-      const data = await api.get(endpoint);
+      const data = await api.get("/api/bookings");
       const bookingsData = Array.isArray(data?.bookings) ? data.bookings : [];
 
       const formattedEvents = bookingsData.map((booking) => ({
@@ -178,15 +197,14 @@ const Dashboard = () => {
         extendedProps: {
           propertyId: booking.property._id,
           guestName: booking.guestName,
-          numberOfGuests: booking.numberOfGuests,
-          pricePerNight: booking.pricePerNight,
           phone: booking.phone,
           email: booking.email,
           arrivalTime: booking.arrivalTime,
           source: booking.source,
-          status: booking.status,
+          status: booking.status || 'pending',
           isCurrentUser: booking.createdBy?._id === user?._id,
           reservationCode: booking.reservationCode,
+          
         },
       }));
       setEvents(formattedEvents);
@@ -219,25 +237,20 @@ const Dashboard = () => {
     if (!booking.guestName.trim()) {
       throw new Error("Please enter a guest name");
     }
-    if (!booking.startDate || !booking.endDate) {
-      throw new Error("Please select both start and end dates");
+    if (!booking.checkInDate || !booking.checkOutDate) {
+      throw new Error("Please select both check-in and check-out dates");
     }
-
-    const numberOfGuests = parseInt(booking.numberOfGuests);
-    if (isNaN(numberOfGuests) || numberOfGuests < 1) {
-      throw new Error("Number of guests must be at least 1");
+    if (isNaN(booking.rooms) || booking.rooms < 1) {
+      throw new Error("Number of rooms must be at least 1");
     }
-
+    if (isNaN(booking.adults) || booking.adults < 1) {
+      throw new Error("Number of adults must be at least 1");
+    }
     const pricePerNight = parseFloat(booking.pricePerNight);
     if (isNaN(pricePerNight) || pricePerNight <= 0) {
       throw new Error("Price per night must be greater than 0");
     }
-
-    return {
-      ...booking,
-      numberOfGuests,
-      pricePerNight,
-    };
+    return booking;
   };
 
   const handleSaveEvent = async () => {
@@ -250,16 +263,20 @@ const Dashboard = () => {
       const bookingData = {
         property: validatedBooking.propertyId,
         guestName: validatedBooking.guestName,
-        numberOfGuests: validatedBooking.numberOfGuests,
-        pricePerNight: validatedBooking.pricePerNight,
-        source: validatedBooking.source,
-        startDate: new Date(validatedBooking.startDate).toISOString(),
-        endDate: new Date(validatedBooking.endDate).toISOString(),
-        user: user._id,
-        createdBy: user._id,
         phone: validatedBooking.phone,
         email: validatedBooking.email,
+        checkInDate: new Date(validatedBooking.checkInDate).toISOString(),
+        checkOutDate: new Date(validatedBooking.checkOutDate).toISOString(),
+        rooms: validatedBooking.rooms,
+        adults: validatedBooking.adults,
+        children: validatedBooking.children,
+        nationality: validatedBooking.nationality,
+        pricePerNight: parseFloat(validatedBooking.pricePerNight),
+        source: validatedBooking.source,
         arrivalTime: validatedBooking.arrivalTime,
+        specialRequests: validatedBooking.specialRequests,
+        user: user._id,
+        createdBy: user._id,
         reservationCode: newEvent.reservationCode,
       };
 
@@ -282,11 +299,22 @@ const Dashboard = () => {
       setNewEvent({
         propertyId: "",
         guestName: "",
-        numberOfGuests: "1",
+        email: "",
+        phone: "",
+        checkInDate: "",
+        checkOutDate: "",
+        rooms: 1,
+        adults: 1,
+        children: 0,
+        nationality: "",
+        currency: "USD",
+        specialRequests: "",
         pricePerNight: "0",
         source: "direct",
-        startDate: "",
-        endDate: "",
+        arrivalTime: "",
+        paymentMethod: "cash",
+        paymentDate: "",
+        customPaymentText: "",
         reservationCode: Math.random().toString(36).substr(2, 6).toUpperCase(),
       });
     } catch (error) {
@@ -297,37 +325,38 @@ const Dashboard = () => {
   };
 
   const handleDateSelect = useCallback((selectInfo) => {
-    const startDate = new Date(selectInfo.start);
-    const endDate = new Date(selectInfo.end);
-
     setNewEvent((prev) => ({
       ...prev,
-      startDate: startDate.toISOString().slice(0, 16),
-      endDate: endDate.toISOString().slice(0, 16),
+      checkInDate: selectInfo.startStr,
+      checkOutDate: selectInfo.endStr,
     }));
     setShowEventModal(true);
   }, []);
 
   const handleEventClick = useCallback((clickInfo) => {
     const event = clickInfo.event;
-    if (!user?.role === "admin") {
-      return;
-    }
+    if (!user?.role === "admin") return;
+
     setSelectedEventId(event.id);
     setIsEditMode(true);
     setNewEvent({
       id: event.id,
       propertyId: event.extendedProps.propertyId,
       guestName: event.extendedProps.guestName,
-      numberOfGuests: event.extendedProps.numberOfGuests.toString(),
-      pricePerNight: event.extendedProps.pricePerNight.toString(),
-      source: event.extendedProps.source,
-      startDate: event.start.toISOString().slice(0, 16),
-      endDate: event.end.toISOString().slice(0, 16),
       phone: event.extendedProps.phone || "",
       email: event.extendedProps.email || "",
+      checkInDate: event.start.toISOString(),
+      checkOutDate: event.end.toISOString(),
+      pricePerNight: event.extendedProps.pricePerNight.toString(),
+      source: event.extendedProps.source,
       arrivalTime: event.extendedProps.arrivalTime || "",
       reservationCode: event.extendedProps.reservationCode,
+      rooms: 1,
+      adults: 1,
+      children: 0,
+      nationality: "",
+      currency: "USD",
+      specialRequests: "",
     });
     setShowEventModal(true);
   }, []);
@@ -426,44 +455,31 @@ const Dashboard = () => {
   const eventContent = useCallback(
     (eventInfo) => {
       const property = properties.find(
-        (p) =>
-          p._id.toString() ===
-          eventInfo.event.extendedProps.propertyId.toString()
+        (p) => p._id.toString() === eventInfo.event.extendedProps.propertyId.toString()
       );
       const checkInDate = formatDate(eventInfo.event.start);
       const checkOutDate = formatDate(eventInfo.event.end);
-      const nights = calculateNights(
-        eventInfo.event.start,
-        eventInfo.event.end
-      );
-      const totalPrice = (
-        eventInfo.event.extendedProps.pricePerNight * nights
-      ).toFixed(2);
+      const nights = calculateNights(eventInfo.event.start, eventInfo.event.end);
+      const totalPrice = (eventInfo.event.extendedProps.pricePerNight * nights).toFixed(2);
 
       return (
-        <div
-          className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
+        <div className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
           style={{
-            backgroundColor:
-              eventInfo.event.extendedProps.isCurrentUser ||
-              user?.role === "admin"
-                ? getEventColor(eventInfo.event.extendedProps.source)
-                : "#e5e7eb",
-          }}
-        >
+            backgroundColor: eventInfo.event.extendedProps.isCurrentUser || user?.role === "admin"
+              ? getEventColor(eventInfo.event.extendedProps.source)
+              : "#e5e7eb",
+          }}>
           <div className="flex-1 font-medium truncate pl-2">
             {eventInfo.event.title}
           </div>
           <div className="flex items-center space-x-1 bg-white/20 rounded-full px-2 py-1 ml-2">
             <Users size={14} className="text-white" />
             <span className="text-sm">
-              {eventInfo.event.extendedProps.numberOfGuests}
+              {eventInfo.event.extendedProps.adults}
             </span>
           </div>
-
           <div className="absolute invisible group-hover:visible bg-white/95 backdrop-blur-sm text-gray-700 text-sm rounded-xl p-4 left-1/2 transform -translate-x-1/2 -top-44 min-w-[320px] z-50 shadow-lg border border-gray-100/50">
             <div className="flex flex-col space-y-3">
-              {/* Header */}
               <div className="flex items-center justify-between pb-2 border-b border-gray-100/50">
                 <h3 className="font-semibold text-base text-gray-900">
                   {property?.title || "Unknown Property"}
@@ -472,8 +488,6 @@ const Dashboard = () => {
                   {eventInfo.event.extendedProps.reservationCode}
                 </span>
               </div>
-
-              {/* Details Grid */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
@@ -494,23 +508,20 @@ const Dashboard = () => {
                   <div>
                     <p className="text-xs text-gray-500">Arrival Time</p>
                     <p className="text-sm font-medium">
-                      {eventInfo.event.extendedProps.arrivalTime ||
-                        "Not specified"}
+                      {eventInfo.event.extendedProps.arrivalTime || "Not specified"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-gray-500 shrink-0" />
                   <div>
-                    <p className="text-xs text-gray-500">Guests</p>
+                    <p className="text-xs text-gray-500">Adults</p>
                     <p className="text-sm font-medium">
-                      {eventInfo.event.extendedProps.numberOfGuests}
+                      {eventInfo.event.extendedProps.adults}
                     </p>
                   </div>
                 </div>
               </div>
-
-              {/* Price Summary */}
               <div className="pt-2 border-t border-gray-100/50">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-500">
@@ -522,18 +533,12 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-
-            {/* Tooltip Arrow */}
-            <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full">
-              <div className="border-8 border-transparent border-t-white/95"></div>
-            </div>
           </div>
         </div>
       );
     },
-    [properties]
+    [properties, user]
   );
-
   const dayCellContent = (arg) => {
     const currentDate = new Date(arg.date);
 
@@ -598,24 +603,58 @@ const Dashboard = () => {
       </div>
     );
   }
+
+  const renderBookingSources = () => (
+    <div className="md:col-span-2">
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-sm font-medium text-gray-700">
+          Booking Source
+        </label>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {allBookingSources.map((source) => (
+          <div key={source} className="relative group">
+            <button
+              type="button"
+              onClick={() => setNewEvent({ ...newEvent, source })}
+              className={`w-full flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:shadow-md ${
+                newEvent.source === source
+                  ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
+                  : "border-gray-200 hover:border-blue-300"
+              }`}
+            >
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                  newEvent.source === source ? "bg-blue-500" : "bg-gray-100"
+                }`}
+              >
+                <Building
+                  className={`w-5 h-5 ${
+                    newEvent.source === source ? "text-white" : "text-gray-500"
+                  }`}
+                />
+              </div>
+              <span
+                className={`text-sm font-medium capitalize ${
+                  newEvent.source === source ? "text-blue-600" : "text-gray-700"
+                }`}
+              >
+                {source}
+              </span>
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50">
-      <Navbar
-        isSidebarOpen={isSidebarOpen}
-        setIsSidebarOpen={setIsSidebarOpen}
-      />
-
+      <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
       <div className="pt-16 h-screen flex">
-        {/* Sidebar */}
-        <div
-          className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/80 backdrop-blur-xl border-r border-gray-100/50 h-full transform transition-transform duration-300 ease-in-out z-40 ${
-            isSidebarOpen
-              ? "translate-x-0"
-              : "-translate-x-full lg:translate-x-0"
-          }`}
-        >
+        <div className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/80 backdrop-blur-xl border-r border-gray-100/50 h-full transform transition-transform duration-300 ease-in-out z-40 ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}>
           <div className="p-4 lg:p-6 overflow-y-auto h-full">
-            {/* Search Box */}
             <div className="relative mb-6">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />
@@ -628,8 +667,6 @@ const Dashboard = () => {
                 className="block w-full pl-10 pr-4 py-3 bg-white/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-gray-400"
               />
             </div>
-
-            {/* Property Cards */}
             <div className="space-y-4">
               {filteredProperties.map((property) => (
                 <Link
@@ -651,11 +688,8 @@ const Dashboard = () => {
                         </div>
                       )}
                     </div>
-
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">
-                        {property.title}
-                      </h3>
+                      <h3 className="font-medium text-gray-900">{property.title}</h3>
                       <p className="flex items-center gap-1 mt-1 text-sm text-gray-500">
                         <MapPin className="w-4 h-4" />
                         {property.location.city || "Location not specified"}
@@ -676,53 +710,47 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-
-        {/* Calendar Section */}
         <div className="flex-1 p-4 lg:p-6 bg-transparent">
           <div className="h-full bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-blue-500/5 border border-gray-100/50 overflow-hidden">
-            <FullCalendar
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
-              headerToolbar={{
-                left: "prev,next",
-                center: "title",
-                right: "dayGridMonth,timeGridWeek,timeGridDay",
-              }}
-              events={events}
-              editable={true}
-              selectable={true}
-              selectMirror={true}
-              dayMaxEvents={true}
-              weekends={true}
-              eventContent={eventContent}
-              dayCellContent={dayCellContent}
-              select={handleDateSelect}
-              eventClick={handleEventClick}
-              height="100%"
-              contentHeight="auto"
-              themeSystem="standard"
-              eventDisplay="block"
-              slotMinTime="06:00:00"
-              slotMaxTime="21:00:00"
-              slotDuration="01:00:00"
-              eventTimeFormat={{
-                hour: "2-digit",
-                minute: "2-digit",
-                meridiem: false,
-              }}
-            />
+          <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView="dayGridMonth"
+          headerToolbar={{
+            left: "prev,next",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay",
+          }}
+          events={events}
+          editable={true}
+          selectable={true}
+          selectMirror={true}
+          dayMaxEvents={true}
+          weekends={true}
+          eventContent={eventContent}
+          dayCellContent={dayCellContent}
+          select={handleDateSelect}
+          eventClick={handleEventClick}
+          height="100%"
+          contentHeight="auto"
+          themeSystem="standard"
+          eventDisplay="block"
+          slotMinTime="06:00:00"
+          slotMaxTime="21:00:00"
+          slotDuration="01:00:00"
+          eventTimeFormat={{
+            hour: "2-digit",
+            minute: "2-digit",
+            meridiem: false,
+          }}
+        />
           </div>
         </div>
       </div>
 
       {showEventModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center p-4 z-[9999] overflow-y-auto">
-          <div
-            className="my-8 bg-white rounded-3xl w-full max-w-3xl shadow-2xl relative border border-gray-100"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center p-4 z-[9999]">
+          <div className="my-8 bg-white rounded-3xl w-full max-w-3xl shadow-2xl relative border border-gray-100">
             <div className="max-h-[90vh] overflow-y-auto">
-              {/* Header */}
               <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-b border-gray-100 z-10">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
@@ -731,7 +759,28 @@ const Dashboard = () => {
                   <button
                     onClick={() => {
                       setShowEventModal(false);
-                      resetForm();
+                      setNewEvent({
+                        propertyId: "",
+                        guestName: "",
+                        email: "",
+                        phone: "",
+                        checkInDate: "",
+                        checkOutDate: "",
+                        rooms: 1,
+                        adults: 1,
+                        children: 0,
+                        nationality: "",
+                        currency: "USD",
+                        specialRequests: "",
+                        pricePerNight: "0",
+                        source: "direct",
+                        arrivalTime: "",
+                        paymentMethod: "cash",
+                        paymentDate: "",
+                        customPaymentText: "",
+                        reservationCode: Math.random().toString(36).substr(2, 6).toUpperCase(),
+                      });
+                      setIsEditMode(false);
                     }}
                     className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200"
                   >
@@ -739,19 +788,15 @@ const Dashboard = () => {
                   </button>
                 </div>
               </div>
-
               <div className="px-8 py-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Property Selection */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Property
                     </label>
                     <select
                       value={newEvent.propertyId}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, propertyId: e.target.value })
-                      }
+                      onChange={(e) => setNewEvent({ ...newEvent, propertyId: e.target.value })}
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     >
                       <option value="">Select Property</option>
@@ -763,74 +808,21 @@ const Dashboard = () => {
                     </select>
                   </div>
 
-                  {/* Guest Information */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Guest Name
+                      Guest Name *
                     </label>
                     <input
                       type="text"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.guestName}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, guestName: e.target.value })
-                      }
-                      placeholder="Enter guest name"
+                      onChange={(e) => setNewEvent({ ...newEvent, guestName: e.target.value })}
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reservation Code
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                      value={newEvent.reservationCode}
-                      readOnly
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Number of Guests
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                      value={newEvent.numberOfGuests}
-                      onChange={(e) =>
-                        setNewEvent({
-                          ...newEvent,
-                          numberOfGuests: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-
-                  {/* Contact Information */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number
-                    </label>
-                    <div className="relative">
-                      <Phone className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
-                      <input
-                        type="tel"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        value={newEvent.phone}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, phone: e.target.value })
-                        }
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address
+                      Email *
                     </label>
                     <div className="relative">
                       <Mail className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
@@ -838,348 +830,252 @@ const Dashboard = () => {
                         type="email"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.email}
-                        onChange={(e) =>
-                          setNewEvent({ ...newEvent, email: e.target.value })
-                        }
-                        placeholder="Enter email address"
+                        onChange={(e) => setNewEvent({ ...newEvent, email: e.target.value })}
                       />
                     </div>
                   </div>
 
-                  {/* Pricing */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Price per Night
+                      Phone *
                     </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-3.5 text-gray-500">
-                        $
-                      </span>
+                      <Phone className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-8 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        value={newEvent.pricePerNight}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            pricePerNight: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dates */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Check-in
-                    </label>
-                    <input
-                      type="datetime-local"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                      value={newEvent.startDate}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, startDate: e.target.value })
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Check-out
-                    </label>
-                    <input
-                      type="datetime-local"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                      value={newEvent.endDate}
-                      onChange={(e) =>
-                        setNewEvent({ ...newEvent, endDate: e.target.value })
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Approximate Arrival Time
-                    </label>
-                    <div className="relative">
-                      <Clock className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
-                      <input
-                        type="time"
+                        type="tel"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        value={newEvent.arrivalTime}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            arrivalTime: e.target.value,
-                          })
-                        }
+                        value={newEvent.phone}
+                        onChange={(e) => setNewEvent({ ...newEvent, phone: e.target.value })}
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Date
+                      Check-in Date *
                     </label>
                     <div className="relative">
                       <Calendar className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
                       <input
                         type="date"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        value={newEvent.paymentDate}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            paymentDate: e.target.value,
-                          })
-                        }
+                        value={newEvent.checkInDate.split('T')[0]}
+                        onChange={(e) => setNewEvent({ ...newEvent, checkInDate: e.target.value })}
                       />
                     </div>
                   </div>
 
-                  {/* Payment Method */}
-                  <div className="md:col-span-2">
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Method
+                      Check-out Date *
                     </label>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      {[
-                        "cash",
-                        "credit_card",
-                        "bank_deposit",
-                        "stripe",
-                        "other",
-                      ].map((method) => (
-                        <button
-                          key={method}
-                          type="button"
-                          onClick={() =>
-                            setNewEvent({ ...newEvent, paymentMethod: method })
-                          }
-                          className={`flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:shadow-md ${
-                            newEvent.paymentMethod === method
-                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
-                              : "border-gray-200 hover:border-blue-300"
-                          }`}
-                        >
-                          <div
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
-                              newEvent.paymentMethod === method
-                                ? "bg-blue-500"
-                                : "bg-gray-100"
-                            }`}
-                          >
-                            <DollarSign
-                              className={`w-5 h-5 ${
-                                newEvent.paymentMethod === method
-                                  ? "text-white"
-                                  : "text-gray-500"
-                              }`}
-                            />
-                          </div>
-                          <span
-                            className={`text-sm font-medium capitalize ${
-                              newEvent.paymentMethod === method
-                                ? "text-blue-600"
-                                : "text-gray-700"
-                            }`}
-                          >
-                            {method.replace("_", " ")}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {newEvent.paymentMethod === "other" && (
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Custom Payment Details
-                      </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
                       <input
-                        type="text"
-                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        value={newEvent.customPaymentText}
-                        onChange={(e) =>
-                          setNewEvent({
-                            ...newEvent,
-                            customPaymentText: e.target.value,
-                          })
-                        }
-                        placeholder="Enter custom payment details"
+                        type="date"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={newEvent.checkOutDate.split('T')[0]}
+                        onChange={(e) => setNewEvent({ ...newEvent, checkOutDate: e.target.value })}
                       />
                     </div>
-                  )}
+                  </div>
 
-                  {/* Booking Source */}
-                  <div className="md:col-span-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Booking Source
-                      </label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {allBookingSources.map((source) => (
-                        <div key={source} className="relative group">
-                          <button
-                            type="button"
-                            onClick={() => setNewEvent({ ...newEvent, source })}
-                            className={`w-full flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:shadow-md ${
-                              newEvent.source === source
-                                ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
-                                : "border-gray-200 hover:border-blue-300"
-                            }`}
-                          >
-                            <div
-                              className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
-                                newEvent.source === source
-                                  ? "bg-blue-500"
-                                  : "bg-gray-100"
-                              }`}
-                            >
-                              <Building
-                                className={`w-5 h-5 ${
-                                  newEvent.source === source
-                                    ? "text-white"
-                                    : "text-gray-500"
-                                }`}
-                              />
-                            </div>
-                            <span
-                              className={`text-sm font-medium capitalize ${
-                                newEvent.source === source
-                                  ? "text-blue-600"
-                                  : "text-gray-700"
-                              }`}
-                            >
-                              {source}
-                            </span>
-                          </button>
-                        </div>
-                      ))}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Rooms *
+                    </label>
+                    <div className="relative">
+                      <Bed className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={newEvent.rooms}
+                        onChange={(e) => setNewEvent({ ...newEvent, rooms: e.target.value })}
+                      />
                     </div>
                   </div>
 
-                  {/* Summary Section */}
-                  <div className="md:col-span-2">
-                    <div className="bg-gray-50 rounded-2xl p-6 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Total Nights</span>
-                        <span className="text-lg font-semibold text-gray-900">
-                          {newEvent.startDate && newEvent.endDate
-                            ? calculateNights(
-                                newEvent.startDate,
-                                newEvent.endDate
-                              )
-                            : 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Total Price</span>
-                        <span className="text-lg font-semibold text-gray-900">
-                          $
-                          {newEvent.startDate &&
-                          newEvent.endDate &&
-                          newEvent.pricePerNight
-                            ? (
-                                calculateNights(
-                                  newEvent.startDate,
-                                  newEvent.endDate
-                                ) * parseFloat(newEvent.pricePerNight)
-                              ).toFixed(2)
-                            : "0.00"}
-                        </span>
-                      </div>
-
-                      {/* Comments Section */}
-                      <div className="pt-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Comments
-                        </label>
-                        <textarea
-                          className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[100px] resize-none"
-                          value={newEvent.comments}
-                          onChange={(e) =>
-                            setNewEvent({
-                              ...newEvent,
-                              comments: e.target.value,
-                            })
-                          }
-                          placeholder="Add any additional comments or special requests..."
-                        />
-                      </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Adults *
+                    </label>
+                    <div className="relative">
+                      <Users className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={newEvent.adults}
+                        onChange={(e) => setNewEvent({ ...newEvent, adults: e.target.value })}
+                      />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Children
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={newEvent.children}
+                      onChange={(e) => setNewEvent({ ...newEvent, children: e.target.value })}
+                    />
+                  </div>
+                  {renderBookingSources()}
+                   {/* Add price per night field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Price per Night
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-3.5 text-gray-500">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-8 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={newEvent.pricePerNight}
+                      onChange={(e) => setNewEvent({ ...newEvent, pricePerNight: e.target.value })}
+                    />
                   </div>
                 </div>
 
-                {/* Error Display */}
+                {/* Add payment method section */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Payment Method
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {["cash", "credit_card", "bank_deposit", "stripe", "other"].map((method) => (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => setNewEvent({ ...newEvent, paymentMethod: method })}
+                        className={`flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:shadow-md ${
+                          newEvent.paymentMethod === method
+                            ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
+                            : "border-gray-200 hover:border-blue-300"
+                        }`}
+                      >
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                            newEvent.paymentMethod === method ? "bg-blue-500" : "bg-gray-100"
+                          }`}
+                        >
+                          <DollarSign
+                            className={`w-5 h-5 ${
+                              newEvent.paymentMethod === method ? "text-white" : "text-gray-500"
+                            }`}
+                          />
+                        </div>
+                        <span
+                          className={`text-sm font-medium capitalize ${
+                            newEvent.paymentMethod === method ? "text-blue-600" : "text-gray-700"
+                          }`}
+                        >
+                          {method.replace("_", " ")}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nationality *
+                    </label>
+                    <div className="relative">
+                      <Globe className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
+                      <select
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
+                        value={newEvent.nationality}
+                        onChange={(e) => setNewEvent({ ...newEvent, nationality: e.target.value })}
+                      >
+                        <option value="">Select Nationality</option>
+                        {nationalities.map((nation) => (
+                          <option key={nation} value={nation}>{nation}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Currency *
+                    </label>
+                    <div className="relative">
+                      <Coins className="absolute left-4 top-4 h-4 w-4 text-gray-400" />
+                      <select
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
+                        value={newEvent.currency}
+                        onChange={(e) => setNewEvent({ ...newEvent, currency: e.target.value })}
+                      >
+                        {currencies.map((currency) => (
+                          <option key={currency} value={currency}>{currency}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Special Requests
+                    </label>
+                    <textarea
+                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-32"
+                      value={newEvent.specialRequests}
+                      onChange={(e) => setNewEvent({ ...newEvent, specialRequests: e.target.value })}
+                    />
+                  </div>
+                </div>
+
                 {error && (
                   <div className="mt-6 p-4 bg-red-50 rounded-2xl border border-red-200">
                     <div className="flex items-center text-red-600">
-                      <svg
-                        className="w-5 h-5 mr-2"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                      <AlertCircle className="w-5 h-5 mr-2" />
                       {error}
                     </div>
                   </div>
                 )}
               </div>
 
-               {/* Footer Actions */}
-               <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-t border-gray-100">
+              <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    {selectedEventId && user?.role === "admin" && isEditMode ? (
+                    {selectedEventId && user?.role === "admin" && isEditMode && (
                       <button
                         type="button"
                         onClick={handleDeleteBooking}
-                        disabled={loading}
                         className="flex items-center px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors duration-200"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete Booking
                       </button>
-                    ) : null}
+                    )}
                   </div>
-
                   <div className="flex items-center space-x-3">
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowEventModal(false);
-                        resetForm();
-                      }}
+                      onClick={() => setShowEventModal(false)}
                       className="px-6 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200"
                     >
                       Cancel
                     </button>
-
-                    {(!isEditMode || user?.role === "admin") && (
-                      <button
-                        type="button"
-                        onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
-                        disabled={loading}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2 w-full sm:w-auto transition-colors duration-200 shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                        {loading ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                          <Save className="w-5 h-5" />
-                        )}
-                        {isEditMode ? "Update Booking" : "Create Booking"}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
+                      disabled={loading}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center gap-2 transition-colors duration-200 disabled:opacity-70"
+                    >
+                      {loading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <Save className="w-5 h-5" />
+                      )}
+                      {isEditMode ? "Update Booking" : "Create Booking"}
+                    </button>
                   </div>
                 </div>
               </div>

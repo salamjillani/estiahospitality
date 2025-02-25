@@ -9,16 +9,23 @@ const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
+const { Server } = require('socket.io');
 
 // Import routes
 const authRoutes = require('./routes/auth');
 const propertyRoutes = require('./routes/properties');
-const bookingRoutes = require('./routes/bookings');
+const bookings = require('./routes/bookings');
 const bookingAgentRoutes = require('./routes/bookingAgents');
 
 // Initialize Express and HTTP server
 const app = express();
 const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL,
+    methods: ['GET', 'POST']
+  }
+});
 
 // WebSocket setup
 const wss = new WebSocket.Server({ server });
@@ -54,6 +61,13 @@ const upload = multer({
       : cb(new Error('Invalid file type'));
   }
 });
+
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ 
@@ -101,7 +115,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
-app.use('/api/bookings', bookingRoutes);
+app.use('/api/bookings', bookings);
 app.use('/api/booking-agents', bookingAgentRoutes);
 
 // WebSocket broadcast function
@@ -142,4 +156,13 @@ mongoose.connect(process.env.MONGODB_URI)
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Socket.io connection
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
 });

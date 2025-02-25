@@ -50,7 +50,7 @@ const LandingPage = () => {
   const [bookings, setBookings] = useState([]);
   const [properties, setProperties] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const scrollToSection = (sectionId) => {
     if (location.pathname === "/") {
@@ -80,15 +80,14 @@ const LandingPage = () => {
 
   const fetchBookings = async () => {
     try {
-      setLoadingBookings(true);
-      setError('');
-      const endpoint = '/api/bookings'; 
+      const endpoint = user?.role === 'admin' 
+        ? '/api/bookings/admin' 
+        : `/api/bookings/client/${user._id}`;
       
       const data = await api.get(endpoint);
-      setBookings(data.bookings || []);
+      setBookings(data?.bookings || []); // Add safe navigation and fallback
     } catch (err) {
-      setError('Failed to load bookings');
-      console.error("Error fetching bookings:", err);
+      setError(err.message);
     } finally {
       setLoadingBookings(false);
     }
@@ -245,8 +244,6 @@ const LandingPage = () => {
       description: "Exclusive guided excursions to hidden gems",
     },
   ];
-  
- 
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -382,59 +379,67 @@ const LandingPage = () => {
           </div>
         </div>
         <section className="mb-24 px-4">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-          {user?.role === 'admin' ? 'All Bookings' : 'My Bookings'}
-        </h2>
-        
-        {loadingBookings ? (
-          <div className="text-center py-8">
-            <span className="animate-pulse">Loading bookings...</span>
-          </div>
-        ) : error ? (
-          <div className="text-red-500 text-center">{error}</div>
-        ) : (
-          <div className="max-w-6xl mx-auto grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {bookings.map(booking => (
-              <div key={booking._id} className="bg-white p-6 rounded-xl shadow-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                    {booking.status}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {new Date(booking.startDate).toLocaleDateString()} - 
-                    {new Date(booking.endDate).toLocaleDateString()}
-                  </span>
+          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+            {user?.role === "admin" ? "All Bookings" : "My Bookings"}
+          </h2>
+
+          {loadingBookings ? (
+            <div className="text-center py-8">
+              <span className="animate-pulse">Loading bookings...</span>
+            </div>
+          ) : error ? (
+            <div className="text-red-500 text-center">{error}</div>
+          ) : (
+            <div className="max-w-6xl mx-auto grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {bookings.map((booking) => (
+                <div
+                  key={booking._id}
+                  className="bg-white p-6 rounded-xl shadow-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm ${
+                        booking.status === "confirmed"
+                          ? "bg-green-100 text-green-800"
+                          : booking.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {booking.status}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">
+                    {booking.property?.title || "Unknown Property"}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {booking.numberOfGuests} guests · $
+                    {booking.totalPrice?.toFixed(2)}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      Source: {booking.source}
+                    </span>
+                    <Link
+                      to={`/bookings/${booking._id}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      View Details
+                    </Link>
+                  </div>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">
-                  {booking.property?.title || 'Unknown Property'}
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  {booking.numberOfGuests} guests · ${booking.totalPrice?.toFixed(2)}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    Source: {booking.source}
-                  </span>
-                  <Link 
-                    to={`/bookings/${booking._id}`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    View Details
-                  </Link>
+              ))}
+
+              {bookings.length === 0 && (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-gray-500 text-lg">
+                    No bookings found. Start by creating a new booking!
+                  </p>
                 </div>
-              </div>
-            ))}
-            
-            {bookings.length === 0 && (
-              <div className="col-span-full text-center py-12">
-                <p className="text-gray-500 text-lg">
-                  No bookings found. Start by creating a new booking!
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
+              )}
+            </div>
+          )}
+        </section>
         {/* Featured Locations Section */}
         <section id="popular-destinations" className="mb-24">
           <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center">

@@ -212,6 +212,16 @@ const PropertyDetails = () => {
           )}
         </div>
 
+        {user?.role === "client" && (
+          <Link
+            to={`/properties/${property._id}/book`}
+            state={{ propertyId: property._id }}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Book Now
+          </Link>
+        )}
+
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-8">
             <p className="text-red-700 font-medium">{error}</p>

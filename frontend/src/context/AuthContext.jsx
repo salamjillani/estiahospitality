@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, [token]);
+  
 
   const login = async (credentials) => {
     try {
@@ -59,16 +60,11 @@ export const AuthProvider = ({ children }) => {
   const register = async (data) => {
     try {
       setAuthError(null);
-      delete data.role;
-      const response = await api.post("/api/auth/register", {
-        ...data,
-        role: 'owner'
-      });
-
+      const response = await api.post("/api/auth/register", data);
       setUser(response.user);
       setToken(response.token);
       localStorage.setItem("token", response.token);
-      navigate("/dashboard");
+      navigate("/properties");
     } catch (error) {
       setAuthError(error.message || "Failed to register");
     }

@@ -20,7 +20,7 @@ const checkRole = (roles) => {
 // Register route
 router.post("/register", async (req, res) => {
   try {
-    const { email, password, name, adminSecret } = req.body;
+    const { email, password, name, secretKey } = req.body;
     const lowerEmail = email.toLowerCase();
 
     // Validate input fields
@@ -30,8 +30,9 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    const role = adminSecret === process.env.ADMIN_SECRET_KEY ? "admin" : "owner";
-    
+    let role = "client";
+    if (secretKey === process.env.ADMIN_SECRET_KEY) role = "admin";
+    else if (secretKey === process.env.OWNER_SECRET_KEY) role = "owner";
 
     // Check if user already exists
     let user = await User.findOne({ email });
@@ -46,7 +47,6 @@ router.post("/register", async (req, res) => {
       name,
       role,
     });
-
 
     await user.save();
 
@@ -94,7 +94,6 @@ router.post("/admin/register", auth, checkRole(["admin"]), async (req, res) => {
       role,
     });
 
-
     await user.save();
     res.status(201).json(user);
   } catch (error) {
@@ -105,19 +104,21 @@ router.post("/admin/register", auth, checkRole(["admin"]), async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     // Validate input
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
 
     const lowerEmail = email.toLowerCase();
 
     // Find user - Use debug logging
     const user = await User.findOne({ email: lowerEmail });
-    console.log('Login attempt:', { 
+    console.log("Login attempt:", {
       emailProvided: lowerEmail,
-      userFound: !!user 
+      userFound: !!user,
     });
 
     if (!user) {
@@ -126,9 +127,9 @@ router.post("/login", async (req, res) => {
 
     // Check password - Add debug logging
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log('Password check:', { 
+    console.log("Password check:", {
       isMatch,
-      userEmail: user.email 
+      userEmail: user.email,
     });
 
     if (!isMatch) {
@@ -137,7 +138,7 @@ router.post("/login", async (req, res) => {
 
     // Generate token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d"
+      expiresIn: "7d",
     });
 
     // Set cookie
@@ -145,7 +146,7 @@ router.post("/login", async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     });
 
     // Send response
@@ -156,11 +157,11 @@ router.post("/login", async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        assignedProperties: user.assignedProperties
-      }
+        assignedProperties: user.assignedProperties,
+      },
     });
   } catch (error) {
-    console.error('Server login error:', error);
+    console.error("Server login error:", error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -196,6 +197,5 @@ router.get("/me", auth, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
-
 
 module.exports = router;

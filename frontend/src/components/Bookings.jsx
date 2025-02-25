@@ -14,41 +14,46 @@ const Bookings = () => {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
+        setLoading(true);
+        setError("");
+      
         const endpoint = user?.role === 'admin' 
           ? '/api/bookings' 
-          : `/api/bookings?user=${user._id}`;
+          : `/api/bookings/client/${user._id}`;
         
-        const response = await fetch(`http://localhost:5000${endpoint}`, {
-          credentials: "include",
-        });
+          const data = await api.get(endpoint);
+          setBookings(data.bookings || []);
+        } catch (err) {
+          setError(err.message || "Failed to load bookings");
+        } finally {
+          setLoading(false);
+        }
+      };
 
-        if (!response.ok) throw new Error("Failed to fetch bookings");
-        const data = await response.json();
-
-        setBookings(data.bookings || []);
-      } catch (err) {
-        setError(err.message);
-      } finally {
+      if (user) {
+        fetchBookings();
+      } else {
         setLoading(false);
+        setError("Authentication required");
+      }
+    }, [user]);
+
+    const handleStatusUpdate = async (bookingId, newStatus) => {
+      try {
+        const updatedBooking = await api.patch(`/api/bookings/${bookingId}/status`, { 
+          status: newStatus 
+        });
+        
+        setBookings(prev =>
+          prev.map(booking => 
+            booking._id === bookingId ? updatedBooking : booking
+          )
+        );
+      } catch (error) {
+        console.error("Error updating booking status:", error);
+        setError("Failed to update status");
       }
     };
-
-    fetchBookings();
-  }, []);
-
-  const handleStatusUpdate = async (bookingId, newStatus) => {
-    try {
-      const updatedBooking = await api.patch(`/api/bookings/${bookingId}/status`, { status: newStatus });
-      
-      setBookings(prev =>
-        prev.map(booking => 
-          booking._id === bookingId ? updatedBooking : booking
-        )
-      );
-    } catch (error) {
-      console.error("Error updating booking status:", error);
-    }
-  };
 
   if (loading) {
     return (
