@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import io from "socket.io-client";
-import { formatDate } from "../utils/dateUtils"; // Create this utility
+import { formatDate } from "../utils/dateUtils";
+import { api } from "../utils/api";
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -27,15 +28,26 @@ const AdminBookings = () => {
   });
 
   useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL);
+  
+    // Handle status updates from server
+    socket.on("statusUpdate", (updatedBooking) => {
+      setBookings(prev => 
+        prev.filter(b => b._id !== updatedBooking._id)
+      );
+    });
+  
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const response = await fetch("/api/bookings?status=pending", {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
-        });
-        const data = await response.json();
-        setBookings(data.map(processBooking));
+        const response = await api.get("/api/bookings/admin/bookings");
+        const pendingBookings = response.filter(b => b.status === 'pending');
+        setBookings(pendingBookings.map(processBooking));
       } catch (error) {
         console.error("Error fetching bookings:", error);
       }
@@ -45,26 +57,28 @@ const AdminBookings = () => {
   }, []);
 
   useEffect(() => {
-    socket.on("statusUpdate", (updatedBooking) => {
-      setBookings((prev) =>
-        prev.map((b) =>
-          b._id === updatedBooking._id ? processBooking(updatedBooking) : b
-        )
-      );
-    });
-
-    return () => {
-      socket.off("statusUpdate");
-    };
-  }, []);
-
-  useEffect(() => {
     socket.on("newBooking", (newBooking) => {
-      setBookings((prev) => [processBooking(newBooking), ...prev]);
+      if (newBooking.status === "pending") { // Add status check
+        setBookings((prev) => [processBooking(newBooking), ...prev]);
+      }
     });
-
+  
     return () => {
       socket.off("newBooking");
+    };
+  }, []);
+  
+  // Update the statusUpdate handler to remove if status changes
+  useEffect(() => {
+    socket.on("statusUpdate", (updatedBooking) => {
+      // Remove from list if status is no longer pending
+      if (updatedBooking.status !== "pending") {
+        setBookings(prev => prev.filter(b => b._id !== updatedBooking._id));
+      }
+    });
+  
+    return () => {
+      socket.off("statusUpdate");
     };
   }, []);
 
@@ -78,6 +92,7 @@ const AdminBookings = () => {
 
   const confirmStatusUpdate = async () => {
     try {
+      
       const response = await fetch(`/api/bookings/${currentBookingId}`, {
         method: "PATCH",
         headers: {
@@ -86,14 +101,10 @@ const AdminBookings = () => {
         },
         body: JSON.stringify({ status: currentAction }),
       });
-
+  
       if (response.ok) {
-        const data = await response.json();
-        socket.emit("statusUpdate", data);
-        // Update local state immediately
-        setBookings((prev) =>
-          prev.map((b) => (b._id === data._id ? processBooking(data) : b))
-        );
+        // Remove the booking from local state immediately
+        setBookings(prev => prev.filter(b => b._id !== currentBookingId));
       }
       setShowConfirmation(false);
     } catch (err) {
