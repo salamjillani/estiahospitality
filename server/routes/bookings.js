@@ -7,7 +7,22 @@ const Booking = require("../models/Booking");
 // Admin routes
 router.get("/", auth, adminOnly, async (req, res) => {
   try {
-    const bookings = await Booking.find().populate("property user");
+    const bookings = await Booking.find()
+      .populate("property", "title")
+      .populate("user", "name email"); 
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// server/routes/bookings.js
+router.get('/owner', auth, checkRole(['owner']), async (req, res) => {
+  try {
+    const properties = await Property.find({ owner: req.user._id });
+    const bookings = await Booking.find({ 
+      property: { $in: properties.map(p => p._id) }
+    });
     res.json(bookings);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -71,5 +86,7 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
+
+
 
 module.exports = router;

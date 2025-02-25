@@ -42,18 +42,7 @@ router.get('/owned', auth, checkRole(['owner']), async (req, res) => {
   }
 });
 
-// server/routes/bookings.js
-router.get('/owner', auth, checkRole(['owner']), async (req, res) => {
-  try {
-    const properties = await Property.find({ owner: req.user._id });
-    const bookings = await Booking.find({ 
-      property: { $in: properties.map(p => p._id) }
-    });
-    res.json(bookings);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+
 
 // properties.js
 router.get('/owner/:ownerId', auth, async (req, res) => {

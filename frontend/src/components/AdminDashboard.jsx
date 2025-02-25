@@ -8,21 +8,32 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const { user } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [usersRes, bookingsRes] = await Promise.all([
-          api.get("/api/users"),
-          api.get("/api/bookings"),
-        ]);
+        setLoading(true);
+        // Fetch users and bookings
+        const usersRes = await api.get("/api/auth/users");
+        const bookingsRes = await api.get("/api/bookings");
+
+        const processedBookings = bookingsRes.map(booking => ({
+          ...booking,
+          checkInDate: booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString() : 'N/A',
+          checkOutDate: booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A',
+          totalPrice: booking.totalPrice?.toFixed(2) || "N/A",
+          user: booking.user || { name: "Unknown" },
+          property: booking.property || { title: "Unknown Property" }
+        }));
 
         setUsers(usersRes);
-        setBookings(bookingsRes);
-        setLoading(false);
+        setBookings(processedBookings);
+        setError("");
       } catch (err) {
-        console.error(err);
+        setError(err.message || "Failed to fetch data");
+      } finally {
         setLoading(false);
       }
     };
@@ -38,6 +49,14 @@ const AdminDashboard = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-4 bg-red-50 text-red-700 rounded-lg mx-4 mt-4">
+        {error}
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
@@ -47,7 +66,6 @@ const AdminDashboard = () => {
         <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
           <Users className="h-6 w-6" /> Registered Users ({users.length})
         </h2>
-
         <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -62,7 +80,7 @@ const AdminDashboard = () => {
                   Role
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">
-                  Registered
+                  Registered On
                 </th>
               </tr>
             </thead>
@@ -91,7 +109,6 @@ const AdminDashboard = () => {
         <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
           <Calendar className="h-6 w-6" /> All Bookings ({bookings.length})
         </h2>
-
         <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -109,7 +126,7 @@ const AdminDashboard = () => {
                   Dates
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">
-                  Total Price
+                  Total
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">
                   Status
@@ -122,17 +139,16 @@ const AdminDashboard = () => {
                   <td className="px-6 py-4 font-mono">
                     {booking.reservationCode}
                   </td>
-                  <td className="px-6 py-4">{booking.guestName}</td>
+                  <td className="px-6 py-4">
+                    {booking.user?.name || "Guest " + booking.reservationCode}
+                  </td>
                   <td className="px-6 py-4">
                     {booking.property?.title || "Property Not Found"}
                   </td>
                   <td className="px-6 py-4">
-                    {new Date(booking.checkInDate).toLocaleDateString()} -{" "}
-                    {new Date(booking.checkOutDate).toLocaleDateString()}
+                    {booking.checkInDate} - {booking.checkOutDate}
                   </td>
-                  <td className="px-6 py-4">
-                    ${booking.totalPrice?.toFixed(2)}
-                  </td>
+                  <td className="px-6 py-4">${booking.totalPrice}</td>
                   <td className="px-6 py-4">
                     <span
                       className={`px-2 py-1 rounded-full text-sm ${
