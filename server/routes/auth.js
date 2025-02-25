@@ -178,7 +178,7 @@ router.post("/logout", auth, async (req, res) => {
 // Get all non-admin users
 router.get("/users", auth, checkRole(["admin"]), async (req, res) => {
   try {
-    const users = await User.find({ role: { $ne: "admin" } })
+    const users = await User.find()
       .select("-password")
       .sort("name");
     res.json(users);
@@ -186,6 +186,7 @@ router.get("/users", auth, checkRole(["admin"]), async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 router.get("/me", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
@@ -197,5 +198,6 @@ router.get("/me", auth, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 module.exports = router;

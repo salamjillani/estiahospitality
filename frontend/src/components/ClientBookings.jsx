@@ -60,6 +60,22 @@ const ClientBookings = () => {
   }, [user?._id]);
 
   useEffect(() => {
+    const socket = io(import.meta.env.VITE_API_URL);
+  
+    socket.on("statusUpdate", (updatedBooking) => {
+      setBookings(prev =>
+        prev.map(booking => 
+          booking._id === updatedBooking._id ? updatedBooking : booking
+        )
+      );
+    });
+  
+    return () => {
+      socket.off("statusUpdate");
+    };
+  }, []);
+
+  useEffect(() => {
     const handleStatusUpdate = (updatedBooking) => {
       setBookings(prev => prev.map(b => 
         b._id === updatedBooking._id ? { 

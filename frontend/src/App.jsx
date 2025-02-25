@@ -22,6 +22,7 @@ import Notifications from "./components/Notifications";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AdminBookings from "./components/AdminBookings";
 import ClientRoute from "./components/ClientRoute";
+import AdminDashboard from "./components/AdminDashboard";
 
 const App = () => {
   return (
@@ -57,7 +58,7 @@ const App = () => {
                 <Route path="/properties/:id/edit" element={<PropertyForm />} />
                 <Route path="/all-bookings" element={<Bookings />} />
                 <Route path="/notifications" element={<Notifications />} />
-                {/* Add admin bookings route here */}
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/bookings" element={<AdminBookings />} />
               </Route>
             </Route>
