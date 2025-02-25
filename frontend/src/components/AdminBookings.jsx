@@ -12,6 +12,14 @@ const AdminBookings = () => {
   const { user } = useAuth();
   const socket = io(import.meta.env.VITE_API_URL);
 
+  const currencySymbols = {
+    USD: "$",
+    EUR: "€",
+    GBP: "£",
+    INR: "₹",
+    JPY: "¥",
+  };
+
   const processBooking = (booking) => ({
     ...booking,
     checkInDate: formatDate(booking.checkInDate),
@@ -34,16 +42,17 @@ const AdminBookings = () => {
     };
 
     fetchBookings();
-
   }, []);
 
   useEffect(() => {
     socket.on("statusUpdate", (updatedBooking) => {
-      setBookings(prev => prev.map(b => 
-        b._id === updatedBooking._id ? processBooking(updatedBooking) : b
-      ));
+      setBookings((prev) =>
+        prev.map((b) =>
+          b._id === updatedBooking._id ? processBooking(updatedBooking) : b
+        )
+      );
     });
-    
+
     return () => {
       socket.off("statusUpdate");
     };
@@ -60,7 +69,7 @@ const AdminBookings = () => {
   }, []);
 
   const updateStatus = async (bookingId, status) => {
-    const booking = bookings.find(b => b._id === bookingId);
+    const booking = bookings.find((b) => b._id === bookingId);
     setCurrentBookingId(bookingId);
     setCurrentAction(status);
     setCurrentBooking(booking);
@@ -77,14 +86,14 @@ const AdminBookings = () => {
         },
         body: JSON.stringify({ status: currentAction }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         socket.emit("statusUpdate", data);
         // Update local state immediately
-        setBookings(prev => prev.map(b => 
-          b._id === data._id ? processBooking(data) : b
-        ));
+        setBookings((prev) =>
+          prev.map((b) => (b._id === data._id ? processBooking(data) : b))
+        );
       }
       setShowConfirmation(false);
     } catch (err) {
@@ -120,6 +129,9 @@ const AdminBookings = () => {
                   Dates
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Price
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -150,6 +162,10 @@ const AdminBookings = () => {
                         {booking.checkOutDate}
                       </span>
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    {currencySymbols[booking.currency] || "$"}
+                    {booking.totalPrice}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -197,8 +213,14 @@ const AdminBookings = () => {
             </p>
             {currentBooking && (
               <div className="mb-4 text-sm">
-                <p><span className="font-semibold">Property:</span> {currentBooking.property?.title || "Property Not Found"}</p>
-                <p><span className="font-semibold">Guest:</span> {currentBooking.user?.name || "Unknown Guest"}</p>
+                <p>
+                  <span className="font-semibold">Property:</span>{" "}
+                  {currentBooking.property?.title || "Property Not Found"}
+                </p>
+                <p>
+                  <span className="font-semibold">Guest:</span>{" "}
+                  {currentBooking.user?.name || "Unknown Guest"}
+                </p>
               </div>
             )}
             <div className="flex gap-4 justify-end">
@@ -210,8 +232,8 @@ const AdminBookings = () => {
               </button>
               <button
                 className={`px-4 py-2 ${
-                  currentAction === "confirmed" 
-                    ? "bg-green-500 text-white" 
+                  currentAction === "confirmed"
+                    ? "bg-green-500 text-white"
                     : "bg-red-500 text-white"
                 } rounded`}
                 onClick={confirmStatusUpdate}

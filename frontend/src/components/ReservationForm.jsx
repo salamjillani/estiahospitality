@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
+import { calculateNights } from '../utils/dateUtils';
 
 import {
   Loader2,
@@ -14,7 +15,7 @@ import {
   Clock,
 } from "lucide-react";
 
-import io from 'socket.io-client';
+import io from "socket.io-client";
 
 const socket = io(import.meta.env.VITE_API_URL);
 
@@ -41,30 +42,68 @@ const ReservationForm = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [calculatedPrice, setCalculatedPrice] = useState(0);
+  const [propertyDetails, setPropertyDetails] = useState({
+    pricePerNight: 0,
+    currency: 'USD'
+  });
 
+  // Consolidated property details fetching
+  useEffect(() => {
+    const loadProperty = async () => {
+      try {
+        const data = await api.get(`/api/properties/${propertyId}`);
+        setPropertyDetails({
+          pricePerNight: data.pricePerNight,
+          currency: data.currency
+        });
+      } catch (err) {
+        setError('Failed to load property details');
+        console.error("Error fetching property:", err);
+      }
+    };
+  
+    if (location.state?.property) {
+      setPropertyDetails({
+        pricePerNight: location.state.property.pricePerNight,
+        currency: location.state.property.currency
+      });
+    } else {
+      loadProperty();
+    }
+  }, [propertyId, location.state]);
 
-  // Calculate nights when dates change
+  // Calculate total price when dates or price changes
   useEffect(() => {
     if (formData.checkInDate && formData.checkOutDate) {
-      const start = new Date(formData.checkInDate);
-      const end = new Date(formData.checkOutDate);
-      const diffTime = Math.abs(end - start);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      setFormData((prev) => ({ ...prev, nights: diffDays }));
+      // Use the imported calculateNights function
+      const nights = calculateNights(
+        formData.checkInDate, 
+        formData.checkOutDate
+      );
+      const total = nights * propertyDetails.pricePerNight;
+      
+      setFormData(prev => ({ ...prev, nights }));
+      setCalculatedPrice(total);
     }
-  }, [formData.checkInDate, formData.checkOutDate]);
+  }, [formData.checkInDate, formData.checkOutDate, propertyDetails.pricePerNight]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-  
-    if (!user?._id) { 
+
+    if (!propertyId || !location.state?.property) {
+      setError("Property information is missing");
+      return;
+    }
+
+    if (!user?._id) {
       setError("User authentication required");
       setLoading(false);
       return;
     }
-  
+
     try {
       const requiredFields = [
         "checkInDate",
@@ -77,31 +116,33 @@ const ReservationForm = () => {
         "nationality",
       ];
       const missing = requiredFields.filter((field) => !formData[field]);
-  
+
       if (missing.length > 0) {
         throw new Error(`Missing required fields: ${missing.join(", ")}`);
       }
-  
-     
-        const response = await api.post('/api/bookings', {
-          ...formData,
-          user: user._id, 
-          status: "pending",
-          source: "direct"
-        });
-    
-        // Emit socket event for real-time update
-        socket.emit('newBooking', response);
-        
-        navigate("/my-bookings", {
-          state: { success: "Booking request submitted successfully!" },
-        });
-      } catch (err) {
-        setError(err.response?.data?.message || err.message || "Failed to submit booking");
-      } finally {
-        setLoading(false);
-      }
-    };
+
+      const response = await api.post("/api/bookings", {
+        ...formData,
+        totalPrice: calculatedPrice,
+        currency: propertyDetails.currency,
+        user: user._id,
+        status: "pending",
+        source: "direct",
+      });
+
+      // Emit socket event for real-time update
+      socket.emit("newBooking", response);
+
+      navigate("/my-bookings", {
+        state: { success: "Booking request submitted successfully!" },
+      });
+    } catch (err) {
+      console.error('Booking submission error:', err);
+      setError(err.response?.data?.message || err.message || "Failed to submit booking");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -140,7 +181,7 @@ const ReservationForm = () => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-      <input type="hidden" name="property" value={formData.property} />
+        <input type="hidden" name="property" value={formData.property} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Contact Information */}
           <div className="md:col-span-2">
@@ -260,7 +301,18 @@ const ReservationForm = () => {
               />
             </div>
           </div>
-
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="flex justify-between items-center">
+              <span className="font-semibold">Total Price:</span>
+              <span className="text-xl font-bold">
+                {propertyDetails.currency} {calculatedPrice.toFixed(2)}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              ({formData.nights} nights × {propertyDetails.currency}{" "}
+              {propertyDetails.pricePerNight})
+            </p>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Adults *

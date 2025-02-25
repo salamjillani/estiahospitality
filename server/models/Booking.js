@@ -23,6 +23,20 @@ const bookingSchema = new mongoose.Schema({
     enum: ['pending', 'confirmed', 'canceled'], 
     default: 'pending' 
   },
+  pricePerNight: {
+    type: Number,
+    required: true
+  },
+  totalPrice: {
+    type: Number,
+    required: true
+  },
+  currency: {
+    type: String,
+    required: [true, 'Currency is required'],
+    default: 'USD', 
+    enum: ['USD', 'EUR', 'GBP', 'INR', 'JPY']
+  },
   specialRequests: String,
   arrivalTime: String,
   nationality: String,

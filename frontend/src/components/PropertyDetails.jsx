@@ -213,13 +213,20 @@ const PropertyDetails = () => {
         </div>
 
         {user?.role === "client" && (
-          <Link
-            to={`/properties/${property._id}/book`}
-            state={{ propertyId: property._id }}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            Book Now
-          </Link>
+        <Link
+        to={`/properties/${property._id}/book`}
+        state={{ 
+          property: {
+            _id: property._id,
+            pricePerNight: property.pricePerNight,
+            currency: property.currency,
+            ...property
+          } 
+        }}
+        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+      >
+        Book Now
+      </Link>
         )}
 
         {error && (
@@ -270,10 +277,10 @@ const PropertyDetails = () => {
               <span className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full font-medium">
                 {property.type}
               </span>
-              <div className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full">
+              <div className="flex items-center gap-2">
                 <Banknote className="w-5 h-5 text-blue-600" />
                 <span className="font-medium text-gray-800">
-                  ${property.pricePerNight}/night
+                  {property.currency} {property.pricePerNight}/night
                 </span>
               </div>
             </div>

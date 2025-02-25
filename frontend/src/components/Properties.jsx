@@ -11,7 +11,7 @@ import {
   Bath,
   Bed,
   Edit,
-  Banknote
+  Banknote,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import { useAuth } from "../context/AuthContext";
@@ -81,7 +81,15 @@ const Properties = () => {
   });
   const navigate = useNavigate();
   const { user } = useAuth();
-  // In fetchProperties function
+
+  const currencySymbols = {
+    USD: "$",
+    EUR: "€",
+    GBP: "£",
+    INR: "₹",
+    JPY: "¥",
+  };
+
   const fetchProperties = async () => {
     try {
       const data = await api.get("/api/properties");
@@ -262,7 +270,8 @@ const Properties = () => {
                     <div className="flex items-center gap-2">
                       <Banknote className="w-4 h-4 text-gray-700" />
                       <span className="text-sm font-medium text-gray-900">
-                        ${property.pricePerNight}
+                        {currencySymbols[property.bankDetails?.currency] || "$"}
+                        {property.pricePerNight}
                       </span>
                     </div>
                   </div>

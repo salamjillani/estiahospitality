@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 const { auth, adminOnly, checkRole } = require("../middleware/auth");
 const Booking = require("../models/Booking");
+const Property = require('../models/Property');
 
 // Admin routes
 router.get("/", auth, adminOnly, async (req, res) => {
@@ -48,7 +49,24 @@ router.get("/client/:userId", auth, checkRole(["client"]), async (req, res) => {
 // Client booking creation
 router.post("/", auth, checkRole(["client"]), async (req, res) => {
   try {
-    const requiredFields = ["property", "checkInDate", "checkOutDate"];
+    const property = await Property.findById(req.body.property)
+      .select('pricePerNight bankDetails.currency')
+      .lean();
+
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+
+    if (!property.bankDetails?.currency) {
+      return res.status(400).json({ 
+        message: 'Property currency not configured properly' 
+      });
+    }
+  
+    const requiredFields = [
+      "property", "checkInDate", "checkOutDate", 
+      "guestName", "email", "phone"
+    ];
     const missing = requiredFields.filter((field) => !req.body[field]);
 
     if (missing.length > 0) {
@@ -57,17 +75,28 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
         .json({ message: `Missing required fields: ${missing.join(", ")}` });
     }
 
+    const startDate = new Date(req.body.checkInDate);
+    const endDate = new Date(req.body.checkOutDate);
+    const nights = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    
     const booking = new Booking({
       ...req.body,
+      totalPrice: nights * property.pricePerNight,
+      currency: property.bankDetails.currency,
+      pricePerNight: property.pricePerNight,
       user: req.user.id,
-      status: "pending",
+      status: "pending"
     });
 
     await booking.save();
     req.io.emit("newBooking", booking);
     res.status(201).json(booking);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    console.error('Booking creation error:', err);
+    res.status(400).json({ 
+      message: err.message || 'Booking creation failed',
+      error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 });
 

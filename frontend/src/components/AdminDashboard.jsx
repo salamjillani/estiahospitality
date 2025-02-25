@@ -11,6 +11,14 @@ const AdminDashboard = () => {
   const [error, setError] = useState("");
   const { user } = useAuth();
 
+  const currencySymbols = {
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+    INR: '₹',
+    JPY: '¥'
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -19,13 +27,17 @@ const AdminDashboard = () => {
         const usersRes = await api.get("/api/auth/users");
         const bookingsRes = await api.get("/api/bookings");
 
-        const processedBookings = bookingsRes.map(booking => ({
+        const processedBookings = bookingsRes.map((booking) => ({
           ...booking,
-          checkInDate: booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString() : 'N/A',
-          checkOutDate: booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString() : 'N/A',
+          checkInDate: booking.checkInDate
+            ? new Date(booking.checkInDate).toLocaleDateString()
+            : "N/A",
+          checkOutDate: booking.checkOutDate
+            ? new Date(booking.checkOutDate).toLocaleDateString()
+            : "N/A",
           totalPrice: booking.totalPrice?.toFixed(2) || "N/A",
           user: booking.user || { name: "Unknown" },
-          property: booking.property || { title: "Unknown Property" }
+          property: booking.property || { title: "Unknown Property" },
         }));
 
         setUsers(usersRes);
@@ -126,7 +138,7 @@ const AdminDashboard = () => {
                   Dates
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">
-                  Total
+                  Total Price
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold">
                   Status
@@ -148,7 +160,10 @@ const AdminDashboard = () => {
                   <td className="px-6 py-4">
                     {booking.checkInDate} - {booking.checkOutDate}
                   </td>
-                  <td className="px-6 py-4">${booking.totalPrice}</td>
+                  <td className="px-6 py-4">
+                    {currencySymbols[booking.currency] || "$"}
+                    {booking.totalPrice}
+                  </td>
                   <td className="px-6 py-4">
                     <span
                       className={`px-2 py-1 rounded-full text-sm ${

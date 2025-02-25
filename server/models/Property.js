@@ -35,6 +35,8 @@ const propertySchema = new mongoose.Schema({
     iban: String,
     currency: {
       type: String,
+      required: [true, 'Currency is required'],
+      enum: ['USD', 'EUR', 'GBP', 'INR', 'JPY'],
       default: 'USD'
     }
   },

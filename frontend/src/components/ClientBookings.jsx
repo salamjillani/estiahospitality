@@ -2,15 +2,32 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../utils/api";
-import { Loader2, Calendar, Home, XCircle, Info, Clock } from "lucide-react";
+import {
+  Loader2,
+  Calendar,
+  Home,
+  XCircle,
+  Info,
+  Clock,
+  Banknote,
+} from "lucide-react";
 import io from "socket.io-client";
-
 
 // Date formatting utility
 const formatDate = (dateString) => {
-  const options = { year: 'numeric', month: 'short', day: 'numeric' };
+  const options = { year: "numeric", month: "short", day: "numeric" };
   const date = new Date(dateString);
-  return isNaN(date) ? 'Invalid Date' : date.toLocaleDateString(undefined, options);
+  return isNaN(date)
+    ? "Invalid Date"
+    : date.toLocaleDateString(undefined, options);
+};
+
+const currencySymbols = {
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  INR: "₹",
+  JPY: "¥",
 };
 
 // Calculate nights between dates
@@ -35,13 +52,19 @@ const ClientBookings = () => {
       try {
         setLoading(true);
         const response = await api.get(`/api/bookings/client/${user._id}`);
-        
+
         // Process bookings with proper dates and nights calculation
-        const processedBookings = response.map(booking => ({
+        const processedBookings = response.map((booking) => ({
           ...booking,
-          checkInDate: booking.checkInDate ? new Date(booking.checkInDate).toISOString() : null,
-          checkOutDate: booking.checkOutDate ? new Date(booking.checkOutDate).toISOString() : null,
-          totalNights: booking.totalNights || calculateNights(booking.checkInDate, booking.checkOutDate)
+          checkInDate: booking.checkInDate
+            ? new Date(booking.checkInDate).toISOString()
+            : null,
+          checkOutDate: booking.checkOutDate
+            ? new Date(booking.checkOutDate).toISOString()
+            : null,
+          totalNights:
+            booking.totalNights ||
+            calculateNights(booking.checkInDate, booking.checkOutDate),
         }));
 
         setBookings(processedBookings);
@@ -61,15 +84,15 @@ const ClientBookings = () => {
 
   useEffect(() => {
     const socket = io(import.meta.env.VITE_API_URL);
-  
+
     socket.on("statusUpdate", (updatedBooking) => {
-      setBookings(prev =>
-        prev.map(booking => 
+      setBookings((prev) =>
+        prev.map((booking) =>
           booking._id === updatedBooking._id ? updatedBooking : booking
         )
       );
     });
-  
+
     return () => {
       socket.off("statusUpdate");
     };
@@ -77,14 +100,27 @@ const ClientBookings = () => {
 
   useEffect(() => {
     const handleStatusUpdate = (updatedBooking) => {
-      setBookings(prev => prev.map(b => 
-        b._id === updatedBooking._id ? { 
-          ...updatedBooking,
-          checkInDate: updatedBooking.checkInDate ? new Date(updatedBooking.checkInDate).toISOString() : null,
-          checkOutDate: updatedBooking.checkOutDate ? new Date(updatedBooking.checkOutDate).toISOString() : null,
-          totalNights: updatedBooking.totalNights || calculateNights(updatedBooking.checkInDate, updatedBooking.checkOutDate)
-        } : b
-      ));
+      setBookings((prev) =>
+        prev.map((b) =>
+          b._id === updatedBooking._id
+            ? {
+                ...updatedBooking,
+                checkInDate: updatedBooking.checkInDate
+                  ? new Date(updatedBooking.checkInDate).toISOString()
+                  : null,
+                checkOutDate: updatedBooking.checkOutDate
+                  ? new Date(updatedBooking.checkOutDate).toISOString()
+                  : null,
+                totalNights:
+                  updatedBooking.totalNights ||
+                  calculateNights(
+                    updatedBooking.checkInDate,
+                    updatedBooking.checkOutDate
+                  ),
+              }
+            : b
+        )
+      );
     };
 
     socket.on("statusUpdate", handleStatusUpdate);
@@ -98,20 +134,25 @@ const ClientBookings = () => {
   }, [user, navigate]);
 
   const handleCancel = async (bookingId) => {
-    if (!window.confirm("Are you sure you want to cancel this booking?")) return;
+    if (!window.confirm("Are you sure you want to cancel this booking?"))
+      return;
 
     try {
       await api.patch(`/api/bookings/${bookingId}/status`, {
         status: "cancelled",
       });
-      
-      setBookings(prev => prev.map(b => 
-        b._id === bookingId ? { 
-          ...b, 
-          status: "cancelled",
-          totalNights: calculateNights(b.checkInDate, b.checkOutDate)
-        } : b
-      ));
+
+      setBookings((prev) =>
+        prev.map((b) =>
+          b._id === bookingId
+            ? {
+                ...b,
+                status: "cancelled",
+                totalNights: calculateNights(b.checkInDate, b.checkOutDate),
+              }
+            : b
+        )
+      );
     } catch (err) {
       setError(err.message || "Failed to cancel booking");
     }
@@ -134,9 +175,7 @@ const ClientBookings = () => {
   }
 
   return (
-    
     <div className="max-w-6xl mx-auto px-4 py-8">
-      
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Calendar className="h-8 w-8 text-blue-600" />
@@ -160,17 +199,17 @@ const ClientBookings = () => {
       ) : (
         <div className="grid gap-6">
           {bookings.map((booking) => {
-            const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
-            
+            const nights = calculateNights(
+              booking.checkInDate,
+              booking.checkOutDate
+            );
+
             return (
-              
               <div
                 key={booking._id}
                 className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
               >
-               
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-             
                   <div className="flex-1">
                     <h3 className="text-xl font-semibold mb-2">
                       {booking.property?.title || "Unknown Property"}
@@ -194,7 +233,23 @@ const ClientBookings = () => {
                       </div>
                       <div className="flex items-center gap-1">
                         <Home className="h-4 w-4" />
-                        <span>{nights} night{nights !== 1 ? 's' : ''}</span>
+                        <span>
+                          {nights} night{nights !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Banknote className="h-4 w-4" />
+                        <span>
+                          {currencySymbols[booking.currency] || "$"}
+                          {booking.totalPrice}
+                        </span>
+                      </div>
+                      <div className="price-display">
+                        {booking.currency} {booking.totalPrice.toFixed(2)}
+                        <span className="text-sm">
+                          ({booking.nights} nights × {booking.currency}
+                          {booking.pricePerNight})
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -223,8 +278,8 @@ const ClientBookings = () => {
                   </div>
                 </div>
               </div>
-            )}
-          )}
+            );
+          })}
         </div>
       )}
     </div>

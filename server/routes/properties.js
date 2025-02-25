@@ -58,6 +58,9 @@ router.get('/owner/:ownerId', auth, async (req, res) => {
 
 router.post('/', auth, checkRole(['admin']), async (req, res) => {
   try {
+    if (!req.body.currency) {
+      return res.status(400).json({ message: 'Currency is required' });
+    }
     const { pricePerNight, ...rest } = req.body;
     const newProperty = new Property({ ...req.body, pricePerNight, createdBy: req.user._id });
     await newProperty.save();
