@@ -232,9 +232,7 @@ const Dashboard = () => {
 }, []);
 
 useEffect(() => {
-  const socket = websocketService.connect();
-  
-  socket.on("bookingUpdate", (updatedBooking) => {
+  const unsubscribe = websocketService.subscribe("bookingUpdate", (updatedBooking) => {
     setEvents(prev => {
       const existing = prev.find(e => e.id === updatedBooking._id);
       if (existing) {
@@ -251,7 +249,7 @@ useEffect(() => {
     });
   });
 
-  return () => socket.disconnect();
+  return () => unsubscribe();
 }, []);
 
   useEffect(() => {

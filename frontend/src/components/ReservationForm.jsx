@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
-import { calculateNights } from '../utils/dateUtils';
+import { calculateNights } from "../utils/dateUtils";
 
 import {
   Loader2,
@@ -21,9 +21,9 @@ const ReservationForm = () => {
   const { propertyId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const { user, loading: authLoading } = useAuth();
- 
-  
+
   const [formData, setFormData] = useState({
     checkInDate: "",
     checkOutDate: "",
@@ -38,22 +38,23 @@ const ReservationForm = () => {
     email: "",
     phone: "",
     arrivalTime: "",
+    paymentMethod: "cash",
     property: propertyId || location.state?.propertyId,
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [calculatedPrice, setCalculatedPrice] = useState(0);
   const [propertyDetails, setPropertyDetails] = useState({
     pricePerNight: 0,
-    currency: 'USD'
+    currency: "USD",
+    title: "",
   });
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Handle socket connection
   useEffect(() => {
     websocketService.connect();
-    
   }, [user?.token]);
 
   // Check authentication first
@@ -61,10 +62,12 @@ const ReservationForm = () => {
     // Only run this once when auth state is settled
     if (!authLoading && !isInitialized) {
       setIsInitialized(true);
-      
+
       if (!user) {
         // Redirect to auth page with return URL
-        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        const returnUrl = encodeURIComponent(
+          window.location.pathname + window.location.search
+        );
         navigate(`/auth?returnTo=${returnUrl}`);
       }
     }
@@ -77,18 +80,23 @@ const ReservationForm = () => {
         const data = await api.get(`/api/properties/${propertyId}`);
         setPropertyDetails({
           pricePerNight: data.pricePerNight,
-          currency: data.currency || data.bankDetails?.currency || 'USD'
+          currency: data.currency || data.bankDetails?.currency || "USD",
+          title: data.title || "Property",
         });
       } catch (err) {
-        setError('Failed to load property details');
+        setError("Failed to load property details");
         console.error("Error fetching property:", err);
       }
     };
-  
+
     if (location.state?.property) {
       setPropertyDetails({
         pricePerNight: location.state.property.pricePerNight,
-        currency: location.state.property.currency || location.state.property.bankDetails?.currency || 'USD'
+        currency:
+          location.state.property.currency ||
+          location.state.property.bankDetails?.currency ||
+          "USD",
+          title: location.state.property.title || "Property",
       });
     } else if (propertyId) {
       loadProperty();
@@ -99,17 +107,21 @@ const ReservationForm = () => {
   useEffect(() => {
     if (formData.checkInDate && formData.checkOutDate) {
       const nights = calculateNights(
-        formData.checkInDate, 
+        formData.checkInDate,
         formData.checkOutDate
       );
-      
+
       if (nights > 0) {
         const total = nights * propertyDetails.pricePerNight;
-        setFormData(prev => ({ ...prev, nights }));
+        setFormData((prev) => ({ ...prev, nights }));
         setCalculatedPrice(total);
       }
     }
-  }, [formData.checkInDate, formData.checkOutDate, propertyDetails.pricePerNight]);
+  }, [
+    formData.checkInDate,
+    formData.checkOutDate,
+    propertyDetails.pricePerNight,
+  ]);
 
   // If still loading auth or no user is set yet, show loading
   if (authLoading || (!isInitialized && !user)) {
@@ -121,18 +133,16 @@ const ReservationForm = () => {
     );
   }
 
+  // Form validation only, doesn't submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     
     if (!user?._id) {
       setError("User authentication required");
-      // Redirect to login instead of just showing error
       navigate("/auth");
       return;
     }
-    
-    setLoading(true);
+
     setError("");
 
     try {
@@ -146,13 +156,28 @@ const ReservationForm = () => {
         "phone",
         "nationality",
       ];
-      
+
       const missing = requiredFields.filter((field) => !formData[field]);
 
       if (missing.length > 0) {
         throw new Error(`Missing required fields: ${missing.join(", ")}`);
       }
+      
+      // Show confirmation popup
+      setShowConfirmation(true);
+      
+    } catch (err) {
+      console.error("Validation error:", err);
+      setError(err.message || "Please fill in all required fields");
+    }
+  };
 
+  // Actual booking submission
+  const submitBooking = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
       const bookingData = {
         ...formData,
         totalPrice: calculatedPrice,
@@ -163,19 +188,21 @@ const ReservationForm = () => {
       };
 
       const response = await api.post("/api/bookings", bookingData);
-
+      
+      // Emit websocket event
       websocketService.emit("newBooking", response.data);
-
+      
+      // Only navigate after successful API response
       navigate("/my-bookings", {
         state: { success: "Booking request submitted successfully!" },
       });
     } catch (err) {
-      console.error('Booking submission error:', err);
+      console.error("Booking submission error:", err);
       setError(
-        err.response?.data?.message || 
-        err.message || 
-        "Failed to submit booking"
+        err.response?.data?.message || err.message || "Failed to submit booking"
       );
+      // Keep the confirmation dialog open if there's an error
+      setShowConfirmation(false);
     } finally {
       setLoading(false);
     }
@@ -444,7 +471,106 @@ const ReservationForm = () => {
             </select>
           </div>
         </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Payment Method *
+          </label>
+          <div className="grid grid-cols-2 gap-4">
+            {["cash", "stripe"].map((method) => (
+              <button
+                type="button"
+                key={method}
+                onClick={() =>
+                  setFormData({ ...formData, paymentMethod: method })
+                }
+                className={`p-4 border rounded-lg flex items-center justify-center transition-all ${
+                  formData.paymentMethod === method
+                    ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
+                    : "border-gray-200 hover:border-blue-300"
+                }`}
+              >
+                <span className="capitalize">{method}</span>
+                {method === "stripe" && (
+                  <img src="/stripe.png" className="h-5 ml-2" alt="Stripe" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Confirmation Modal */}
+        {showConfirmation && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-bold mb-4">
+                Confirm Booking Details
+              </h3>
 
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Property:</span>
+                  <span className="font-medium">{propertyDetails.title}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Nights:</span>
+                  <span className="font-medium">
+                    {formData.nights} night{formData.nights > 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Price:</span>
+                  <span className="font-medium">
+                    {propertyDetails.currency} {calculatedPrice.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Payment Method:</span>
+                  <span className="font-medium capitalize">
+                    {formData.paymentMethod}
+                    {formData.paymentMethod === "stripe" && (
+                      <img
+                        src="/stripe.png"
+                        className="h-5 ml-2 inline-block"
+                        alt="Stripe"
+                      />
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmation(false)}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={submitBooking}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    `Confirm ${
+                      formData.paymentMethod === "stripe"
+                        ? "with Stripe"
+                        : "Booking"
+                    }`
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Special Requests

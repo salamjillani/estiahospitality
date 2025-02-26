@@ -108,6 +108,7 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
       totalPrice: nights * property.pricePerNight,
       currency: property.bankDetails.currency,
       pricePerNight: property.pricePerNight,
+      paymentMethod: req.body.paymentMethod,
       user: req.user.id,
       status: "pending"
     });

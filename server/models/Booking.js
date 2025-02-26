@@ -50,6 +50,12 @@ const bookingSchema = new mongoose.Schema(
       unique: true,
       default: () => shortid.generate(),
     },
+    paymentMethod: {
+      type: String,
+      enum: ["cash", "stripe"],
+      default: "cash",
+      required: true
+    },
     statusHistory: [{
       status: String,
       changedAt: Date,
