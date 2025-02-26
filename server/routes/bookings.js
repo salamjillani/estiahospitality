@@ -115,16 +115,23 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
 });
 
 // Update booking status
+// Ensure proper population when updating booking status
 router.patch("/:id", auth, adminOnly, async (req, res) => {
   try {
     const booking = await Booking.findByIdAndUpdate(
       req.params.id,
       { status: req.body.status },
       { new: true }
-    ).populate("property user");
+    )
+    .populate("property", "title")
+    .populate("user", "name email");
 
-    // Emit update event with full booking data
-    req.io.emit("statusUpdate", booking);
+    // Emit normalized booking data
+    const bookingData = booking.toObject();
+    bookingData.checkInDate = booking.checkInDate.toISOString();
+    bookingData.checkOutDate = booking.checkOutDate.toISOString();
+    
+    req.io.emit("statusUpdate", bookingData);
     
     res.json(booking);
   } catch (err) {

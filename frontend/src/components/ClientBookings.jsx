@@ -45,16 +45,22 @@ const ClientBookings = () => {
   const [error, setError] = useState("");
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const socket = io(import.meta.env.VITE_API_URL);
+  const [socketConnected, setSocketConnected] = useState(false);
 
+  // Fetch bookings initially
   useEffect(() => {
     const fetchBookings = async () => {
       try {
         setLoading(true);
         const response = await api.get(`/api/bookings/client/${user._id}`);
+        console.log("API response:", response);
+
+        // Ensure response is an array before mapping
+        const bookingsData = Array.isArray(response) ? response : 
+                          (response.data && Array.isArray(response.data) ? response.data : []);
 
         // Process bookings with proper dates and nights calculation
-        const processedBookings = response.map((booking) => ({
+        const processedBookings = bookingsData.map((booking) => ({
           ...booking,
           checkInDate: booking.checkInDate
             ? new Date(booking.checkInDate).toISOString()
@@ -68,67 +74,80 @@ const ClientBookings = () => {
         }));
 
         setBookings(processedBookings);
+        setLoading(false);
       } catch (err) {
-        if (err.message.includes("403")) {
+        console.error("Error fetching bookings:", err);
+        if (err.message && err.message.includes("403")) {
           logout();
           navigate("/auth?session=expired");
         }
-        setError(err.message);
-      } finally {
+        setError(err.message || "Failed to fetch bookings");
         setLoading(false);
       }
     };
 
     if (user?._id) fetchBookings();
+  }, [user?._id, navigate, logout]);
+
+  // Combined socket connection and event handling
+  useEffect(() => {
+    if (!user?._id) return;
+    
+    // Create a single socket instance
+    const socket = io(import.meta.env.VITE_API_URL);
+    
+    socket.on("connect", () => {
+      console.log("Socket connected");
+      setSocketConnected(true);
+    });
+    
+    socket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+      setSocketConnected(false);
+    });
+    
+    socket.on("disconnect", () => {
+      console.log("Socket disconnected");
+      setSocketConnected(false);
+    });
+    
+    // Listen for status updates
+    socket.on("statusUpdate", (updatedBooking) => {
+      console.log("Received status update:", updatedBooking);
+      
+      // Ensure we're only updating if this booking belongs to the current user
+      if (updatedBooking.user && updatedBooking.user._id === user._id) {
+        setBookings(prev => 
+          prev.map(b => 
+            b._id === updatedBooking._id ? {
+              ...b,
+              ...updatedBooking,
+              status: updatedBooking.status,
+              checkInDate: updatedBooking.checkInDate || b.checkInDate,
+              checkOutDate: updatedBooking.checkOutDate || b.checkOutDate,
+              totalNights: calculateNights(
+                updatedBooking.checkInDate || b.checkInDate,
+                updatedBooking.checkOutDate || b.checkOutDate
+              )
+            } : b
+          )
+        );
+      }
+    });
+    
+    return () => {
+      // Clean up by disconnecting socket and removing all listeners
+      socket.off("connect");
+      socket.off("connect_error");
+      socket.off("disconnect");
+      socket.off("statusUpdate");
+      socket.disconnect();
+    };
   }, [user?._id]);
 
+  // Redirect if user is not a client
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_API_URL);
-
-    socket.on("statusUpdate", (updatedBooking) => {
-      setBookings((prev) =>
-        prev.map((booking) =>
-          booking._id === updatedBooking._id ? updatedBooking : booking
-        )
-      );
-    });
-
-    return () => {
-      socket.off("statusUpdate");
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleStatusUpdate = (updatedBooking) => {
-      setBookings((prev) =>
-        prev.map((b) =>
-          b._id === updatedBooking._id
-            ? {
-                ...updatedBooking,
-                checkInDate: updatedBooking.checkInDate
-                  ? new Date(updatedBooking.checkInDate).toISOString()
-                  : null,
-                checkOutDate: updatedBooking.checkOutDate
-                  ? new Date(updatedBooking.checkOutDate).toISOString()
-                  : null,
-                totalNights:
-                  updatedBooking.totalNights ||
-                  calculateNights(
-                    updatedBooking.checkInDate,
-                    updatedBooking.checkOutDate
-                  ),
-              }
-            : b
-        )
-      );
-    };
-
-    socket.on("statusUpdate", handleStatusUpdate);
-    return () => socket.off("statusUpdate", handleStatusUpdate);
-  }, []);
-
-  useEffect(() => {
-    if (!user || user.role !== "client") {
+    if (user && user.role !== "client") {
       navigate("/");
     }
   }, [user, navigate]);
@@ -154,6 +173,7 @@ const ClientBookings = () => {
         )
       );
     } catch (err) {
+      console.error("Error cancelling booking:", err);
       setError(err.message || "Failed to cancel booking");
     }
   };
@@ -188,6 +208,13 @@ const ClientBookings = () => {
           Book New Property
         </Link>
       </div>
+
+      {socketConnected && (
+        <div className="mb-4 text-sm text-green-600 bg-green-50 p-2 rounded-lg flex items-center">
+          <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
+          Real-time updates active
+        </div>
+      )}
 
       {bookings.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-xl">
@@ -237,18 +264,11 @@ const ClientBookings = () => {
                           {nights} night{nights !== 1 ? "s" : ""}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <Banknote className="h-4 w-4" />
                         <span>
                           {currencySymbols[booking.currency] || "$"}
                           {booking.totalPrice}
-                        </span>
-                      </div>
-                      <div className="price-display">
-                        {booking.currency} {booking.totalPrice.toFixed(2)}
-                        <span className="text-sm">
-                          ({booking.nights} nights × {booking.currency}
-                          {booking.pricePerNight})
                         </span>
                       </div>
                     </div>

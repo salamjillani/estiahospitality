@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
@@ -17,13 +17,13 @@ import {
 
 import io from "socket.io-client";
 
-const socket = io(import.meta.env.VITE_API_URL);
-
 const ReservationForm = () => {
   const { propertyId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const socketRef = useRef(null);
+  
   const [formData, setFormData] = useState({
     checkInDate: "",
     checkOutDate: "",
@@ -38,8 +38,9 @@ const ReservationForm = () => {
     email: "",
     phone: "",
     arrivalTime: "",
-    property: location.state?.propertyId || propertyId,
+    property: propertyId || location.state?.propertyId,
   });
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [calculatedPrice, setCalculatedPrice] = useState(0);
@@ -47,15 +48,47 @@ const ReservationForm = () => {
     pricePerNight: 0,
     currency: 'USD'
   });
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Consolidated property details fetching
+  // Handle socket connection
+  useEffect(() => {
+    if (user?.token && !socketRef.current) {
+      socketRef.current = io(import.meta.env.VITE_API_URL, {
+        auth: { token: user.token },
+        transports: ["websocket"]
+      });
+    }
+    
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [user?.token]);
+
+  // Check authentication first
+  useEffect(() => {
+    // Only run this once when auth state is settled
+    if (!authLoading && !isInitialized) {
+      setIsInitialized(true);
+      
+      if (!user) {
+        // Redirect to auth page with return URL
+        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        navigate(`/auth?returnTo=${returnUrl}`);
+      }
+    }
+  }, [authLoading, user, navigate, isInitialized]);
+
+  // Load property details
   useEffect(() => {
     const loadProperty = async () => {
       try {
         const data = await api.get(`/api/properties/${propertyId}`);
         setPropertyDetails({
           pricePerNight: data.pricePerNight,
-          currency: data.currency
+          currency: data.currency || data.bankDetails?.currency || 'USD'
         });
       } catch (err) {
         setError('Failed to load property details');
@@ -66,43 +99,51 @@ const ReservationForm = () => {
     if (location.state?.property) {
       setPropertyDetails({
         pricePerNight: location.state.property.pricePerNight,
-        currency: location.state.property.currency
+        currency: location.state.property.currency || location.state.property.bankDetails?.currency || 'USD'
       });
-    } else {
+    } else if (propertyId) {
       loadProperty();
     }
   }, [propertyId, location.state]);
 
-  // Calculate total price when dates or price changes
+  // Calculate price when dates change
   useEffect(() => {
     if (formData.checkInDate && formData.checkOutDate) {
-      // Use the imported calculateNights function
       const nights = calculateNights(
         formData.checkInDate, 
         formData.checkOutDate
       );
-      const total = nights * propertyDetails.pricePerNight;
       
-      setFormData(prev => ({ ...prev, nights }));
-      setCalculatedPrice(total);
+      if (nights > 0) {
+        const total = nights * propertyDetails.pricePerNight;
+        setFormData(prev => ({ ...prev, nights }));
+        setCalculatedPrice(total);
+      }
     }
   }, [formData.checkInDate, formData.checkOutDate, propertyDetails.pricePerNight]);
 
+  // If still loading auth or no user is set yet, show loading
+  if (authLoading || (!isInitialized && !user)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
+        <span className="ml-2">Verifying authentication...</span>
+      </div>
+    );
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    if (!propertyId || !location.state?.property) {
-      setError("Property information is missing");
-      return;
-    }
-
+    
     if (!user?._id) {
       setError("User authentication required");
-      setLoading(false);
+      // Redirect to login instead of just showing error
+      navigate("/auth");
       return;
     }
+    
+    setLoading(true);
+    setError("");
 
     try {
       const requiredFields = [
@@ -115,30 +156,39 @@ const ReservationForm = () => {
         "phone",
         "nationality",
       ];
+      
       const missing = requiredFields.filter((field) => !formData[field]);
 
       if (missing.length > 0) {
         throw new Error(`Missing required fields: ${missing.join(", ")}`);
       }
 
-      const response = await api.post("/api/bookings", {
+      const bookingData = {
         ...formData,
         totalPrice: calculatedPrice,
         currency: propertyDetails.currency,
         user: user._id,
         status: "pending",
         source: "direct",
-      });
+      };
 
-      // Emit socket event for real-time update
-      socket.emit("newBooking", response);
+      const response = await api.post("/api/bookings", bookingData);
+
+      // Only emit socket event if socket is connected
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit("newBooking", response.data);
+      }
 
       navigate("/my-bookings", {
         state: { success: "Booking request submitted successfully!" },
       });
     } catch (err) {
       console.error('Booking submission error:', err);
-      setError(err.response?.data?.message || err.message || "Failed to submit booking");
+      setError(
+        err.response?.data?.message || 
+        err.message || 
+        "Failed to submit booking"
+      );
     } finally {
       setLoading(false);
     }

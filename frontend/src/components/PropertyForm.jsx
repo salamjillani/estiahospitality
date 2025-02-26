@@ -56,18 +56,7 @@ const PropertyForm = () => {
     {
       key: "currency",
       label: "Currency",
-      options: [
-        "USD",
-        "EUR",
-        "GBP",
-        "JPY",
-        "CAD",
-        "AUD",
-        "CHF",
-        "CNY",
-        "SEK",
-        "NZD",
-      ],
+      options: ["USD", "EUR", "GBP", "JPY", "INR"],
     },
   ];
 
@@ -104,13 +93,13 @@ const PropertyForm = () => {
         <label className="text-sm font-medium text-gray-700 mb-1 block">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
-
         {options ? (
           <div className="relative">
             <select
               value={value}
               onChange={(e) => onChange(name, e.target.value, section)}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white appearance-none"
+              required={required}
               {...props}
             >
               {options.map((option) => (
@@ -141,6 +130,7 @@ const PropertyForm = () => {
             value={value}
             onChange={(e) => onChange(name, e.target.value, section)}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white"
+            required={required}
             {...props}
           />
         )}
@@ -160,17 +150,12 @@ const PropertyForm = () => {
     options: PropTypes.array,
   };
 
-  // In PropertyForm.jsx
   useEffect(() => {
     const fetchProperty = async () => {
       try {
         setLoadingProperty(true);
         if (!id) return;
-
         const data = await api.get(`/api/properties/${id}`);
-        if (!data) throw new Error("Property not found");
-
-        // Correctly set property data
         setProperty({
           ...data,
           location: {
@@ -195,7 +180,6 @@ const PropertyForm = () => {
         setLoadingProperty(false);
       }
     };
-
     if (id) fetchProperty();
   }, [id]);
 
@@ -247,11 +231,9 @@ const PropertyForm = () => {
       const files = Array.from(e.target.files);
       const formData = new FormData();
       files.forEach((file) => formData.append("photos", file));
-
       const { photoUrls } = await api.post("/api/properties/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-
       setProperty((prev) => ({
         ...prev,
         photos: [...prev.photos, ...photoUrls],
@@ -266,6 +248,11 @@ const PropertyForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    if (!property.bankDetails?.currency) {
+      setError("Currency selection is required");
+      setLoading(false);
+      return;
+    }
     try {
       if (id) {
         await api.put(`/api/properties/${id}`, property);
@@ -305,15 +292,12 @@ const PropertyForm = () => {
             <X className="w-6 h-6 text-gray-500" />
           </button>
         </div>
-
         {error && (
           <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl">
             <p className="text-red-700 font-medium">{error}</p>
           </div>
         )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
             <h3 className="text-xl font-semibold text-gray-900 mb-6">
               Basic Information
@@ -327,7 +311,6 @@ const PropertyForm = () => {
                 onChange={handleInputChange}
                 placeholder="Enter property title"
               />
-
               <div className="relative">
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
                   Property Type <span className="text-red-500">*</span>
@@ -358,7 +341,6 @@ const PropertyForm = () => {
                   </svg>
                 </div>
               </div>
-
               <InputField
                 label="Bedrooms"
                 type="number"
@@ -368,7 +350,6 @@ const PropertyForm = () => {
                 value={property.bedrooms}
                 onChange={handleInputChange}
               />
-
               <InputField
                 label="Bathrooms"
                 type="number"
@@ -378,9 +359,8 @@ const PropertyForm = () => {
                 value={property.bathrooms}
                 onChange={handleInputChange}
               />
-
               <InputField
-                label="Price Per Night ($)"
+                label="Price Per Night"
                 type="number"
                 required
                 name="pricePerNight"
@@ -388,7 +368,6 @@ const PropertyForm = () => {
                 value={property.pricePerNight}
                 onChange={handleInputChange}
               />
-
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
                   Description
@@ -404,8 +383,6 @@ const PropertyForm = () => {
               </div>
             </div>
           </div>
-
-          {/* Location Details */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
             <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
               <MapPin className="w-6 h-6 text-blue-600" /> Location Details
@@ -424,9 +401,6 @@ const PropertyForm = () => {
               ))}
             </div>
           </div>
-
-          {/* Bank Information */}
-
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
             <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
               <Banknote className="w-6 h-6 text-blue-600" /> Bank Information
@@ -441,18 +415,16 @@ const PropertyForm = () => {
                   onChange={handleInputChange}
                   section="bankDetails"
                   options={options}
+                  required={key === "currency"}
                   placeholder={`Select ${label}`}
                 />
               ))}
             </div>
           </div>
-
-          {/* Image Upload */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
             <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
               <Image className="w-6 h-6 text-blue-600" /> Property Photos
             </h3>
-
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {property.photos.map((photo, index) => (
                 <div
@@ -479,7 +451,6 @@ const PropertyForm = () => {
                 </div>
               ))}
             </div>
-
             <label className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 cursor-pointer transition-colors duration-200 shadow-sm hover:shadow">
               <Upload className="w-5 h-5 mr-2" />
               {uploading ? "Uploading..." : "Upload Photos"}
@@ -495,8 +466,6 @@ const PropertyForm = () => {
               Upload high-quality photos (JPEG, PNG, WEBP). Max 10 files.
             </p>
           </div>
-
-          {/* Form Actions */}
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 sticky bottom-4">
             {id && (
               <button
