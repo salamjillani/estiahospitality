@@ -46,13 +46,14 @@ const AdminBookings = () => {
     const fetchBookings = async () => {
       try {
         const response = await api.get("/api/bookings/admin/bookings");
-        const pendingBookings = response.filter(b => b.status === 'pending');
-        setBookings(pendingBookings.map(processBooking));
+        const allBookings = response.filter(b => 
+          ['pending', 'confirmed', 'cancelled'].includes(b.status)
+        );
+        setBookings(allBookings.map(processBooking));
       } catch (error) {
         console.error("Error fetching bookings:", error);
       }
     };
-
     fetchBookings();
   }, []);
 

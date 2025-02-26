@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const http = require('http');
-const WebSocket = require('ws');
+
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const { Server } = require('socket.io');
@@ -27,8 +27,7 @@ const io = new Server(server, {
   }
 });
 
-// WebSocket setup
-const wss = new WebSocket.Server({ server });
+
 
 // Configure Cloudinary
 cloudinary.config({ 
@@ -127,14 +126,6 @@ const broadcast = (type, data) => {
   });
 };
 
-app.locals.broadcast = broadcast;
-
-// WebSocket connection handler
-wss.on('connection', (ws) => {
-  console.log('New WebSocket client connected');
-  ws.on('close', () => console.log('Client disconnected'));
-});
-
 // Error handlers
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
@@ -158,9 +149,15 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Socket.io connection
+
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
+ 
+  socket.on('cancelBooking', (bookingId) => {
+    console.log('Booking cancelled:', bookingId);
+  
+    io.emit('statusUpdate', { _id: bookingId, status: 'cancelled' });
+  });
   
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../utils/api";
@@ -46,6 +46,7 @@ const ClientBookings = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [socketConnected, setSocketConnected] = useState(false);
+  const socketRef = useRef(null);
 
   // Fetch bookings initially
   useEffect(() => {
@@ -54,10 +55,14 @@ const ClientBookings = () => {
         setLoading(true);
         const response = await api.get(`/api/bookings/client/${user._id}`);
         console.log("API response:", response);
+      
 
         // Ensure response is an array before mapping
-        const bookingsData = Array.isArray(response) ? response : 
-                          (response.data && Array.isArray(response.data) ? response.data : []);
+        const bookingsData = Array.isArray(response)
+          ? response
+          : response.data && Array.isArray(response.data)
+          ? response.data
+          : [];
 
         // Process bookings with proper dates and nights calculation
         const processedBookings = bookingsData.map((booking) => ({
@@ -89,52 +94,61 @@ const ClientBookings = () => {
     if (user?._id) fetchBookings();
   }, [user?._id, navigate, logout]);
 
-  // Combined socket connection and event handling
   useEffect(() => {
     if (!user?._id) return;
-    
-    // Create a single socket instance
-    const socket = io(import.meta.env.VITE_API_URL);
-    
+
+  
+    const socket = io(import.meta.env.VITE_API_URL, {
+      path: "/socket.io", 
+      transports: ["polling", "websocket"],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      auth: { token: user.token },
+    });
+
+    socketRef.current = socket;
+
     socket.on("connect", () => {
       console.log("Socket connected");
       setSocketConnected(true);
     });
-    
+
     socket.on("connect_error", (error) => {
       console.error("Socket connection error:", error);
       setSocketConnected(false);
     });
-    
+
     socket.on("disconnect", () => {
       console.log("Socket disconnected");
       setSocketConnected(false);
     });
-    
+
     // Listen for status updates
     socket.on("statusUpdate", (updatedBooking) => {
       console.log("Received status update:", updatedBooking);
-      
+
       // Ensure we're only updating if this booking belongs to the current user
       if (updatedBooking.user && updatedBooking.user._id === user._id) {
-        setBookings(prev => 
-          prev.map(b => 
-            b._id === updatedBooking._id ? {
-              ...b,
-              ...updatedBooking,
-              status: updatedBooking.status,
-              checkInDate: updatedBooking.checkInDate || b.checkInDate,
-              checkOutDate: updatedBooking.checkOutDate || b.checkOutDate,
-              totalNights: calculateNights(
-                updatedBooking.checkInDate || b.checkInDate,
-                updatedBooking.checkOutDate || b.checkOutDate
-              )
-            } : b
+        setBookings((prev) =>
+          prev.map((b) =>
+            b._id === updatedBooking._id
+              ? {
+                  ...b,
+                  ...updatedBooking,
+                  status: updatedBooking.status,
+                  checkInDate: updatedBooking.checkInDate || b.checkInDate,
+                  checkOutDate: updatedBooking.checkOutDate || b.checkOutDate,
+                  totalNights: calculateNights(
+                    updatedBooking.checkInDate || b.checkInDate,
+                    updatedBooking.checkOutDate || b.checkOutDate
+                  ),
+                }
+              : b
           )
         );
       }
     });
-    
+
     return () => {
       // Clean up by disconnecting socket and removing all listeners
       socket.off("connect");
@@ -142,6 +156,7 @@ const ClientBookings = () => {
       socket.off("disconnect");
       socket.off("statusUpdate");
       socket.disconnect();
+      socketRef.current = null;
     };
   }, [user?._id]);
 
@@ -153,27 +168,37 @@ const ClientBookings = () => {
   }, [user, navigate]);
 
   const handleCancel = async (bookingId) => {
-    if (!window.confirm("Are you sure you want to cancel this booking?"))
-      return;
-
     try {
-      await api.patch(`/api/bookings/${bookingId}/status`, {
-        status: "cancelled",
-      });
+      // Using fetch directly instead of api.patch
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/bookings/${bookingId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+          body: JSON.stringify({ status: "cancelled" }), // Note: API uses "cancelled" not "canceled"
+        }
+      );
 
+      if (!response.ok) {
+        throw new Error(`Failed to cancel booking: ${response.statusText}`);
+      }
+
+      // Update the local state
       setBookings((prev) =>
         prev.map((b) =>
-          b._id === bookingId
-            ? {
-                ...b,
-                status: "cancelled",
-                totalNights: calculateNights(b.checkInDate, b.checkOutDate),
-              }
-            : b
+          b._id === bookingId ? { ...b, status: "cancelled" } : b
         )
       );
+
+      // Notify via WebSocket
+      if (socketRef.current) {
+        socketRef.current.emit("cancelBooking", bookingId);
+      }
     } catch (err) {
-      console.error("Error cancelling booking:", err);
+      console.error("Error canceling booking:", err);
       setError(err.message || "Failed to cancel booking");
     }
   };

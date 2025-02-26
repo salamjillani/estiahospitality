@@ -5,6 +5,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { websocketService } from "../services/websocketService";
 import { api } from "../utils/api";
+import io from "socket.io-client";
 import {
   Loader2,
   Trash2,
@@ -80,6 +81,27 @@ const Dashboard = () => {
     ...Object.keys(defaultCommissions),
     ...(bookingAgents?.map((agent) => agent.name) || []),
   ];
+
+  const formatNewEvent = (booking) => ({
+    id: booking._id,
+    title: `${booking.guestName} - ${booking.status}`,
+    start: new Date(booking.checkInDate),
+    end: new Date(booking.checkOutDate),
+    backgroundColor: booking.status === "confirmed" ? "#10B981" :
+                     booking.status === "cancelled" ? "#EF4444" : "#F59E0B",
+    extendedProps: {
+      propertyId: booking.property._id,
+      guestName: booking.guestName,
+      phone: booking.phone,
+      email: booking.email,
+      arrivalTime: booking.arrivalTime,
+      source: booking.source,
+      status: booking.status || "pending",
+      isCurrentUser: booking.createdBy?._id === user?._id,
+      reservationCode: booking.reservationCode,
+    },
+  });
+  
 
   const currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR", "SGD"];
   const nationalities = [
@@ -182,18 +204,15 @@ const Dashboard = () => {
 
   const fetchBookings = useCallback(async () => {
     try {
-      setLoading(true);
+      setLoading(false);
       const data = await api.get("/api/bookings");
-      const bookingsData = Array.isArray(data?.bookings) ? data.bookings : [];
-
-      const formattedEvents = bookingsData.map((booking) => ({
+      const formattedEvents = data.map((booking) => ({
         id: booking._id,
-        title: `${booking.guestName}`,
-        start: new Date(booking.startDate),
-        end: new Date(booking.endDate),
-        backgroundColor: getEventColor(booking.source),
-        borderColor: getEventColor(booking.source),
-        className: "rounded-full shadow-sm",
+        title: `${booking.guestName} - ${booking.status}`,
+        start: new Date(booking.checkInDate),
+        end: new Date(booking.checkOutDate),
+        backgroundColor: booking.status === 'confirmed' ? '#10B981' : 
+                       booking.status === 'cancelled' ? '#EF4444' : '#F59E0B',
         extendedProps: {
           propertyId: booking.property._id,
           guestName: booking.guestName,
@@ -208,16 +227,33 @@ const Dashboard = () => {
         },
       }));
       setEvents(formattedEvents);
-    } catch (err) {
-      if (err.message.includes("401")) {
-        navigate("/auth");
-        return;
+  } catch (err) {
+    setError("Failed to load bookings: " + err.message);
+  }
+}, []);
+
+useEffect(() => {
+  const socket = io(import.meta.env.VITE_API_URL);
+  
+  socket.on("bookingUpdate", (updatedBooking) => {
+    setEvents(prev => {
+      const existing = prev.find(e => e.id === updatedBooking._id);
+      if (existing) {
+        return prev.map(event => 
+          event.id === updatedBooking._id ? 
+          { ...event, 
+            title: `${updatedBooking.guestName} - ${updatedBooking.status}`,
+            backgroundColor: updatedBooking.status === 'confirmed' ? '#10B981' :
+                           updatedBooking.status === 'cancelled' ? '#EF4444' : '#F59E0B'
+          } : event
+        );
       }
-      setError("Failed to load bookings: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [getEventColor, user, navigate]);
+      return [...prev, formatNewEvent(updatedBooking)];
+    });
+  });
+
+  return () => socket.disconnect();
+}, []);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -454,6 +490,13 @@ const Dashboard = () => {
 
   const eventContent = useCallback(
     (eventInfo) => {
+      if (eventInfo.event.extendedProps.status === 'cancelled') {
+        return (
+          <div className="line-through opacity-50">
+            {eventInfo.event.title}
+          </div>
+        );
+      }
       const property = properties.find(
         (p) => p._id.toString() === eventInfo.event.extendedProps.propertyId.toString()
       );
