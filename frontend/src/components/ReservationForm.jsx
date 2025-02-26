@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
@@ -15,14 +15,14 @@ import {
   Clock,
 } from "lucide-react";
 
-import io from "socket.io-client";
+import { websocketService } from "../services/websocketService";
 
 const ReservationForm = () => {
   const { propertyId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const socketRef = useRef(null);
+ 
   
   const [formData, setFormData] = useState({
     checkInDate: "",
@@ -52,19 +52,8 @@ const ReservationForm = () => {
 
   // Handle socket connection
   useEffect(() => {
-    if (user?.token && !socketRef.current) {
-      socketRef.current = io(import.meta.env.VITE_API_URL, {
-        auth: { token: user.token },
-        transports: ["websocket"]
-      });
-    }
+    websocketService.connect();
     
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    };
   }, [user?.token]);
 
   // Check authentication first
@@ -134,6 +123,7 @@ const ReservationForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     
     if (!user?._id) {
       setError("User authentication required");
@@ -174,10 +164,7 @@ const ReservationForm = () => {
 
       const response = await api.post("/api/bookings", bookingData);
 
-      // Only emit socket event if socket is connected
-      if (socketRef.current && socketRef.current.connected) {
-        socketRef.current.emit("newBooking", response.data);
-      }
+      websocketService.emit("newBooking", response.data);
 
       navigate("/my-bookings", {
         state: { success: "Booking request submitted successfully!" },

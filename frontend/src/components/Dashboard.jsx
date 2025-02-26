@@ -5,7 +5,6 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { websocketService } from "../services/websocketService";
 import { api } from "../utils/api";
-import io from "socket.io-client";
 import {
   Loader2,
   Trash2,
@@ -233,7 +232,7 @@ const Dashboard = () => {
 }, []);
 
 useEffect(() => {
-  const socket = io(import.meta.env.VITE_API_URL);
+  const socket = websocketService.connect();
   
   socket.on("bookingUpdate", (updatedBooking) => {
     setEvents(prev => {

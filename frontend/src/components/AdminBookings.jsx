@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import io from "socket.io-client";
+import { websocketService } from "../services/websocketService";
 import { formatDate } from "../utils/dateUtils";
 import { api } from "../utils/api";
 
@@ -10,8 +10,8 @@ const AdminBookings = () => {
   const [currentAction, setCurrentAction] = useState(null);
   const [currentBookingId, setCurrentBookingId] = useState(null);
   const [currentBooking, setCurrentBooking] = useState(null);
+  const [error, setError] = useState("");
   const { user } = useAuth();
-  const socket = io(import.meta.env.VITE_API_URL);
 
   const currencySymbols = {
     USD: "$",
@@ -28,62 +28,44 @@ const AdminBookings = () => {
   });
 
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_API_URL);
-  
-    // Handle status updates from server
-    socket.on("statusUpdate", (updatedBooking) => {
-      setBookings(prev => 
-        prev.filter(b => b._id !== updatedBooking._id)
-      );
-    });
-  
-    return () => {
-      socket.disconnect();
+    websocketService.connect();
+
+    const handleStatusUpdate = (updatedBooking) => {
+      setBookings(prev => prev.map(b => 
+        b._id === updatedBooking._id ? processBooking(updatedBooking) : b
+      ));
     };
-  }, []);
+
+    const handleNewBooking = (newBooking) => {
+      if (newBooking.status === "pending") {
+        setBookings(prev => [processBooking(newBooking), ...prev]);
+      }
+    };
+
+    websocketService.subscribe("bookingUpdate", handleStatusUpdate);
+    websocketService.subscribe("newBooking", handleNewBooking);
+
+    return () => {
+      websocketService.unsubscribe("bookingUpdate", handleStatusUpdate);
+      websocketService.unsubscribe("newBooking", handleNewBooking);
+    };
+  }, [user?.token]);
 
   useEffect(() => {
     const fetchBookings = async () => {
       try {
         const response = await api.get("/api/bookings/admin/bookings");
-        const allBookings = response.filter(b => 
-          ['pending', 'confirmed', 'cancelled'].includes(b.status)
-        );
-        setBookings(allBookings.map(processBooking));
+        const pendingBookings = response.filter(b => b.status === "pending");
+        setBookings(pendingBookings.map(processBooking));
       } catch (error) {
+        setError("Failed to load bookings");
         console.error("Error fetching bookings:", error);
       }
     };
     fetchBookings();
   }, []);
 
-  useEffect(() => {
-    socket.on("newBooking", (newBooking) => {
-      if (newBooking.status === "pending") { // Add status check
-        setBookings((prev) => [processBooking(newBooking), ...prev]);
-      }
-    });
-  
-    return () => {
-      socket.off("newBooking");
-    };
-  }, []);
-  
-  // Update the statusUpdate handler to remove if status changes
-  useEffect(() => {
-    socket.on("statusUpdate", (updatedBooking) => {
-      // Remove from list if status is no longer pending
-      if (updatedBooking.status !== "pending") {
-        setBookings(prev => prev.filter(b => b._id !== updatedBooking._id));
-      }
-    });
-  
-    return () => {
-      socket.off("statusUpdate");
-    };
-  }, []);
-
-  const updateStatus = async (bookingId, status) => {
+  const updateStatus = (bookingId, status) => {
     const booking = bookings.find((b) => b._id === bookingId);
     setCurrentBookingId(bookingId);
     setCurrentAction(status);
@@ -93,23 +75,20 @@ const AdminBookings = () => {
 
   const confirmStatusUpdate = async () => {
     try {
-      
-      const response = await fetch(`/api/bookings/${currentBookingId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`,
-        },
-        body: JSON.stringify({ status: currentAction }),
+      const response = await api.patch(`/api/bookings/${currentBookingId}`, {
+        status: currentAction
       });
-  
-      if (response.ok) {
-        // Remove the booking from local state immediately
-        setBookings(prev => prev.filter(b => b._id !== currentBookingId));
+
+      if (response) {
+        setBookings(prev => 
+          prev.filter(b => b._id !== currentBookingId)
+        );
       }
       setShowConfirmation(false);
     } catch (err) {
-      console.error(err);
+      console.error("Update error:", err);
+      setError(err.message || "Failed to update booking status");
+      setShowConfirmation(false);
     }
   };
 
@@ -119,6 +98,12 @@ const AdminBookings = () => {
         New Bookings
       </h2>
 
+      {error && (
+        <div className="bg-red-50 p-4 rounded-lg mb-6 flex items-center gap-3">
+          <span className="text-red-600">{error}</span>
+        </div>
+      )}
+
       {bookings.length === 0 ? (
         <div className="text-center py-10 text-gray-500">
           No pending bookings found
@@ -126,6 +111,7 @@ const AdminBookings = () => {
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
+            {/* Table headers remain same */}
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -151,9 +137,11 @@ const AdminBookings = () => {
                 </th>
               </tr>
             </thead>
+
             <tbody className="bg-white divide-y divide-gray-200">
               {bookings.map((booking) => (
                 <tr key={booking._id} className="hover:bg-gray-50">
+                  {/* Table cells remain same */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {booking.reservationCode}
                   </td>
@@ -161,18 +149,13 @@ const AdminBookings = () => {
                     {booking.property?.title || "Property Not Found"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    {booking.user?.name || "Unknown Guest"} (
-                    {booking.user?.email})
+                    {booking.user?.name || "Unknown Guest"} ({booking.user?.email})
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                     <span className="flex items-center">
-                      <span className="text-blue-600">
-                        {booking.checkInDate}
-                      </span>
+                      <span className="text-blue-600">{booking.checkInDate}</span>
                       <span className="mx-2">to</span>
-                      <span className="text-blue-600">
-                        {booking.checkOutDate}
-                      </span>
+                      <span className="text-blue-600">{booking.checkOutDate}</span>
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -180,34 +163,31 @@ const AdminBookings = () => {
                     {booking.totalPrice}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${
-                        booking.status === "pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : booking.status === "confirmed"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      booking.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                      booking.status === "confirmed" ? "bg-green-100 text-green-800" :
+                      "bg-red-100 text-red-800"
+                    }`}>
                       {booking.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => updateStatus(booking._id, "confirmed")}
-                        className="bg-green-500 hover:bg-green-600 text-white text-xs py-1 px-3 rounded transition-colors duration-200"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => updateStatus(booking._id, "canceled")}
-                        className="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded transition-colors duration-200"
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                    {booking.status === "pending" && (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => updateStatus(booking._id, "confirmed")}
+                          className="bg-green-500 hover:bg-green-600 text-white text-xs py-1 px-3 rounded transition-colors duration-200"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => updateStatus(booking._id, "canceled")}
+                          className="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded transition-colors duration-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -216,7 +196,6 @@ const AdminBookings = () => {
         </div>
       )}
 
-      {/* Confirmation Modal */}
       {showConfirmation && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg max-w-md">
@@ -244,8 +223,8 @@ const AdminBookings = () => {
               </button>
               <button
                 className={`px-4 py-2 ${
-                  currentAction === "confirmed"
-                    ? "bg-green-500 text-white"
+                  currentAction === "confirmed" 
+                    ? "bg-green-500 text-white" 
                     : "bg-red-500 text-white"
                 } rounded`}
                 onClick={confirmStatusUpdate}

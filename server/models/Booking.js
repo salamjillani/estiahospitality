@@ -53,7 +53,11 @@ const bookingSchema = new mongoose.Schema(
     statusHistory: [{
       status: String,
       changedAt: Date,
-      changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+      changedBy: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User',
+        required: true 
+      }
     }]
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }

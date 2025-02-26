@@ -1,13 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// vite.config.js
 export default defineConfig({
-  resolve: {
-    alias: {
-      '@': '/src',
-    },
-  },
   plugins: [react()],
   server: {
     proxy: {
@@ -17,13 +11,17 @@ export default defineConfig({
         secure: false,
       },
       '/socket.io': {
-        target: 'http://localhost:5000',
+        target: 'ws://localhost:5000', 
+        ws: true,
         changeOrigin: true,
-        ws: true  // This is crucial for WebSocket support
+        secure: false,
+        rewrite: (path) => path.replace(/^\/socket.io/, '')
       }
+    }
+  },
+  resolve: {
+    alias: {
+      '@': '/src',
     },
   },
 });
-
-
-

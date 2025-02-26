@@ -16,12 +16,18 @@ router.get("/", auth, adminOnly, async (req, res) => {
   }
 });
 
-// New admin dashboard route (all bookings)
-router.get("/admin/dashboard", auth, adminOnly, async (req, res) => {
+
+router.get("/admin/bookings", auth, adminOnly, async (req, res) => {
   try {
-    const bookings = await Booking.find()
+    const bookings = await Booking.find({
+      status: { $in: ['pending', 'confirmed', 'cancelled'] }
+    })
       .populate("property", "title")
-      .populate("user", "name email");
+      .populate("user", "name email")
+      .populate({
+        path: "statusHistory.changedBy",
+        select: "name email"
+      });
     res.json(bookings);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -33,7 +39,11 @@ router.get("/admin/bookings", auth, adminOnly, async (req, res) => {
   try {
     const bookings = await Booking.find({ status: 'pending' })
       .populate("property", "title")
-      .populate("user", "name email");
+      .populate("user", "name email")
+      .populate({
+        path: "statusHistory.changedBy",
+        select: "name email"
+      });
     res.json(bookings);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -117,7 +127,14 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
 
 router.patch("/:id", auth, adminOnly, async (req, res) => {
   try {
-    const booking = await Booking.findByIdAndUpdate(
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+    if (booking.status === 'canceled') {
+      return res.status(400).json({ message: "Cannot modify canceled bookings" });
+    }
+
+    const updatedBooking = await Booking.findByIdAndUpdate(
       req.params.id,
       { status: req.body.status },
       { new: true }
@@ -125,14 +142,45 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
     .populate("property", "title")
     .populate("user", "name email");
 
-    // Emit normalized booking data
-    const bookingData = booking.toObject();
-    bookingData.checkInDate = booking.checkInDate.toISOString();
-    bookingData.checkOutDate = booking.checkOutDate.toISOString();
-    
-    req.io.emit("bookingUpdate", booking);
-    
-    res.json(booking);
+    req.io.emit("bookingUpdate", updatedBooking);
+    res.json(updatedBooking);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// In routes/bookings.js
+router.patch("/client/:id", auth, checkRole(["client"]), async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return res.status(404).json({ message: "Booking not found" });
+
+    if (booking.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Unauthorized access" });
+    }
+
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      { 
+        status: "cancelled",
+        $push: {
+          statusHistory: {
+            status: "cancelled",
+            changedAt: new Date(),
+            changedBy: req.user._id
+          }
+        }
+      },
+      { new: true }
+    )
+    .populate({
+      path: "statusHistory.changedBy",
+      select: "name email"
+    })
+    .populate("property", "title")
+    .populate("user", "name email");
+    req.io.emit("statusUpdate", updatedBooking);
+    res.json(updatedBooking);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }

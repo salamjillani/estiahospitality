@@ -32,7 +32,7 @@ export const api = {
         credentials: "include",
       });
 
-      if (response.status === 403) {
+      if (response.status === 401 || response.status === 403) {
         throw new Error("Session expired. Please login again.");
       }
 
@@ -50,7 +50,9 @@ export const api = {
       }
       return response.json();
     } catch (err) {
-      console.error("API call failed:", err);
+      if (err.message === "Failed to fetch") {
+        throw new Error("Network error - please check your connection");
+      }
       throw err;
     }
   },

@@ -6,28 +6,28 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const http = require('http');
-
-const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const { Server } = require('socket.io');
-
-// Import routes
-const authRoutes = require('./routes/auth');
-const propertyRoutes = require('./routes/properties');
-const bookings = require('./routes/bookings');
-const bookingAgentRoutes = require('./routes/bookingAgents');
+const Booking = require('./models/Booking');
+const jwt = require('jsonwebtoken');
 
 // Initialize Express and HTTP server
 const app = express();
 const server = http.createServer(app);
+
+// Enhanced Socket.io configuration
 const io = new Server(server, {
   cors: {
     origin: process.env.CLIENT_URL,
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    credentials: true
+  },
+  transports: ['websocket'],
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    skipMiddlewares: true
   }
 });
-
-
 
 // Configure Cloudinary
 cloudinary.config({ 
@@ -37,46 +37,28 @@ cloudinary.config({
   secure: true
 });
 
-// Configure CORS first
-app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://res.cloudinary.com',
-    'https://*.cloudinary.com',
-    
-  ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
-
-// Configure multer for file uploads
-const upload = multer({
-  storage: multer.memoryStorage(), // For Cloudinary uploads
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    allowedTypes.includes(file.mimetype)
-      ? cb(null, true)
-      : cb(new Error('Invalid file type'));
-  }
-});
-
+// Middleware setup
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
+app.use(cors({
+  origin: process.env.CLIENT_URL,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  credentials: true
+}));
 
-app.use((err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    return res.status(400).json({ 
-      success: false,
-      message: err.message 
-    });
+// File upload handling
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    allowedTypes.includes(file.mimetype) ? cb(null, true) : cb(new Error('Invalid file type'));
   }
-  next(err);
 });
-// File upload endpoint - must come before body parsers
+
 app.post('/api/properties/upload', upload.array('photos', 10), async (req, res) => {
   try {
     const uploadPromises = req.files.map(file => {
@@ -84,8 +66,7 @@ app.post('/api/properties/upload', upload.array('photos', 10), async (req, res) 
         const stream = cloudinary.uploader.upload_stream(
           { folder: 'properties' },
           (error, result) => {
-            if (result) resolve(result);
-            else reject(error);
+            error ? reject(error) : resolve(result);
           }
         );
         stream.end(file.buffer);
@@ -104,29 +85,73 @@ app.post('/api/properties/upload', upload.array('photos', 10), async (req, res) 
   }
 });
 
-// Standard middleware (after file upload handler)
+// Standard middleware
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
-
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/properties', propertyRoutes);
-app.use('/api/bookings', bookings);
-app.use('/api/booking-agents', bookingAgentRoutes);
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/properties', require('./routes/properties'));
+app.use('/api/bookings', require('./routes/bookings'));
+app.use('/api/booking-agents', require('./routes/bookingAgents'));
 
-// WebSocket broadcast function
-const broadcast = (type, data) => {
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type, data }));
+// Enhanced MongoDB connection
+mongoose.connect(process.env.MONGODB_URI, {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000
+});
+
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'MongoDB connection error:'));
+db.once('open', () => console.log('Connected to MongoDB'));
+db.on('disconnected', () => console.log('MongoDB disconnected'));
+
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    if (!token) return next(new Error('Authentication required'));
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+      if (err) return next(new Error('Invalid token'));
+      socket.user = decoded;
+      next();
+    });
+  } catch (error) {
+    next(new Error('Authentication error'));
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log('Authenticated user connected:', socket.user.id);
+
+  socket.on('cancelBooking', async (bookingId) => {
+    try {
+      const booking = await Booking.findById(bookingId)
+        .populate("user", "name");
+      
+      if (booking.user.id !== socket.user.id) {
+        throw new Error('Unauthorized cancellation');
+      }
+      
+      if (booking) {
+        io.emit('bookingUpdate', { 
+          ...booking,
+          status: 'cancelled',
+          cancelledBy: booking.user.name
+        });
+      }
+    } catch (err) {
+      console.error('Error handling cancellation:', err);
     }
   });
-};
 
-// Error handlers
+  socket.on('disconnect', (reason) => {
+    console.log(`Client disconnected (${socket.id}):`, reason);
+  });
+});
+
+// Error handling
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(500).json({ 
@@ -135,31 +160,17 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await mongoose.connection.close();
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
   });
+});
 
 // Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
-
-
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
- 
-  socket.on('cancelBooking', (bookingId) => {
-    console.log('Booking cancelled:', bookingId);
-  
-    io.emit('statusUpdate', { _id: bookingId, status: 'cancelled' });
-  });
-  
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
-  });
 });

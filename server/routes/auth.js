@@ -175,6 +175,28 @@ router.post("/logout", auth, async (req, res) => {
   }
 });
 
+// In your auth routes
+router.post('/refresh', async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) return res.status(401).json({ message: "Unauthorized" });
+
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const user = await User.findById(decoded.id);
+    
+    const newToken = jwt.sign(
+      { id: user._id }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '15m' }
+    );
+
+    res.json({ token: newToken });
+  } catch (error) {
+    console.error('Refresh error:', error);
+    res.status(403).json({ message: "Invalid refresh token" });
+  }
+});
+
 // Get all non-admin users
 router.get("/users", auth, checkRole(["admin"]), async (req, res) => {
   try {
