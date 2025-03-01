@@ -47,8 +47,6 @@ const generateInvoicePDF = async (invoice) => {
       invoice.guestDetails?.email || booking.email || user.email || "N/A";
     const phone = invoice.guestDetails?.phone || booking.phone || "N/A";
 
-   
-
     if (!invoice.invoiceNumber) {
       console.warn("Missing invoice number, generating placeholder");
       invoice.invoiceNumber = `INV-${Date.now()}`;
@@ -95,11 +93,19 @@ const generateInvoicePDF = async (invoice) => {
 
     doc.pipe(writeStream);
 
-    // Improved logo path resolution
+    // UPDATED: Improved logo path resolution with more paths for your specific structure
     const possibleLogoPaths = [
+      // From server directory to frontend/public
+      path.join(__dirname, "../frontend/public/logo.png"),
+      // From a subdirectory in server to frontend/public
+      path.join(__dirname, "../../frontend/public/logo.png"),
+      // From server root to frontend/public
+      path.join(path.dirname(require.main.filename), "../frontend/public/logo.png"),
+      // Absolute path using process.cwd() (project root)
+      path.join(process.cwd(), "frontend/public/logo.png"),
+      // Original paths as fallback
       path.join(__dirname, "../../public/logo.png"),
       path.join(__dirname, "../public/logo.png"),
-      path.join(__dirname, "../frontend/public/logo.png"),
       path.join(__dirname, "../frontend/build/logo.png"),
       path.join(process.cwd(), "public/logo.png"),
     ];
@@ -107,16 +113,20 @@ const generateInvoicePDF = async (invoice) => {
     // Try each potential logo path
     let logoFound = false;
     for (const logoPath of possibleLogoPaths) {
-      if (fs.existsSync(logoPath)) {
-        console.log(`Logo found at: ${logoPath}`);
-        doc.image(logoPath, 50, 45, { width: 50 });
-        logoFound = true;
-        break;
+      try {
+        if (fs.existsSync(logoPath)) {
+          console.log(`Logo found at: ${logoPath}`);
+          doc.image(logoPath, 50, 45, { width: 50 });
+          logoFound = true;
+          break;
+        }
+      } catch (err) {
+        console.warn(`Error checking logo path ${logoPath}:`, err.message);
       }
     }
 
     if (!logoFound) {
-      console.warn("Logo not found in any expected locations");
+      console.warn("Logo not found in any expected locations. Paths tried:", possibleLogoPaths);
       doc.fontSize(20).text("INVOICE", 50, 45);
     }
 
