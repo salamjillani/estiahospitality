@@ -63,6 +63,28 @@ const ReservationForm = () => {
     websocketService.connect();
   }, [user?.token]);
 
+  // Inside ReservationForm component
+useEffect(() => {
+  // Reset form data when propertyId changes
+  setFormData({
+    checkInDate: "",
+    checkOutDate: "",
+    rooms: 1,
+    nights: 1,
+    adults: 1,
+    children: 0,
+    currency: "USD",
+    nationality: "",
+    specialRequests: "",
+    guestName: "",
+    email: "",
+    phone: "",
+    arrivalTime: "",
+    paymentMethod: "cash",
+    property: propertyId || location.state?.propertyId,
+  });
+}, [propertyId, location.state?.propertyId]);
+
   // Check authentication first
   useEffect(() => {
     // Only run this once when auth state is settled

@@ -2,18 +2,18 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../utils/api";
 import Navbar from "../components/Navbar";
-import { 
-  Loader2, 
-  Users, 
-  Calendar, 
-  Shield, 
-  Download, 
+import {
+  Loader2,
+  Users,
+  Calendar,
+  Shield,
+  Download,
   Building,
   Banknote,
   ChevronRight,
   AlertTriangle,
   User,
-  ClipboardList
+  ClipboardList,
 } from "lucide-react";
 
 const AdminDashboard = () => {
@@ -105,7 +105,7 @@ const AdminDashboard = () => {
 
               // Safely extract invoice data if it exists
               const invoice = booking.invoice || null;
-              
+
               // Create a processed booking object with safe property access
               return {
                 ...booking,
@@ -121,7 +121,9 @@ const AdminDashboard = () => {
               };
             })
           : [];
-
+        processedBookings.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
         setUsers(usersRes.data || usersRes);
         setBookings(processedBookings);
       } catch (err) {
@@ -153,7 +155,6 @@ const AdminDashboard = () => {
     <>
       <Navbar />
       <div className="min-h-screen bg-gray-50 pt-20 pb-12">
-      
         <div className="max-w-7xl mx-auto px-4">
           {/* Header Section */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
@@ -190,11 +191,13 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <h3 className="text-gray-500 text-sm">Total Users</h3>
-                  <p className="text-2xl font-bold text-gray-800">{users.length}</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {users.length}
+                  </p>
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-purple-50 rounded-lg">
@@ -202,11 +205,13 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <h3 className="text-gray-500 text-sm">Total Bookings</h3>
-                  <p className="text-2xl font-bold text-gray-800">{bookings.length}</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {bookings.length}
+                  </p>
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-green-50 rounded-lg">
@@ -215,7 +220,7 @@ const AdminDashboard = () => {
                 <div>
                   <h3 className="text-gray-500 text-sm">Active Reservations</h3>
                   <p className="text-2xl font-bold text-gray-800">
-                    {bookings.filter(b => b.status === "confirmed").length}
+                    {bookings.filter((b) => b.status === "confirmed").length}
                   </p>
                 </div>
               </div>
@@ -232,7 +237,7 @@ const AdminDashboard = () => {
                 {users.length} users
               </span>
             </div>
-            
+
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -254,22 +259,31 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {users.map((user) => (
-                      <tr key={user._id} className="hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={user._id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold">
                               {user.name.charAt(0).toUpperCase()}
                             </div>
-                            <span className="font-medium text-gray-800">{user.name}</span>
+                            <span className="font-medium text-gray-800">
+                              {user.name}
+                            </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-gray-600">{user.email}</td>
+                        <td className="px-6 py-4 text-gray-600">
+                          {user.email}
+                        </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                            user.role === "admin" 
-                              ? "bg-purple-100 text-purple-800" 
-                              : "bg-blue-100 text-blue-800"
-                          }`}>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                              user.role === "admin"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-blue-100 text-blue-800"
+                            }`}
+                          >
                             <Shield className="w-3 h-3 mr-1" /> {user.role}
                           </span>
                         </td>
@@ -288,13 +302,14 @@ const AdminDashboard = () => {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-semibold flex items-center gap-2">
-                <ClipboardList className="h-6 w-6 text-indigo-600" /> All Bookings
+                <ClipboardList className="h-6 w-6 text-indigo-600" /> All
+                Bookings
               </h2>
               <span className="bg-indigo-100 text-indigo-800 text-sm px-3 py-1 rounded-full">
                 {bookings.length} bookings
               </span>
             </div>
-            
+
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -325,7 +340,10 @@ const AdminDashboard = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {bookings.map((booking) => (
-                      <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={booking._id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
                         <td className="px-6 py-4">
                           <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded text-gray-700">
                             {booking.reservationCode}
@@ -334,10 +352,13 @@ const AdminDashboard = () => {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xs font-semibold">
-                              {(booking.user?.name || "G").charAt(0).toUpperCase()}
+                              {(booking.user?.name || "G")
+                                .charAt(0)
+                                .toUpperCase()}
                             </div>
                             <span className="text-gray-800">
-                              {booking.user?.name || "Guest " + booking.reservationCode}
+                              {booking.user?.name ||
+                                "Guest " + booking.reservationCode}
                             </span>
                           </div>
                         </td>
@@ -384,7 +405,9 @@ const AdminDashboard = () => {
                                   handleDownloadInvoice(booking.invoice._id)
                                 }
                                 className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1 rounded flex items-center transition-colors"
-                                disabled={downloadingInvoice === booking.invoice._id}
+                                disabled={
+                                  downloadingInvoice === booking.invoice._id
+                                }
                               >
                                 {downloadingInvoice === booking.invoice._id ? (
                                   <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -398,7 +421,9 @@ const AdminDashboard = () => {
                               </span>
                             </div>
                           ) : (
-                            <span className="text-gray-400 text-sm italic">No Invoice</span>
+                            <span className="text-gray-400 text-sm italic">
+                              No Invoice
+                            </span>
                           )}
                         </td>
                       </tr>

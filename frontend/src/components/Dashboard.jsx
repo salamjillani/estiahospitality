@@ -53,7 +53,7 @@ const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [bookingAgents, setBookingAgents] = useState([]);
   const navigate = useNavigate();
-  
+
   const [newEvent, setNewEvent] = useState({
     propertyId: "",
     guestName: "",
@@ -76,6 +76,20 @@ const Dashboard = () => {
     reservationCode: Math.random().toString(36).substr(2, 6).toUpperCase(),
   });
 
+  const getCurrencySymbol = (currency) => {
+    const symbols = {
+      USD: "$",
+      EUR: "€",
+      GBP: "£",
+      JPY: "¥",
+      CAD: "CA$",
+      AUD: "A$",
+      INR: "₹",
+      SGD: "S$",
+    };
+    return symbols[currency] || currency;
+  };
+
   const allBookingSources = [
     ...Object.keys(defaultCommissions),
     ...(bookingAgents?.map((agent) => agent.name) || []),
@@ -86,8 +100,12 @@ const Dashboard = () => {
     title: `${booking.guestName} - ${booking.status}`,
     start: new Date(booking.checkInDate),
     end: new Date(booking.checkOutDate),
-    backgroundColor: booking.status === "confirmed" ? "#10B981" :
-                     booking.status === "cancelled" ? "#EF4444" : "#F59E0B",
+    backgroundColor:
+      booking.status === "confirmed"
+        ? "#3B82F6"
+        : booking.status === "cancelled"
+        ? "#EF4444"
+        : "#F59E0B",
     extendedProps: {
       propertyId: booking.property._id,
       guestName: booking.guestName,
@@ -98,9 +116,11 @@ const Dashboard = () => {
       status: booking.status || "pending",
       isCurrentUser: booking.createdBy?._id === user?._id,
       reservationCode: booking.reservationCode,
+      adults: booking.adults,
+      pricePerNight: booking.pricePerNight,
+      currency: booking.currency,
     },
   });
-  
 
   const currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR", "SGD"];
   const nationalities = [
@@ -210,8 +230,12 @@ const Dashboard = () => {
         title: `${booking.guestName} - ${booking.status}`,
         start: new Date(booking.checkInDate),
         end: new Date(booking.checkOutDate),
-        backgroundColor: booking.status === 'confirmed' ? '#10B981' : 
-                       booking.status === 'cancelled' ? '#EF4444' : '#F59E0B',
+        backgroundColor:
+          booking.status === "confirmed"
+            ? "#3B82F6"
+            : booking.status === "cancelled"
+            ? "#EF4444"
+            : "#F59E0B",
         extendedProps: {
           propertyId: booking.property._id,
           guestName: booking.guestName,
@@ -219,38 +243,49 @@ const Dashboard = () => {
           email: booking.email,
           arrivalTime: booking.arrivalTime,
           source: booking.source,
-          status: booking.status || 'pending',
+          status: booking.status || "pending",
           isCurrentUser: booking.createdBy?._id === user?._id,
           reservationCode: booking.reservationCode,
-          
+          adults: booking.adults,
+          pricePerNight: booking.pricePerNight,
+          currency: booking.currency,
         },
       }));
       setEvents(formattedEvents);
-  } catch (err) {
-    setError("Failed to load bookings: " + err.message);
-  }
-}, []);
+    } catch (err) {
+      setError("Failed to load bookings: " + err.message);
+    }
+  }, []);
 
-useEffect(() => {
-  const unsubscribe = websocketService.subscribe("bookingUpdate", (updatedBooking) => {
-    setEvents(prev => {
-      const existing = prev.find(e => e.id === updatedBooking._id);
-      if (existing) {
-        return prev.map(event => 
-          event.id === updatedBooking._id ? 
-          { ...event, 
-            title: `${updatedBooking.guestName} - ${updatedBooking.status}`,
-            backgroundColor: updatedBooking.status === 'confirmed' ? '#10B981' :
-                           updatedBooking.status === 'cancelled' ? '#EF4444' : '#F59E0B'
-          } : event
-        );
+  useEffect(() => {
+    const unsubscribe = websocketService.subscribe(
+      "bookingUpdate",
+      (updatedBooking) => {
+        setEvents((prev) => {
+          const existing = prev.find((e) => e.id === updatedBooking._id);
+          if (existing) {
+            return prev.map((event) =>
+              event.id === updatedBooking._id
+                ? {
+                    ...event,
+                    title: `${updatedBooking.guestName} - ${updatedBooking.status}`,
+                    backgroundColor:
+                      updatedBooking.status === "confirmed"
+                        ? "#3B82F6"
+                        : updatedBooking.status === "cancelled"
+                        ? "#EF4444"
+                        : "#F59E0B",
+                  }
+                : event
+            );
+          }
+          return [...prev, formatNewEvent(updatedBooking)];
+        });
       }
-      return [...prev, formatNewEvent(updatedBooking)];
-    });
-  });
+    );
 
-  return () => unsubscribe();
-}, []);
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -487,28 +522,42 @@ useEffect(() => {
 
   const eventContent = useCallback(
     (eventInfo) => {
-      if (eventInfo.event.extendedProps.status === 'cancelled') {
+      if (eventInfo.event.extendedProps.status === "cancelled") {
         return (
-          <div className="line-through opacity-50">
-            {eventInfo.event.title}
-          </div>
+          <div className="line-through opacity-50">{eventInfo.event.title}</div>
         );
       }
       const property = properties.find(
-        (p) => p._id.toString() === eventInfo.event.extendedProps.propertyId.toString()
+        (p) =>
+          p._id.toString() ===
+          eventInfo.event.extendedProps.propertyId.toString()
       );
       const checkInDate = formatDate(eventInfo.event.start);
       const checkOutDate = formatDate(eventInfo.event.end);
-      const nights = calculateNights(eventInfo.event.start, eventInfo.event.end);
-      const totalPrice = (eventInfo.event.extendedProps.pricePerNight * nights).toFixed(2);
+      const nights = calculateNights(
+        eventInfo.event.start,
+        eventInfo.event.end
+      );
+
+      const totalPrice = (
+        eventInfo.event.extendedProps.pricePerNight * nights
+      ).toFixed(2);
+
+      const currencySymbol = getCurrencySymbol(
+        eventInfo.event.extendedProps.currency || "USD"
+      );
 
       return (
-        <div className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
+        <div
+          className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
           style={{
-            backgroundColor: eventInfo.event.extendedProps.isCurrentUser || user?.role === "admin"
-              ? getEventColor(eventInfo.event.extendedProps.source)
-              : "#e5e7eb",
-          }}>
+            backgroundColor:
+              eventInfo.event.extendedProps.isCurrentUser ||
+              user?.role === "admin"
+                ? getEventColor(eventInfo.event.extendedProps.source)
+                : "#e5e7eb",
+          }}
+        >
           <div className="flex-1 font-medium truncate pl-2">
             {eventInfo.event.title}
           </div>
@@ -530,6 +579,15 @@ useEffect(() => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-gray-500 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500">Adults</p>
+                    <p className="text-sm font-medium">
+                      {eventInfo.event.extendedProps.adults}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
                   <div>
                     <p className="text-xs text-gray-500">Check-in</p>
@@ -548,7 +606,8 @@ useEffect(() => {
                   <div>
                     <p className="text-xs text-gray-500">Arrival Time</p>
                     <p className="text-sm font-medium">
-                      {eventInfo.event.extendedProps.arrivalTime || "Not specified"}
+                      {eventInfo.event.extendedProps.arrivalTime ||
+                        "Not specified"}
                     </p>
                   </div>
                 </div>
@@ -568,7 +627,8 @@ useEffect(() => {
                     {nights} {nights === 1 ? "Night" : "Nights"}
                   </span>
                   <span className="text-sm font-semibold text-blue-600">
-                    ${totalPrice}
+                    {currencySymbol}
+                    {totalPrice}
                   </span>
                 </div>
               </div>
@@ -689,11 +749,18 @@ useEffect(() => {
   );
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50">
-      <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+      <Navbar
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
       <div className="pt-16 h-screen flex">
-        <div className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/80 backdrop-blur-xl border-r border-gray-100/50 h-full transform transition-transform duration-300 ease-in-out z-40 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}>
+        <div
+          className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/80 backdrop-blur-xl border-r border-gray-100/50 h-full transform transition-transform duration-300 ease-in-out z-40 ${
+            isSidebarOpen
+              ? "translate-x-0"
+              : "-translate-x-full lg:translate-x-0"
+          }`}
+        >
           <div className="p-4 lg:p-6 overflow-y-auto h-full">
             <div className="relative mb-6">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -729,7 +796,9 @@ useEffect(() => {
                       )}
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{property.title}</h3>
+                      <h3 className="font-medium text-gray-900">
+                        {property.title}
+                      </h3>
                       <p className="flex items-center gap-1 mt-1 text-sm text-gray-500">
                         <MapPin className="w-4 h-4" />
                         {property.location.city || "Location not specified"}
@@ -752,37 +821,37 @@ useEffect(() => {
         </div>
         <div className="flex-1 p-4 lg:p-6 bg-transparent">
           <div className="h-full bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-blue-500/5 border border-gray-100/50 overflow-hidden">
-          <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          headerToolbar={{
-            left: "prev,next",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
-          }}
-          events={events}
-          editable={true}
-          selectable={true}
-          selectMirror={true}
-          dayMaxEvents={true}
-          weekends={true}
-          eventContent={eventContent}
-          dayCellContent={dayCellContent}
-          select={handleDateSelect}
-          eventClick={handleEventClick}
-          height="100%"
-          contentHeight="auto"
-          themeSystem="standard"
-          eventDisplay="block"
-          slotMinTime="06:00:00"
-          slotMaxTime="21:00:00"
-          slotDuration="01:00:00"
-          eventTimeFormat={{
-            hour: "2-digit",
-            minute: "2-digit",
-            meridiem: false,
-          }}
-        />
+            <FullCalendar
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              headerToolbar={{
+                left: "prev,next",
+                center: "title",
+                right: "dayGridMonth,timeGridWeek,timeGridDay",
+              }}
+              events={events}
+              editable={true}
+              selectable={true}
+              selectMirror={true}
+              dayMaxEvents={true}
+              weekends={true}
+              eventContent={eventContent}
+              dayCellContent={dayCellContent}
+              select={handleDateSelect}
+              eventClick={handleEventClick}
+              height="100%"
+              contentHeight="auto"
+              themeSystem="standard"
+              eventDisplay="block"
+              slotMinTime="06:00:00"
+              slotMaxTime="21:00:00"
+              slotDuration="01:00:00"
+              eventTimeFormat={{
+                hour: "2-digit",
+                minute: "2-digit",
+                meridiem: false,
+              }}
+            />
           </div>
         </div>
       </div>
@@ -794,7 +863,9 @@ useEffect(() => {
               <div className="sticky top-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-b border-gray-100 z-10">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                    {isEditMode && user?.role === "admin" ? "Edit Booking" : "New Booking"}
+                    {isEditMode && user?.role === "admin"
+                      ? "Edit Booking"
+                      : "New Booking"}
                   </h2>
                   <button
                     onClick={() => {
@@ -818,7 +889,10 @@ useEffect(() => {
                         paymentMethod: "cash",
                         paymentDate: "",
                         customPaymentText: "",
-                        reservationCode: Math.random().toString(36).substr(2, 6).toUpperCase(),
+                        reservationCode: Math.random()
+                          .toString(36)
+                          .substr(2, 6)
+                          .toUpperCase(),
                       });
                       setIsEditMode(false);
                     }}
@@ -836,7 +910,9 @@ useEffect(() => {
                     </label>
                     <select
                       value={newEvent.propertyId}
-                      onChange={(e) => setNewEvent({ ...newEvent, propertyId: e.target.value })}
+                      onChange={(e) =>
+                        setNewEvent({ ...newEvent, propertyId: e.target.value })
+                      }
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     >
                       <option value="">Select Property</option>
@@ -856,7 +932,9 @@ useEffect(() => {
                       type="text"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       value={newEvent.guestName}
-                      onChange={(e) => setNewEvent({ ...newEvent, guestName: e.target.value })}
+                      onChange={(e) =>
+                        setNewEvent({ ...newEvent, guestName: e.target.value })
+                      }
                     />
                   </div>
 
@@ -870,7 +948,9 @@ useEffect(() => {
                         type="email"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.email}
-                        onChange={(e) => setNewEvent({ ...newEvent, email: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, email: e.target.value })
+                        }
                       />
                     </div>
                   </div>
@@ -885,7 +965,9 @@ useEffect(() => {
                         type="tel"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.phone}
-                        onChange={(e) => setNewEvent({ ...newEvent, phone: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, phone: e.target.value })
+                        }
                       />
                     </div>
                   </div>
@@ -899,8 +981,13 @@ useEffect(() => {
                       <input
                         type="date"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        value={newEvent.checkInDate.split('T')[0]}
-                        onChange={(e) => setNewEvent({ ...newEvent, checkInDate: e.target.value })}
+                        value={newEvent.checkInDate.split("T")[0]}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            checkInDate: e.target.value,
+                          })
+                        }
                       />
                     </div>
                   </div>
@@ -914,8 +1001,13 @@ useEffect(() => {
                       <input
                         type="date"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        value={newEvent.checkOutDate.split('T')[0]}
-                        onChange={(e) => setNewEvent({ ...newEvent, checkOutDate: e.target.value })}
+                        value={newEvent.checkOutDate.split("T")[0]}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            checkOutDate: e.target.value,
+                          })
+                        }
                       />
                     </div>
                   </div>
@@ -931,7 +1023,9 @@ useEffect(() => {
                         min="1"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.rooms}
-                        onChange={(e) => setNewEvent({ ...newEvent, rooms: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, rooms: e.target.value })
+                        }
                       />
                     </div>
                   </div>
@@ -947,7 +1041,9 @@ useEffect(() => {
                         min="1"
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newEvent.adults}
-                        onChange={(e) => setNewEvent({ ...newEvent, adults: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, adults: e.target.value })
+                        }
                       />
                     </div>
                   </div>
@@ -961,67 +1057,90 @@ useEffect(() => {
                       min="0"
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={newEvent.children}
-                      onChange={(e) => setNewEvent({ ...newEvent, children: e.target.value })}
+                      onChange={(e) =>
+                        setNewEvent({ ...newEvent, children: e.target.value })
+                      }
                     />
                   </div>
                   {renderBookingSources()}
-                   {/* Add price per night field */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Price per Night
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-3.5 text-gray-500">$</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-8 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      value={newEvent.pricePerNight}
-                      onChange={(e) => setNewEvent({ ...newEvent, pricePerNight: e.target.value })}
-                    />
+                  {/* Add price per night field */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Price per Night
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-3.5 text-gray-500">
+                        $
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-8 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={newEvent.pricePerNight}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            pricePerNight: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {/* Add payment method section */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Payment Method
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {["cash", "credit_card", "bank_deposit", "stripe", "other"].map((method) => (
-                      <button
-                        key={method}
-                        type="button"
-                        onClick={() => setNewEvent({ ...newEvent, paymentMethod: method })}
-                        className={`flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:shadow-md ${
-                          newEvent.paymentMethod === method
-                            ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
-                            : "border-gray-200 hover:border-blue-300"
-                        }`}
-                      >
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
-                            newEvent.paymentMethod === method ? "bg-blue-500" : "bg-gray-100"
+                  {/* Add payment method section */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Payment Method
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      {[
+                        "cash",
+                        "credit_card",
+                        "bank_deposit",
+                        "stripe",
+                        "other",
+                      ].map((method) => (
+                        <button
+                          key={method}
+                          type="button"
+                          onClick={() =>
+                            setNewEvent({ ...newEvent, paymentMethod: method })
+                          }
+                          className={`flex flex-col items-center p-4 rounded-2xl border transition-all duration-200 hover:shadow-md ${
+                            newEvent.paymentMethod === method
+                              ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
+                              : "border-gray-200 hover:border-blue-300"
                           }`}
                         >
-                          <DollarSign
-                            className={`w-5 h-5 ${
-                              newEvent.paymentMethod === method ? "text-white" : "text-gray-500"
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center mb-2 ${
+                              newEvent.paymentMethod === method
+                                ? "bg-blue-500"
+                                : "bg-gray-100"
                             }`}
-                          />
-                        </div>
-                        <span
-                          className={`text-sm font-medium capitalize ${
-                            newEvent.paymentMethod === method ? "text-blue-600" : "text-gray-700"
-                          }`}
-                        >
-                          {method.replace("_", " ")}
-                        </span>
-                      </button>
-                    ))}
+                          >
+                            <DollarSign
+                              className={`w-5 h-5 ${
+                                newEvent.paymentMethod === method
+                                  ? "text-white"
+                                  : "text-gray-500"
+                              }`}
+                            />
+                          </div>
+                          <span
+                            className={`text-sm font-medium capitalize ${
+                              newEvent.paymentMethod === method
+                                ? "text-blue-600"
+                                : "text-gray-700"
+                            }`}
+                          >
+                            {method.replace("_", " ")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Nationality *
@@ -1031,11 +1150,18 @@ useEffect(() => {
                       <select
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
                         value={newEvent.nationality}
-                        onChange={(e) => setNewEvent({ ...newEvent, nationality: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({
+                            ...newEvent,
+                            nationality: e.target.value,
+                          })
+                        }
                       >
                         <option value="">Select Nationality</option>
                         {nationalities.map((nation) => (
-                          <option key={nation} value={nation}>{nation}</option>
+                          <option key={nation} value={nation}>
+                            {nation}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1050,10 +1176,14 @@ useEffect(() => {
                       <select
                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-12 pr-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
                         value={newEvent.currency}
-                        onChange={(e) => setNewEvent({ ...newEvent, currency: e.target.value })}
+                        onChange={(e) =>
+                          setNewEvent({ ...newEvent, currency: e.target.value })
+                        }
                       >
                         {currencies.map((currency) => (
-                          <option key={currency} value={currency}>{currency}</option>
+                          <option key={currency} value={currency}>
+                            {currency}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1066,7 +1196,12 @@ useEffect(() => {
                     <textarea
                       className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-32"
                       value={newEvent.specialRequests}
-                      onChange={(e) => setNewEvent({ ...newEvent, specialRequests: e.target.value })}
+                      onChange={(e) =>
+                        setNewEvent({
+                          ...newEvent,
+                          specialRequests: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
@@ -1084,16 +1219,18 @@ useEffect(() => {
               <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm px-8 py-6 border-t border-gray-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    {selectedEventId && user?.role === "admin" && isEditMode && (
-                      <button
-                        type="button"
-                        onClick={handleDeleteBooking}
-                        className="flex items-center px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors duration-200"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Booking
-                      </button>
-                    )}
+                    {selectedEventId &&
+                      user?.role === "admin" &&
+                      isEditMode && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteBooking}
+                          className="flex items-center px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors duration-200"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Booking
+                        </button>
+                      )}
                   </div>
                   <div className="flex items-center space-x-3">
                     <button
@@ -1105,7 +1242,9 @@ useEffect(() => {
                     </button>
                     <button
                       type="button"
-                      onClick={isEditMode ? handleUpdateBooking : handleSaveEvent}
+                      onClick={
+                        isEditMode ? handleUpdateBooking : handleSaveEvent
+                      }
                       disabled={loading}
                       className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center gap-2 transition-colors duration-200 disabled:opacity-70"
                     >

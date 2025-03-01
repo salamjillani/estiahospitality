@@ -42,6 +42,7 @@ const App = () => {
               <Route
                 path="/properties/:propertyId/book"
                 element={<ReservationForm />}
+                key={window.location.pathname} 
               />
 
               <Route element={<ClientRoute />}>

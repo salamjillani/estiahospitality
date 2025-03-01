@@ -135,6 +135,10 @@ const ClientBookings = () => {
           };
         });
 
+        processedBookings.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+
         setBookings(processedBookings);
         setLoading(false);
       } catch (err) {

@@ -127,7 +127,7 @@ const generateInvoicePDF = async (invoice) => {
 
     if (!logoFound) {
       console.warn("Logo not found in any expected locations. Paths tried:", possibleLogoPaths);
-      doc.fontSize(20).text("INVOICE", 50, 45);
+      doc.fontSize(20).text("ESTIA HOSPITALITY", 50, 45);
     }
 
     // Header
