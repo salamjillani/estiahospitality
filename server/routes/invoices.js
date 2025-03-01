@@ -20,7 +20,6 @@ router.get("/", auth, adminOnly, async (req, res) => {
   }
 });
 
-// Get all invoices (admin only)
 router.get("/admin", auth, checkRole(["admin"]), async (req, res) => {
   try {
     const invoices = await Invoice.find()
@@ -33,7 +32,6 @@ router.get("/admin", auth, checkRole(["admin"]), async (req, res) => {
   }
 });
 
-// Get user invoices
 router.get("/user", auth, async (req, res) => {
   try {
     const invoices = await Invoice.find({ user: req.user._id })
@@ -53,113 +51,131 @@ router.get("/:id/pdf", auth, async (req, res) => {
     const invoiceId = req.params.id;
     console.log(`PDF request for invoice: ${invoiceId}`);
 
-    // Add more detailed logging
-    console.log(`User ${req.user._id} requesting invoice ${invoiceId}`);
+    // Initial minimal fetch for authorization check
+    const basicInvoice = await Invoice.findById(invoiceId)
+      .populate("user", "_id");
 
-    const invoice = await Invoice.findById(invoiceId)
+    // Handle missing invoice immediately
+    if (!basicInvoice) {
+      return res.status(404)
+        .set("Content-Type", "application/json")
+        .json({ message: "Invoice not found" });
+    }
+
+    // Strict authorization check
+    const isAuthorized = req.user.role === "admin" || 
+      (basicInvoice.user && basicInvoice.user._id.toString() === req.user._id.toString());
+
+    if (!isAuthorized) {
+      return res.status(403)
+        .set("Content-Type", "application/json")
+        .json({ message: "Unauthorized access to this invoice" });
+    }
+
+    // Full population for PDF generation
+    const fullInvoice = await Invoice.findById(invoiceId)
       .populate({
         path: "user",
-        select: "name email phone",
+        select: "name email phone"
       })
       .populate({
         path: "property",
-        select: "title location",
+        select: "title location"
       })
       .populate({
         path: "booking",
-        select:
-          "checkInDate checkOutDate status rooms adults children nights paymentMethod phone guestName email totalPrice currency",
+        select: "checkInDate checkOutDate status totalPrice currency paymentMethod rooms adults children phone user property guestName email"
       });
 
-    if (!invoice) {
-      console.error(`Invoice not found: ${invoiceId}`);
-      return res.status(404).json({ message: "Invoice not found" });
-    }
+    // Validate required relationships
+    const missingRelations = [];
+    if (!fullInvoice.user) missingRelations.push("user");
+    if (!fullInvoice.property) missingRelations.push("property");
+    if (!fullInvoice.booking) missingRelations.push("booking");
 
-    // Check authorization
-    const isAuthorized =
-      req.user.role === "admin" ||
-      (invoice.user && invoice.user._id.toString() === req.user._id.toString());
-
-    if (!isAuthorized) {
-      console.warn(
-        `Unauthorized access to invoice ${invoiceId} by user ${req.user._id}`
-      );
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    console.log(`Generating PDF for invoice ${invoice.invoiceNumber}`);
-
-    // Ensure pdf service directory exists
-    const tempDir = path.join(__dirname, "../temp");
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
+    if (missingRelations.length > 0) {
+      console.error(`Missing required relations: ${missingRelations.join(", ")}`);
+      return res.status(400)
+        .set("Content-Type", "application/json")
+        .json({
+          message: "Invoice data incomplete",
+          missing: missingRelations,
+        });
     }
 
     // Generate PDF
-    filePath = await generateInvoicePDF(invoice);
-    console.log(`PDF generated at: ${filePath}`);
-
-    if (!filePath || !fs.existsSync(filePath)) {
-      console.error(`Generated PDF file not found at: ${filePath}`);
-      return res.status(500).json({ message: "PDF generation failed" });
+    try {
+      filePath = await generateInvoicePDF(fullInvoice);
+    } catch (genError) {
+      console.error(`PDF generation failed: ${genError.message}`);
+      return res.status(500)
+        .set("Content-Type", "application/json")
+        .json({
+          message: "PDF generation failed",
+          detail: genError.message,
+        });
     }
 
-    // Always set proper PDF headers
+    // Verify PDF exists
+    if (!fs.existsSync(filePath)) {
+      console.error(`Generated PDF missing: ${filePath}`);
+      return res.status(500)
+        .set("Content-Type", "application/json")
+        .json({ message: "PDF file not created" });
+    }
+
+    // Set PDF headers only after all validations
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${invoice.invoiceNumber || "invoice"}.pdf"`
+      `attachment; filename="${fullInvoice.invoiceNumber || "invoice"}.pdf"`
     );
 
-    // Stream the file
-    const fileStream = fs.createReadStream(filePath);
-
-    fileStream.on("error", (err) => {
-      console.error(`Error reading PDF file: ${err}`);
-      if (!res.headersSent) {
-        res.status(500).json({ message: "Error reading PDF file" });
-      }
-    });
-
-    // File cleanup after streaming is complete
-    fileStream.on("close", () => {
-      console.log(`PDF stream completed successfully for ${filePath}`);
-      // Set a timeout to ensure the file isn't deleted too early
-      setTimeout(() => {
-        try {
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            console.log(`Temp file deleted: ${filePath}`);
-          }
-        } catch (err) {
-          console.error("Error deleting temp file:", err);
+    // Stream with cleanup
+    const fileStream = fs.createReadStream(filePath)
+      .on("open", () => console.log(`Streaming PDF: ${filePath}`))
+      .on("error", (streamError) => {
+        console.error(`Stream error: ${streamError.message}`);
+        if (!res.headersSent) {
+          res.status(500)
+            .set("Content-Type", "application/json")
+            .json({ message: "Error streaming PDF" });
         }
-      }, 1000); // 1 second delay to ensure stream completion
-    });
+      })
+      .on("end", () => {
+        console.log(`Completed streaming: ${filePath}`);
+        // Delayed cleanup to ensure file is released
+        setTimeout(() => {
+          if (fs.existsSync(filePath)) {
+            fs.unlink(filePath, (unlinkError) => {
+              if (unlinkError) console.error(`Cleanup failed: ${unlinkError}`);
+              else console.log(`Temp file cleaned: ${filePath}`);
+            });
+          }
+        }, 5000);
+      });
 
     fileStream.pipe(res);
-    fileStream.on('error', (err) => {
-      console.error(`Error streaming PDF: ${err}`);
-      // Only send error if headers haven't been sent
-      if (!res.headersSent) {
-        res.status(500).json({ message: "Error streaming PDF file" });
-      }
-    });
-  } catch (err) {
-    console.error("PDF generation error:", err);
 
-    // Clean up the file if an error occurs and the file exists
+  } catch (err) {
+    console.error(`PDF endpoint error: ${err.message}`);
+
+    // Cleanup temp file on error
     if (filePath && fs.existsSync(filePath)) {
-      try {
-        fs.unlinkSync(filePath);
-      } catch (deleteErr) {
-        console.error("Error deleting temp file after error:", deleteErr);
-      }
+      fs.unlink(filePath, (unlinkError) => {
+        if (unlinkError) console.error(`Error cleanup failed: ${unlinkError}`);
+      });
     }
 
+    // Handle specific error types
     if (!res.headersSent) {
-      res.status(500).json({ message: err.message });
+      const statusCode = err.name === "CastError" ? 400 : 500;
+      res.status(statusCode)
+        .set("Content-Type", "application/json")
+        .json({
+          message: "Invoice processing failed",
+          error: process.env.NODE_ENV === "development" ? err.message : undefined,
+        });
     }
   }
 });

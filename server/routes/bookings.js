@@ -71,33 +71,20 @@ router.get("/owner", auth, checkRole(["owner"]), async (req, res) => {
 
 router.get("/client/:userId", auth, checkRole(["client"]), async (req, res) => {
   try {
-    if (req.user._id.toString() !== req.params.userId) {
-      return res.status(403).json({ message: "Unauthorized access" });
-    }
-
-    // Improved population with explicit select fields
     const bookings = await Booking.find({ user: req.params.userId })
+      .populate("invoice")
       .populate("property", "title location")
       .populate({
         path: "invoice",
-        select: "_id invoiceNumber status issuedDate dueDate amounts",
+        populate: [
+          { path: "user", select: "name email phone" },
+          { path: "property", select: "title location" },
+          {
+            path: "booking",
+            select: "checkInDate checkOutDate rooms adults children",
+          },
+        ],
       });
-
-    // Log for debugging
-    console.log(
-      `Fetched ${bookings.length} bookings for user ${req.params.userId}`
-    );
-    console.log(
-      "First booking details:",
-      bookings[0]
-        ? {
-            _id: bookings[0]._id,
-            hasInvoice: bookings[0].invoice ? true : false,
-            invoiceId: bookings[0].invoice?._id,
-          }
-        : "No bookings"
-    );
-
     res.json(bookings);
   } catch (err) {
     console.error("Error fetching client bookings:", err);
@@ -231,19 +218,21 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
       // Generate a unique invoice number
       const date = new Date();
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+
       // Get the count of existing invoices to create a sequential number
-      const invoiceCount = await Invoice.countDocuments() + 1;
-      const invoiceNumber = `INV-${year}${month}-${String(invoiceCount).padStart(4, '0')}`;
-      
+      const invoiceCount = (await Invoice.countDocuments()) + 1;
+      const invoiceNumber = `INV-${year}${month}-${String(
+        invoiceCount
+      ).padStart(4, "0")}`;
+
       const invoice = new Invoice({
-        invoiceNumber, 
+        invoiceNumber,
         user: booking.user._id,
         booking: booking._id,
         property: booking.property._id,
-        issuedDate: new Date(), 
-        dueDate: new Date(booking.checkInDate), 
+        issuedDate: new Date(),
+        dueDate: new Date(booking.checkInDate),
         status: "confirmed",
         amounts: {
           total: booking.totalPrice,

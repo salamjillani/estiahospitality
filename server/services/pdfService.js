@@ -7,19 +7,30 @@ const generateInvoicePDF = async (invoice) => {
   let doc = null;
 
   try {
-    if (!invoice || !invoice.booking || !invoice.property) {
-      throw new Error("Invoice missing required data");
+    if (!invoice || !invoice.booking || !invoice.property || !invoice.user) {
+      console.error("Missing core invoice relationships:", {
+        booking: !!invoice?.booking,
+        property: !!invoice?.property,
+        user: !!invoice?.user,
+      });
+      throw new Error("Invoice missing required relationships");
     }
 
     console.log(
       "Creating PDF for invoice:",
-      invoice.invoiceNumber || "unknown"
+      invoice.invoiceNumber || "unknown",
+      "with booking data:",
+      {
+        checkIn: invoice.booking?.checkInDate || "missing",
+        checkOut: invoice.booking?.checkOutDate || "missing",
+        guest: invoice.booking?.guestName || invoice.user?.name || "missing",
+      }
     );
 
-    // Add fallbacks for missing data
+    // Add fallbacks for missing data with improved access patterns
     const user = invoice.user || {
-      name: "Guest",
-      email: "N/A",
+      name: invoice.booking?.guestName || "Guest",
+      email: invoice.booking?.email || "N/A",
       _id: "unknown",
     };
 
@@ -31,7 +42,13 @@ const generateInvoicePDF = async (invoice) => {
     // Properly extract booking data with thorough null checks
     const booking = invoice.booking || {};
 
-    // Validate essential invoice data
+    // Extract email from either guestDetails (if present) or directly from booking or user
+    const email =
+      invoice.guestDetails?.email || booking.email || user.email || "N/A";
+    const phone = invoice.guestDetails?.phone || booking.phone || "N/A";
+
+   
+
     if (!invoice.invoiceNumber) {
       console.warn("Missing invoice number, generating placeholder");
       invoice.invoiceNumber = `INV-${Date.now()}`;
@@ -49,8 +66,9 @@ const generateInvoicePDF = async (invoice) => {
     ) {
       console.warn("Missing amount information, using defaults");
       invoice.amounts = invoice.amounts || {};
-      invoice.amounts.total = invoice.amounts.total || 0;
-      invoice.amounts.currency = invoice.amounts.currency || "USD";
+      invoice.amounts.total = invoice.amounts.total || booking.totalPrice || 0;
+      invoice.amounts.currency =
+        invoice.amounts.currency || booking.currency || "USD";
     }
 
     // Create PDF document
@@ -114,15 +132,11 @@ const generateInvoicePDF = async (invoice) => {
       )
       .text(`Status: ${invoice.status.toUpperCase()}`, 50, 160);
 
-    // Customer Information
+    // Customer Information - Improved fallback handling
     doc
-      .text(`Name: ${user.name || "Guest"}`, 300, 100)
-      .text(`Email: ${user.email || "N/A"}`, 300, 115)
-      .text(
-        `Phone: ${invoice.guestDetails?.phone || booking.phone || "N/A"}`,
-        300,
-        130
-      );
+      .text(`Name: ${user.name || booking.guestName || "Guest"}`, 300, 100)
+      .text(`Email: ${email}`, 300, 115)
+      .text(`Phone: ${phone}`, 300, 130);
 
     // Booking Details
     const bookingTableTop = 200;
@@ -135,22 +149,21 @@ const generateInvoicePDF = async (invoice) => {
       .text("Total", 400, bookingTableTop)
       .font("Helvetica");
 
+    // Format dates more safely with multiple fallback options
+    const formatDate = (dateString) => {
+      if (!dateString) return "N/A";
+      try {
+        return new Date(dateString).toLocaleDateString();
+      } catch (e) {
+        console.error("Date formatting error:", e);
+        return "Invalid Date";
+      }
+    };
+
     doc
       .text(property.title || "Unknown Property", 50, bookingTableTop + 20)
-      .text(
-        booking.checkInDate
-          ? new Date(booking.checkInDate).toLocaleDateString()
-          : "N/A",
-        200,
-        bookingTableTop + 20
-      )
-      .text(
-        booking.checkOutDate
-          ? new Date(booking.checkOutDate).toLocaleDateString()
-          : "N/A",
-        300,
-        bookingTableTop + 20
-      )
+      .text(formatDate(booking.checkInDate), 200, bookingTableTop + 20)
+      .text(formatDate(booking.checkOutDate), 300, bookingTableTop + 20)
       .text(
         `${invoice.amounts.total} ${invoice.amounts.currency}`,
         400,
@@ -158,11 +171,9 @@ const generateInvoicePDF = async (invoice) => {
       );
 
     // Guest Details - Prioritize guestDetails from invoice, then fall back to booking
+    // Improve extraction with more reliable fallbacks
     const rooms = invoice.guestDetails?.rooms || booking.rooms || "N/A";
-    const nights =
-      booking.nights ||
-      calculateNights(booking.checkInDate, booking.checkOutDate) ||
-      "N/A";
+    const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
     const adults = invoice.guestDetails?.adults || booking.adults || "N/A";
     const children = invoice.guestDetails?.children || booking.children || 0;
     const paymentMethod =
@@ -170,7 +181,7 @@ const generateInvoicePDF = async (invoice) => {
 
     doc
       .text(`Rooms: ${rooms}`, 50, 250)
-      .text(`Nights: ${nights}`, 150, 250)
+      .text(`Nights: ${nights || "N/A"}`, 150, 250)
       .text(`Adults: ${adults}`, 250, 250)
       .text(`Children: ${children}`, 350, 250);
 
@@ -214,22 +225,27 @@ const generateInvoicePDF = async (invoice) => {
   }
 };
 
-// Helper function to calculate number of nights between two dates
+// Improved helper function to calculate number of nights between two dates
 function calculateNights(checkInDate, checkOutDate) {
   if (!checkInDate || !checkOutDate) return null;
 
-  const start = new Date(checkInDate);
-  const end = new Date(checkOutDate);
+  try {
+    const start = new Date(checkInDate);
+    const end = new Date(checkOutDate);
 
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
 
-  // Calculate the difference in milliseconds
-  const diffTime = Math.abs(end - start);
+    // Calculate the difference in milliseconds
+    const diffTime = Math.abs(end - start);
 
-  // Convert to days
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Convert to days
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  return diffDays;
+    return diffDays;
+  } catch (e) {
+    console.error("Error calculating nights:", e);
+    return null;
+  }
 }
 
 module.exports = { generateInvoicePDF };

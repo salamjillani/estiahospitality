@@ -53,58 +53,45 @@ const ClientBookings = () => {
   const navigate = useNavigate();
   const [socketConnected, setSocketConnected] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(null);
-  const BASE_URL = import.meta.env.VITE_API_URL;
+ 
 
   const handleDownloadInvoice = async (invoiceId) => {
     if (!invoiceId) {
-      console.error("No invoice ID provided");
-      setError("No invoice ID available for download");
+      setError("Invoice ID is missing");
       return;
     }
 
     try {
-      // Set a specific loading state for this invoice
-      const downloadingInvoiceId = invoiceId;
-      setDownloadingInvoice(downloadingInvoiceId);
-
+      setDownloadingInvoice(invoiceId);
       const response = await fetch(
-        `${BASE_URL}/api/invoices/${invoiceId}/pdf`,
+        `/api/invoices/${invoiceId}/pdf`,
         {
-          headers: { Authorization: `Bearer ${user.token}` },
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
           credentials: "include",
         }
       );
 
-      if (!response.ok) {
+      const contentType = response.headers.get("content-type");
+      if (!response.ok || !contentType.includes("application/pdf")) {
         const errorText = await response.text();
-        throw new Error(
-          `HTTP error! Status: ${response.status} - ${errorText}`
-        );
+        throw new Error(`Failed to download invoice: ${errorText}`);
       }
 
-      // Get the blob directly without content type checks
       const blob = await response.blob();
-
-      // Verify we actually got data back
-      if (blob.size === 0) {
-        throw new Error("Empty PDF file received");
-      }
-
-      // Create a download link and trigger it
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.setAttribute("download", `invoice-${invoiceId}.pdf`);
       document.body.appendChild(link);
       link.click();
-
-      // Clean up immediately
       link.remove();
       window.URL.revokeObjectURL(downloadUrl);
-      setDownloadingInvoice(null);
     } catch (err) {
       console.error("Download failed:", err);
-      setError(`Failed to download: ${err.message}`);
+      setError(err.message);
+    } finally {
       setDownloadingInvoice(null);
     }
   };
@@ -455,26 +442,22 @@ const ClientBookings = () => {
                               onClick={() =>
                                 handleDownloadInvoice(booking.invoice._id)
                               }
+                              className={`px-3 py-1 rounded flex items-center transition-colors ${
+                                downloadingInvoice === booking.invoice._id
+                                  ? "bg-indigo-100 text-indigo-600 cursor-wait"
+                                  : "bg-indigo-50 text-indigo-600 hover:bg-indigo-100"
+                              }`}
                               disabled={
                                 downloadingInvoice === booking.invoice._id
                               }
-                              className={`
-        ${
-          downloadingInvoice === booking.invoice._id
-            ? "bg-blue-50 text-blue-400"
-            : "bg-white text-blue-600 hover:bg-blue-50"
-        } 
-        border border-blue-200 px-4 py-2 rounded-lg transition-colors 
-        flex items-center gap-2 text-sm font-medium
-      `}
                             >
                               {downloadingInvoice === booking.invoice._id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                               ) : (
-                                <Download className="h-4 w-4" />
+                                <Download className="w-4 h-4 mr-1" />
                               )}
                               {downloadingInvoice === booking.invoice._id
-                                ? "Downloading..."
+                                ? "Processing..."
                                 : "Download Invoice"}
                             </button>
                           ) : (

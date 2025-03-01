@@ -71,7 +71,7 @@ const invoiceSchema = new mongoose.Schema({
 });
 invoiceSchema.index({ createdAt: 1 });
 
-// models/Invoice.js
+
 // models/Invoice.js
 invoiceSchema.pre('save', async function(next) {
   if (!this.isNew) return next();

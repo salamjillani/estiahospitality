@@ -391,7 +391,7 @@ const AdminDashboard = () => {
                                 ) : (
                                   <Download className="w-4 h-4 mr-1" />
                                 )}
-                                PDF
+                                Download Invoice
                               </button>
                               <span className="text-sm text-gray-500 flex items-center">
                                 #{booking.invoice.invoiceNumber || "N/A"}
