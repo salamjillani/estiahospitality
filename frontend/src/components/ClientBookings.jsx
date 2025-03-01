@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../utils/api";
 import { websocketService } from "../services/websocketService";
+import Navbar from "../components/Navbar";
 import {
   Loader2,
   Calendar,
@@ -11,6 +12,11 @@ import {
   Info,
   Clock,
   Banknote,
+  Download,
+  AlertTriangle,
+  CheckCircle,
+  Building,
+  Share2,
 } from "lucide-react";
 
 // Date formatting utility
@@ -46,32 +52,101 @@ const ClientBookings = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [socketConnected, setSocketConnected] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(null);
+  const BASE_URL = import.meta.env.VITE_API_URL;
+
+  const handleDownloadInvoice = async (invoiceId) => {
+    if (!invoiceId) {
+      console.error("No invoice ID provided");
+      setError("No invoice ID available for download");
+      return;
+    }
+
+    try {
+      // Set a specific loading state for this invoice
+      const downloadingInvoiceId = invoiceId;
+      setDownloadingInvoice(downloadingInvoiceId);
+
+      const response = await fetch(
+        `${BASE_URL}/api/invoices/${invoiceId}/pdf`,
+        {
+          headers: { Authorization: `Bearer ${user.token}` },
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `HTTP error! Status: ${response.status} - ${errorText}`
+        );
+      }
+
+      // Get the blob directly without content type checks
+      const blob = await response.blob();
+
+      // Verify we actually got data back
+      if (blob.size === 0) {
+        throw new Error("Empty PDF file received");
+      }
+
+      // Create a download link and trigger it
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", `invoice-${invoiceId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up immediately
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      setDownloadingInvoice(null);
+    } catch (err) {
+      console.error("Download failed:", err);
+      setError(`Failed to download: ${err.message}`);
+      setDownloadingInvoice(null);
+    }
+  };
 
   // Fetch bookings initially
   useEffect(() => {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/api/bookings/client/${user._id}`);
-        
-        const bookingsData = Array.isArray(response)
-          ? response
-          : response?.data && Array.isArray(response.data)
-          ? response.data
-          : [];
+        const response = await api.get(
+          `/api/bookings/client/${user._id}?populate=invoice,property,user`
+        );
 
-        const processedBookings = bookingsData.map((booking) => ({
-          ...booking,
-          checkInDate: booking.checkInDate
-            ? new Date(booking.checkInDate).toISOString()
-            : null,
-          checkOutDate: booking.checkOutDate
-            ? new Date(booking.checkOutDate).toISOString()
-            : null,
-          totalNights:
-            booking.totalNights ||
-            calculateNights(booking.checkInDate, booking.checkOutDate),
-        }));
+        // Better handling of response structure
+        const bookingsData =
+          response?.data?.data || response?.data || response || [];
+
+        console.log("Raw response:", response);
+        console.log("Bookings data:", bookingsData);
+
+        // Check if it's an array
+        const bookingsArray = Array.isArray(bookingsData) ? bookingsData : [];
+
+        const processedBookings = bookingsArray.map((booking) => {
+          // Log each booking's invoice data for debugging
+          console.log(`Booking ${booking._id} invoice:`, booking.invoice);
+
+          return {
+            ...booking,
+            checkInDate: booking.checkInDate
+              ? new Date(booking.checkInDate).toISOString()
+              : null,
+            checkOutDate: booking.checkOutDate
+              ? new Date(booking.checkOutDate).toISOString()
+              : null,
+            totalNights:
+              booking.totalNights ||
+              calculateNights(booking.checkInDate, booking.checkOutDate),
+            // Ensure invoice data is properly structured
+            invoice: booking.invoice || null,
+          };
+        });
 
         setBookings(processedBookings);
         setLoading(false);
@@ -91,18 +166,18 @@ const ClientBookings = () => {
 
   useEffect(() => {
     if (!user?._id) return;
-  
+
     websocketService.connect();
-    
+
     const handleConnect = () => setSocketConnected(true);
     const handleDisconnect = () => setSocketConnected(false);
-  
-    websocketService.subscribe('connect', handleConnect);
-    websocketService.subscribe('disconnect', handleDisconnect);
-  
+
+    websocketService.subscribe("connect", handleConnect);
+    websocketService.subscribe("disconnect", handleDisconnect);
+
     return () => {
-      websocketService.unsubscribe('connect', handleConnect);
-      websocketService.unsubscribe('disconnect', handleDisconnect);
+      websocketService.unsubscribe("connect", handleConnect);
+      websocketService.unsubscribe("disconnect", handleDisconnect);
     };
   }, [user?._id]);
 
@@ -119,15 +194,17 @@ const ClientBookings = () => {
         websocketService.connect();
       }
       const response = await api.patch(`/api/bookings/client/${bookingId}`);
-      
+
       if (response.error) {
         throw new Error(response.error);
       }
-      
-      setBookings(prev => 
-        prev.map(b => b._id === bookingId ? { ...b, status: "cancelled" } : b)
+
+      setBookings((prev) =>
+        prev.map((b) =>
+          b._id === bookingId ? { ...b, status: "cancelled" } : b
+        )
       );
-      
+
       // Use websocketService for emitting events
       websocketService.emit("cancelBooking", bookingId);
     } catch (err) {
@@ -140,131 +217,283 @@ const ClientBookings = () => {
     }
   };
 
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "confirmed":
+        return <CheckCircle className="h-4 w-4" />;
+      case "pending":
+        return <Clock className="h-4 w-4" />;
+      case "cancelled":
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <Info className="h-4 w-4" />;
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 bg-red-50 text-red-700 rounded-lg mx-4 mt-4">
-        {error}
-      </div>
+      <>
+        <Navbar />
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 pt-16">
+          <div className="text-center">
+            <div className="relative">
+              <Loader2 className="animate-spin h-14 w-14 text-blue-600 mx-auto mb-6" />
+            </div>
+            <h3 className="text-xl font-medium text-slate-800 mb-2">
+              Loading your bookings
+            </h3>
+            <p className="text-slate-500">
+              We&apos;re preparing your travel itinerary...
+            </p>
+          </div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Calendar className="h-8 w-8 text-blue-600" />
-          My Bookings
-        </h1>
-        <Link
-          to="/properties"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Book New Property
-        </Link>
-      </div>
+    <>
+      <Navbar />
 
-      {socketConnected && (
-        <div className="mb-4 text-sm text-green-600 bg-green-50 p-2 rounded-lg flex items-center">
-          <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-          Real-time updates active
-        </div>
-      )}
+      <div className="min-h-screen bg-slate-50 pt-20 pb-12">
+        <div className="max-w-6xl mx-auto px-4">
+          {/* Header Section */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-800 mb-2 flex items-center gap-3">
+                <Calendar className="h-8 w-8 text-blue-600" />
+                <span>My Bookings</span>
+              </h1>
+              <p className="text-slate-500">
+                Manage all your property reservations in one place
+              </p>
+            </div>
 
-      {bookings.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-xl">
-          <Info className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">
-            No bookings found. Start by creating a new booking!
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-6">
-          {bookings.map((booking) => {
-            const nights = calculateNights(
-              booking.checkInDate,
-              booking.checkOutDate
-            );
+            <Link
+              to="/properties"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-lg flex items-center gap-2 font-medium"
+            >
+              <Building className="h-5 w-5" />
+              Book New Property
+            </Link>
+          </div>
 
-            return (
-              <div
-                key={booking._id}
-                className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-              >
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold mb-2">
-                      {booking.property?.title || "Unknown Property"}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-4 text-gray-600">
-                      <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
-                        {booking.reservationCode}
-                      </span>
-                      {booking.arrivalTime && (
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          <span>Arrival: {booking.arrivalTime}</span>
+          {/* Real-time connection status */}
+          {socketConnected && (
+            <div className="mb-6 text-sm text-emerald-600 bg-emerald-50 p-4 rounded-lg flex items-center shadow-sm border border-emerald-100">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="font-medium">Real-time updates active</span>
+              </div>
+            </div>
+          )}
+
+          {/* Error message */}
+          {error && (
+            <div className="mb-6 text-sm text-rose-600 bg-rose-50 p-4 rounded-lg flex items-center gap-3 shadow-sm border border-rose-100">
+              <AlertTriangle className="h-5 w-5 text-rose-500" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* No bookings state */}
+          {bookings.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-16 text-center">
+              <div className="flex flex-col items-center max-w-md mx-auto">
+                <div className="bg-blue-50 p-5 rounded-full mb-6">
+                  <Calendar className="h-16 w-16 text-blue-500" />
+                </div>
+                <h3 className="text-2xl font-semibold text-slate-800 mb-3">
+                  No bookings found
+                </h3>
+                <p className="text-slate-500 mb-8">
+                  You haven&apos;t made any bookings yet. Start your journey by
+                  booking your first property!
+                </p>
+                <Link
+                  to="/properties"
+                  className="bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition-colors shadow-lg flex items-center gap-3 text-lg font-medium"
+                >
+                  <Building className="h-6 w-6" />
+                  Browse Properties
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-8">
+              {bookings.map((booking) => {
+                const nights = calculateNights(
+                  booking.checkInDate,
+                  booking.checkOutDate
+                );
+
+                return (
+                  <div
+                    key={booking._id}
+                    className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden"
+                  >
+                    {/* Status indicator bar at top */}
+                    <div
+                      className={`h-2 ${
+                        booking.status === "confirmed"
+                          ? "bg-emerald-500"
+                          : booking.status === "pending"
+                          ? "bg-amber-500"
+                          : "bg-rose-500"
+                      }`}
+                    ></div>
+
+                    <div className="p-8">
+                      <div className="flex flex-col gap-8">
+                        {/* Property title and booking code */}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                          <div>
+                            <h3 className="text-2xl font-bold text-slate-800">
+                              {booking.property?.title || "Unknown Property"}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded text-slate-600">
+                                {booking.reservationCode ||
+                                  booking._id.substring(0, 8)}
+                              </span>
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${
+                                  booking.status === "confirmed"
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : booking.status === "pending"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-rose-100 text-rose-700"
+                                }`}
+                              >
+                                {getStatusIcon(booking.status)}
+                                <span className="capitalize">
+                                  {booking.status}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+
+                          {["pending", "confirmed"].includes(
+                            booking.status
+                          ) && (
+                            <button
+                              onClick={() => handleCancel(booking._id)}
+                              className="text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-200 hover:border-rose-600 rounded-lg px-4 py-2 flex items-center gap-2 transition-all text-sm font-medium"
+                            >
+                              <XCircle className="h-4 w-4" />
+                              <span>Cancel Booking</span>
+                            </button>
+                          )}
                         </div>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>
-                          {formatDate(booking.checkInDate)} -{" "}
-                          {formatDate(booking.checkOutDate)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Home className="h-4 w-4" />
-                        <span>
-                          {nights} night{nights !== 1 ? "s" : ""}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Banknote className="h-4 w-4" />
-                        <span>
-                          {currencySymbols[booking.currency] || "$"}
-                          {booking.totalPrice}
-                        </span>
+
+                        {/* Booking details */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-slate-50 p-6 rounded-xl">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                              Check-in Date
+                            </span>
+                            <div className="flex items-center gap-2 text-slate-800 font-medium">
+                              <Calendar className="h-5 w-5 text-blue-500" />
+                              <span>{formatDate(booking.checkInDate)}</span>
+                            </div>
+                            {booking.arrivalTime && (
+                              <div className="flex items-center gap-2 text-slate-500 text-sm mt-1.5 ml-7">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>Arrival: {booking.arrivalTime}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                              Check-out Date
+                            </span>
+                            <div className="flex items-center gap-2 text-slate-800 font-medium">
+                              <Calendar className="h-5 w-5 text-blue-500" />
+                              <span>{formatDate(booking.checkOutDate)}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                              Duration
+                            </span>
+                            <div className="flex items-center gap-2 text-slate-800 font-medium">
+                              <Home className="h-5 w-5 text-blue-500" />
+                              <span>
+                                {nights} night{nights !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col">
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                              Total Price
+                            </span>
+                            <div className="flex items-center gap-2 text-slate-800 font-bold text-lg">
+                              <Banknote className="h-5 w-5 text-blue-500" />
+                              <span>
+                                {currencySymbols[booking.currency] || "$"}
+                                {booking.totalPrice}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Invoice and actions */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-slate-100">
+                          <div className="flex items-center gap-3">
+                            <Share2 className="h-4 w-4 text-slate-400" />
+                            <span className="text-sm text-slate-500">
+                              Booking made on{" "}
+                              {formatDate(booking.createdAt || new Date())}
+                            </span>
+                          </div>
+
+                          {booking.invoice && booking.invoice._id ? (
+                            <button
+                              onClick={() =>
+                                handleDownloadInvoice(booking.invoice._id)
+                              }
+                              disabled={
+                                downloadingInvoice === booking.invoice._id
+                              }
+                              className={`
+        ${
+          downloadingInvoice === booking.invoice._id
+            ? "bg-blue-50 text-blue-400"
+            : "bg-white text-blue-600 hover:bg-blue-50"
+        } 
+        border border-blue-200 px-4 py-2 rounded-lg transition-colors 
+        flex items-center gap-2 text-sm font-medium
+      `}
+                            >
+                              {downloadingInvoice === booking.invoice._id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                              {downloadingInvoice === booking.invoice._id
+                                ? "Downloading..."
+                                : "Download Invoice"}
+                            </button>
+                          ) : (
+                            <span className="text-sm text-slate-500 italic flex items-center gap-2">
+                              <Info className="h-4 w-4" />
+                              No Invoice Available
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm ${
-                        booking.status === "confirmed"
-                          ? "bg-green-100 text-green-800"
-                          : booking.status === "pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {booking.status}
-                    </span>
-                    {["pending", "confirmed"].includes(booking.status) && (
-                      <button
-                        onClick={() => handleCancel(booking._id)}
-                        className="text-red-600 hover:text-red-800 flex items-center gap-1 transition-colors"
-                      >
-                        <XCircle className="h-5 w-5" />
-                        <span>Cancel</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 };
 

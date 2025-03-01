@@ -10,6 +10,7 @@ const cloudinary = require('cloudinary').v2;
 const { Server } = require('socket.io');
 const Booking = require('./models/Booking');
 const jwt = require('jsonwebtoken');
+const invoiceRoutes = require('./routes/invoices');
 
 // Initialize Express and HTTP server
 const app = express();
@@ -95,6 +96,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/properties', require('./routes/properties'));
 app.use('/api/bookings', require('./routes/bookings'));
 app.use('/api/booking-agents', require('./routes/bookingAgents'));
+app.use('/api/invoices', invoiceRoutes);
 
 // Enhanced MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {

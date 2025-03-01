@@ -14,6 +14,10 @@ const bookingSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    invoice: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invoice"
+    },
     checkInDate: { type: Date, required: true },
     checkOutDate: { type: Date, required: true },
     rooms: { type: Number, required: true },

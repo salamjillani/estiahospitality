@@ -2,76 +2,98 @@
 const mongoose = require('mongoose');
 
 const invoiceSchema = new mongoose.Schema({
+  invoiceNumber: {
+    type: String,
+    unique: true,
+    required: [true, 'Invoice number is required'],
+    index: true
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  booking: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking',
+    required: true
+  },
   property: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Property',
     required: true
   },
-  platform: {
+  status: {
     type: String,
-    required: true,
-    enum: ['airbnb', 'booking']
-  },
-  invoiceNumber: {
-    type: String,
-    required: true,
-    unique: true
+    enum: ['pending', 'confirmed', 'cancelled'],
+    default: 'pending'
   },
   issuedDate: {
     type: Date,
-    required: true
+    default: Date.now
   },
   dueDate: {
     type: Date,
-    required: true
-  },
-  reservation: {
-    checkIn: Date,
-    checkOut: Date,
-    guestName: String,
-    platformReservationId: String
+    default: () => new Date(Date.now() + 30*24*60*60*1000) // 30 days from now
   },
   amounts: {
-    subtotal: Number,
-    tax: Number,
-    total: Number,
-    currency: String
+    total: {
+      type: Number,
+      required: true
+    },
+    currency: {
+      type: String,
+      required: true
+    }
   },
-  status: {
+  paymentMethod: {
     type: String,
-    enum: ['draft', 'issued', 'paid', 'cancelled'],
-    default: 'draft'
+    enum: ['cash', 'stripe'],
+    required: true
   },
-  taxDetails: {
-    vatNumber: String,
-    taxId: String,
-    taxRate: Number
-  },
-  vendorDetails: {
+  guestDetails: {
     name: String,
-    address: String,
-    taxIdentifier: String
+    email: String,
+    phone: String,
+    nationality: String,
+    rooms: Number,
+    adults: Number,
+    children: Number
   },
-  notes: String
-}, {
-  timestamps: true
-});
-
-// Generate unique invoice number
-invoiceSchema.pre('save', async function(next) {
-  if (!this.invoiceNumber) {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const count = await this.constructor.countDocuments({
-      createdAt: {
-        $gte: new Date(date.getFullYear(), date.getMonth(), 1),
-        $lt: new Date(date.getFullYear(), date.getMonth() + 1, 1)
-      }
-    });
-    this.invoiceNumber = `INV-${year}${month}-${String(count + 1).padStart(4, '0')}`;
+  propertyDetails: {
+    title: String,
+    address: String,
+    city: String,
+    country: String
   }
-  next();
+}, { 
+  timestamps: true 
+});
+invoiceSchema.index({ createdAt: 1 });
+
+// models/Invoice.js
+// models/Invoice.js
+invoiceSchema.pre('save', async function(next) {
+  if (!this.isNew) return next();
+
+  try {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+    
+
+    const startOfMonth = new Date(Date.UTC(year, now.getUTCMonth(), 1));
+    const endOfMonth = new Date(Date.UTC(year, now.getUTCMonth() + 1, 1));
+    
+    const count = await this.constructor.countDocuments({
+      createdAt: { $gte: startOfMonth, $lt: endOfMonth }
+    });
+
+    this.invoiceNumber = `INV-${year}${month}-${String(count + 1).padStart(4, '0')}`;
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);

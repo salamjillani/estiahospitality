@@ -12,6 +12,12 @@ import {
   Trash2,
   Upload,
   ArrowLeft,
+  Home,
+  BedDouble,
+  Bath,
+  DollarSign,
+  FileText,
+  Cloud,
 } from "lucide-react";
 import PropTypes from "prop-types";
 
@@ -90,7 +96,7 @@ const PropertyForm = () => {
       ...props
     }) => (
       <div className="relative">
-        <label className="text-sm font-medium text-gray-700 mb-1 block">
+        <label className="text-sm font-medium text-gray-700 mb-2 block">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         {options ? (
@@ -98,7 +104,7 @@ const PropertyForm = () => {
             <select
               value={value}
               onChange={(e) => onChange(name, e.target.value, section)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white appearance-none"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white appearance-none shadow-sm"
               required={required}
               {...props}
             >
@@ -129,7 +135,7 @@ const PropertyForm = () => {
             type={type}
             value={value}
             onChange={(e) => onChange(name, e.target.value, section)}
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white"
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm"
             required={required}
             {...props}
           />
@@ -185,22 +191,29 @@ const PropertyForm = () => {
 
   if (loadingProperty) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <Loader2 className="animate-spin h-16 w-16 text-indigo-600" />
+          <p className="text-indigo-800 font-medium animate-pulse">Loading property details...</p>
+        </div>
       </div>
     );
   }
 
   if (error && id) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-50 to-white">
         <div className="max-w-md text-center">
-          <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4">
-            {error}
+          <div className="bg-red-50 text-red-700 p-6 rounded-2xl mb-6 shadow-sm border border-red-100">
+            <svg className="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="text-lg font-semibold mb-2">Error Loading Property</h3>
+            <p>{error}</p>
           </div>
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
+            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 bg-white py-3 px-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mx-auto"
           >
             <ArrowLeft className="w-5 h-5" />
             Back to Properties
@@ -212,14 +225,23 @@ const PropertyForm = () => {
 
   if (!user || user.role !== "admin") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-lg max-w-md">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full text-red-600 mb-6">
+            <X className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-3">
             Access Denied
           </h2>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-6">
             You need admin privileges to access this page.
           </p>
+          <button
+            onClick={() => navigate("/")}
+            className="bg-indigo-600 text-white py-3 px-6 rounded-xl hover:bg-indigo-700 transition-colors duration-200 shadow-sm hover:shadow-md"
+          >
+            Return to Homepage
+          </button>
         </div>
       </div>
     );
@@ -279,27 +301,47 @@ const PropertyForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white py-8">
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-            {id ? "Edit Property" : "Create New Property"}
-          </h2>
+          <div>
+            <button
+              onClick={() => navigate("/properties")}
+              className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 mb-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Properties</span>
+            </button>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              {id ? "Edit Property" : "Create New Property"}
+            </h2>
+          </div>
           <button
             onClick={() => navigate("/properties")}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+            className="p-2 hover:bg-white rounded-full transition-colors duration-200 shadow-sm hover:shadow-md"
           >
             <X className="w-6 h-6 text-gray-500" />
           </button>
         </div>
+        
         {error && (
-          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-xl">
-            <p className="text-red-700 font-medium">{error}</p>
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-5 rounded-r-xl shadow-sm animate-pulse">
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-red-700 font-medium">{error}</p>
+            </div>
           </div>
         )}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
-            <h3 className="text-xl font-semibold text-gray-900 mb-6">
+        
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Basic Information Card */}
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-indigo-100 p-2 rounded-lg">
+                <Home className="w-6 h-6 text-indigo-600" />
+              </div>
               Basic Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -312,13 +354,13 @@ const PropertyForm = () => {
                 placeholder="Enter property title"
               />
               <div className="relative">
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
                   Property Type <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={property.type}
                   onChange={(e) => handleInputChange("type", e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white appearance-none"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white appearance-none shadow-sm"
                 >
                   <option value="Apartment">Apartment</option>
                   <option value="House">House</option>
@@ -341,35 +383,67 @@ const PropertyForm = () => {
                   </svg>
                 </div>
               </div>
-              <InputField
-                label="Bedrooms"
-                type="number"
-                required
-                name="bedrooms"
-                min="1"
-                value={property.bedrooms}
-                onChange={handleInputChange}
-              />
-              <InputField
-                label="Bathrooms"
-                type="number"
-                required
-                name="bathrooms"
-                min="1"
-                value={property.bathrooms}
-                onChange={handleInputChange}
-              />
-              <InputField
-                label="Price Per Night"
-                type="number"
-                required
-                name="pricePerNight"
-                min="1"
-                value={property.pricePerNight}
-                onChange={handleInputChange}
-              />
+              
+              <div className="relative">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Bedrooms <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">
+                    <BedDouble className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    value={property.bedrooms}
+                    onChange={(e) => handleInputChange("bedrooms", e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="relative">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Bathrooms <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">
+                    <Bath className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    value={property.bathrooms}
+                    onChange={(e) => handleInputChange("bathrooms", e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="relative">
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Price Per Night <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    value={property.pricePerNight}
+                    onChange={(e) => handleInputChange("pricePerNight", e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm"
+                    required
+                  />
+                </div>
+              </div>
+              
               <div className="md:col-span-2">
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                <label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-500" />
                   Description
                 </label>
                 <textarea
@@ -377,15 +451,20 @@ const PropertyForm = () => {
                   onChange={(e) =>
                     handleInputChange("description", e.target.value)
                   }
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 min-h-32"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 min-h-32 shadow-sm"
                   placeholder="Describe the property features and amenities..."
                 />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
-            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-              <MapPin className="w-6 h-6 text-blue-600" /> Location Details
+          
+          {/* Location Details Card */}
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-emerald-100 p-2 rounded-lg">
+                <MapPin className="w-6 h-6 text-emerald-600" />
+              </div>
+              Location Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {Object.entries(property.location).map(([key, value]) => (
@@ -401,9 +480,14 @@ const PropertyForm = () => {
               ))}
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
-            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-              <Banknote className="w-6 h-6 text-blue-600" /> Bank Information
+          
+          {/* Bank Information Card */}
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-amber-100 p-2 rounded-lg">
+                <Banknote className="w-6 h-6 text-amber-600" />
+              </div>
+              Bank Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {bankDetailsFields.map(({ key, label, options }) => (
@@ -421,57 +505,77 @@ const PropertyForm = () => {
               ))}
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-200 hover:shadow-md">
-            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-              <Image className="w-6 h-6 text-blue-600" /> Property Photos
+          
+          {/* Property Photos Card */}
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-purple-100 p-2 rounded-lg">
+                <Image className="w-6 h-6 text-purple-600" />
+              </div>
+              Property Photos
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              {property.photos.map((photo, index) => (
-                <div
-                  key={index}
-                  className="relative group rounded-xl overflow-hidden"
-                >
-                  <img
-                    src={photo.url}
-                    alt={`Property ${index + 1}`}
-                    className="w-full h-32 object-cover transition-transform duration-200 group-hover:scale-105"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setProperty((prev) => ({
-                        ...prev,
-                        photos: prev.photos.filter((_, i) => i !== index),
-                      }))
-                    }
-                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600"
+            
+            {property.photos.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                {property.photos.map((photo, index) => (
+                  <div
+                    key={index}
+                    className="relative group rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-300"
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                    <img
+                      src={photo.url}
+                      alt={`Property ${index + 1}`}
+                      className="w-full h-40 object-cover transition-transform duration-300 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300"></div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProperty((prev) => ({
+                          ...prev,
+                          photos: prev.photos.filter((_, i) => i !== index),
+                        }))
+                      }
+                      className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-red-600 hover:scale-110"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 px-6 bg-gray-50 rounded-xl mb-8 border-2 border-dashed border-gray-200">
+                <Cloud className="w-16 h-16 text-gray-300 mb-4" />
+                <p className="text-gray-500 text-center">No photos uploaded yet</p>
+                <p className="text-sm text-gray-400 text-center mt-1">Upload high-quality photos to showcase this property</p>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg">
+                <Upload className="w-5 h-5 mr-2" />
+                {uploading ? "Uploading..." : "Upload Photos"}
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleUpload}
+                  className="hidden"
+                  accept="image/*"
+                />
+              </label>
+              <p className="text-sm text-gray-500">
+                Upload high-quality photos (JPEG, PNG, WEBP). Max 10 files.
+              </p>
             </div>
-            <label className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 cursor-pointer transition-colors duration-200 shadow-sm hover:shadow">
-              <Upload className="w-5 h-5 mr-2" />
-              {uploading ? "Uploading..." : "Upload Photos"}
-              <input
-                type="file"
-                multiple
-                onChange={handleUpload}
-                className="hidden"
-                accept="image/*"
-              />
-            </label>
-            <p className="text-sm text-gray-500 mt-2">
-              Upload high-quality photos (JPEG, PNG, WEBP). Max 10 files.
-            </p>
           </div>
+          
+          {/* Action Buttons */}
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 sticky bottom-4">
             {id && (
               <button
                 type="button"
                 onClick={handleDelete}
-                className="px-6 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 flex items-center justify-center gap-2 w-full sm:w-auto transition-colors duration-200"
+                className="px-6 py-4 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 flex items-center justify-center gap-2 w-full sm:w-auto transition-all duration-200 shadow-sm hover:shadow"
               >
                 <Trash2 className="w-5 h-5" />
                 Delete Property
@@ -480,7 +584,7 @@ const PropertyForm = () => {
             <button
               type="submit"
               disabled={loading || uploading}
-              className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2 w-full sm:w-auto transition-colors duration-200 shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
+              className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 flex items-center justify-center gap-2 w-full sm:w-auto transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed transform hover:-translate-y-1"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

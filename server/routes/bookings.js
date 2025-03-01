@@ -3,6 +3,7 @@ const router = express.Router();
 const { auth, adminOnly, checkRole } = require("../middleware/auth");
 const Booking = require("../models/Booking");
 const Property = require("../models/Property");
+const Invoice = require("../models/Invoice");
 
 // Original admin route (keep for compatibility)
 router.get("/", auth, adminOnly, async (req, res) => {
@@ -16,17 +17,23 @@ router.get("/", auth, adminOnly, async (req, res) => {
   }
 });
 
-
-router.get("/admin/bookings", auth, adminOnly, async (req, res) => {
+router.get("/admin", auth, adminOnly, async (req, res) => {
   try {
     const bookings = await Booking.find({
-      status: { $in: ['pending', 'confirmed', 'cancelled'] }
+      status: { $in: ["pending", "confirmed", "cancelled"] },
     })
+      .populate({
+        path: "invoice",
+        populate: {
+          path: "user property booking",
+          select: "name email title checkInDate checkOutDate",
+        },
+      })
       .populate("property", "title")
       .populate("user", "name email")
       .populate({
         path: "statusHistory.changedBy",
-        select: "name email"
+        select: "name email",
       });
     res.json(bookings);
   } catch (err) {
@@ -34,16 +41,15 @@ router.get("/admin/bookings", auth, adminOnly, async (req, res) => {
   }
 });
 
-// Admin bookings management (pending only)
 router.get("/admin/bookings", auth, adminOnly, async (req, res) => {
   try {
-    const bookings = await Booking.find({ status: 'pending' })
-      .populate("property", "title")
-      .populate("user", "name email")
+    const bookings = await Booking.find()
       .populate({
-        path: "statusHistory.changedBy",
-        select: "name email"
-      });
+        path: "invoice",
+        select: "_id invoiceNumber status issuedDate", // Ensure correct fields
+      })
+      .populate("property", "title pricePerNight")
+      .populate("user", "name email");
     res.json(bookings);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -51,11 +57,11 @@ router.get("/admin/bookings", auth, adminOnly, async (req, res) => {
 });
 
 // Owner bookings
-router.get('/owner', auth, checkRole(['owner']), async (req, res) => {
+router.get("/owner", auth, checkRole(["owner"]), async (req, res) => {
   try {
     const properties = await Property.find({ owner: req.user._id });
-    const bookings = await Booking.find({ 
-      property: { $in: properties.map(p => p._id) }
+    const bookings = await Booking.find({
+      property: { $in: properties.map((p) => p._id) },
     });
     res.json(bookings);
   } catch (err) {
@@ -63,16 +69,77 @@ router.get('/owner', auth, checkRole(['owner']), async (req, res) => {
   }
 });
 
-// Client-specific bookings
 router.get("/client/:userId", auth, checkRole(["client"]), async (req, res) => {
   try {
     if (req.user._id.toString() !== req.params.userId) {
       return res.status(403).json({ message: "Unauthorized access" });
     }
 
-    const bookings = await Booking.find({ user: req.params.userId }).populate("property");
+    // Improved population with explicit select fields
+    const bookings = await Booking.find({ user: req.params.userId })
+      .populate("property", "title location")
+      .populate({
+        path: "invoice",
+        select: "_id invoiceNumber status issuedDate dueDate amounts",
+      });
+
+    // Log for debugging
+    console.log(
+      `Fetched ${bookings.length} bookings for user ${req.params.userId}`
+    );
+    console.log(
+      "First booking details:",
+      bookings[0]
+        ? {
+            _id: bookings[0]._id,
+            hasInvoice: bookings[0].invoice ? true : false,
+            invoiceId: bookings[0].invoice?._id,
+          }
+        : "No bookings"
+    );
+
     res.json(bookings);
   } catch (err) {
+    console.error("Error fetching client bookings:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/:id/pdf", auth, async (req, res) => {
+  try {
+    console.log(`Generating PDF for invoice ID: ${req.params.id}`);
+    const invoice = await Invoice.findById(req.params.id)
+      .populate("user")
+      .populate("property")
+      .populate("booking");
+
+    if (!invoice) {
+      console.error(`Invoice not found: ${req.params.id}`);
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    console.log(`Found invoice ${invoice.invoiceNumber}, generating PDF...`);
+    const filePath = await generateInvoicePDF(invoice);
+
+    // Proper PDF headers
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=${invoice.invoiceNumber}.pdf`
+    );
+
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+
+    // Cleanup after stream finishes
+    fileStream.on("end", () => {
+      fs.unlink(filePath, (err) => {
+        if (err) console.error("Error deleting temp file:", err);
+      });
+    });
+  } catch (err) {
+    console.error("PDF generation error:", err);
     res.status(500).json({ message: err.message });
   }
 });
@@ -81,28 +148,37 @@ router.get("/client/:userId", auth, checkRole(["client"]), async (req, res) => {
 router.post("/", auth, checkRole(["client"]), async (req, res) => {
   try {
     const property = await Property.findById(req.body.property)
-      .select('pricePerNight bankDetails.currency')
+      .select("pricePerNight bankDetails.currency")
       .lean();
 
-    if (!property) return res.status(404).json({ message: 'Property not found' });
+    if (!property)
+      return res.status(404).json({ message: "Property not found" });
     if (!property.bankDetails?.currency) {
-      return res.status(400).json({ message: 'Property currency not configured properly' });
+      return res
+        .status(400)
+        .json({ message: "Property currency not configured properly" });
     }
-  
+
     const requiredFields = [
-      "property", "checkInDate", "checkOutDate", 
-      "guestName", "email", "phone"
+      "property",
+      "checkInDate",
+      "checkOutDate",
+      "guestName",
+      "email",
+      "phone",
     ];
-    const missing = requiredFields.filter(field => !req.body[field]);
+    const missing = requiredFields.filter((field) => !req.body[field]);
 
     if (missing.length > 0) {
-      return res.status(400).json({ message: `Missing required fields: ${missing.join(", ")}` });
+      return res
+        .status(400)
+        .json({ message: `Missing required fields: ${missing.join(", ")}` });
     }
 
     const startDate = new Date(req.body.checkInDate);
     const endDate = new Date(req.body.checkOutDate);
     const nights = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-    
+
     const booking = new Booking({
       ...req.body,
       totalPrice: nights * property.pricePerNight,
@@ -110,47 +186,128 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
       pricePerNight: property.pricePerNight,
       paymentMethod: req.body.paymentMethod,
       user: req.user.id,
-      status: "pending"
+      status: "pending",
     });
 
     await booking.save();
     req.io.emit("newBooking", booking);
     res.status(201).json(booking);
   } catch (err) {
-    console.error('Booking creation error:', err);
-    res.status(400).json({ 
-      message: err.message || 'Booking creation failed',
-      error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    console.error("Booking creation error:", err);
+    res.status(400).json({
+      message: err.message || "Booking creation failed",
+      error: process.env.NODE_ENV === "development" ? err.stack : undefined,
     });
   }
 });
 
-
 router.patch("/:id", auth, adminOnly, async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
-    if (!booking) return res.status(404).json({ message: "Booking not found" });
+    const booking = await Booking.findById(req.params.id)
+      .populate("user", "name email")
+      .populate("property", "title pricePerNight");
 
-    if (booking.status === 'canceled') {
-      return res.status(400).json({ message: "Cannot modify canceled bookings" });
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
     }
 
-    const updatedBooking = await Booking.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status },
-      { new: true }
-    )
-    .populate("property", "title")
-    .populate("user", "name email");
+    // Validate status transition
+    if (booking.status === "cancelled") {
+      return res
+        .status(400)
+        .json({ message: "Cannot modify cancelled bookings" });
+    }
 
+    // Update booking status and history
+    booking.status = req.body.status;
+    booking.statusHistory.push({
+      status: req.body.status,
+      changedAt: new Date(),
+      changedBy: req.user._id,
+    });
+
+    // Handle invoice creation for confirmed bookings
+    if (req.body.status === "confirmed" && !booking.invoice) {
+      // Generate a unique invoice number
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      
+      // Get the count of existing invoices to create a sequential number
+      const invoiceCount = await Invoice.countDocuments() + 1;
+      const invoiceNumber = `INV-${year}${month}-${String(invoiceCount).padStart(4, '0')}`;
+      
+      const invoice = new Invoice({
+        invoiceNumber, 
+        user: booking.user._id,
+        booking: booking._id,
+        property: booking.property._id,
+        issuedDate: new Date(), 
+        dueDate: new Date(booking.checkInDate), 
+        status: "confirmed",
+        amounts: {
+          total: booking.totalPrice,
+          currency: booking.currency || "USD",
+        },
+        paymentMethod: booking.paymentMethod,
+        guestDetails: {
+          name: booking.guestName,
+          email: booking.email,
+          phone: booking.phone,
+          rooms: booking.rooms,
+          adults: booking.adults,
+          children: booking.children,
+        },
+        propertyDetails: {
+          title: booking.property.title,
+          address: booking.property.location?.address || "N/A",
+          city: booking.property.location?.city || "N/A",
+          country: booking.property.location?.country || "N/A",
+        },
+      });
+
+      await invoice.save();
+      booking.invoice = invoice._id;
+      await booking.save();
+    }
+
+    // Save updated booking
+    const updatedBooking = await booking.save();
+
+    // Populate relationships for response
+    await updatedBooking.populate([
+      { path: "user", select: "name email" },
+      { path: "property", select: "title pricePerNight" },
+      { path: "invoice", select: "invoiceNumber status" },
+    ]);
+
+    // Update invoice status if exists
+    if (updatedBooking.invoice) {
+      await Invoice.findByIdAndUpdate(updatedBooking.invoice._id, {
+        status: updatedBooking.status,
+        $push: {
+          statusHistory: {
+            status: updatedBooking.status,
+            changedAt: new Date(),
+            changedBy: req.user._id,
+          },
+        },
+      });
+    }
+
+    // Emit real-time update
     req.io.emit("bookingUpdate", updatedBooking);
+
     res.json(updatedBooking);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    console.error("Booking update error:", err);
+    res.status(500).json({
+      message: err.message,
+      error: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    });
   }
 });
 
-// In routes/bookings.js
 router.patch("/client/:id", auth, checkRole(["client"]), async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
@@ -162,24 +319,24 @@ router.patch("/client/:id", auth, checkRole(["client"]), async (req, res) => {
 
     const updatedBooking = await Booking.findByIdAndUpdate(
       req.params.id,
-      { 
+      {
         status: "cancelled",
         $push: {
           statusHistory: {
             status: "cancelled",
             changedAt: new Date(),
-            changedBy: req.user._id
-          }
-        }
+            changedBy: req.user._id,
+          },
+        },
       },
       { new: true }
     )
-    .populate({
-      path: "statusHistory.changedBy",
-      select: "name email"
-    })
-    .populate("property", "title")
-    .populate("user", "name email");
+      .populate({
+        path: "statusHistory.changedBy",
+        select: "name email",
+      })
+      .populate("property", "title")
+      .populate("user", "name email");
     req.io.emit("statusUpdate", updatedBooking);
     res.json(updatedBooking);
   } catch (err) {
