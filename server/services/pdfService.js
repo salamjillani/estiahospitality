@@ -69,8 +69,12 @@ const generateInvoicePDF = async (invoice) => {
         invoice.amounts.currency || booking.currency || "USD";
     }
 
-    // Create PDF document
-    doc = new PDFDocument({ size: "A4", margin: 50 });
+    // Create PDF document with optimized margins
+    doc = new PDFDocument({ 
+      size: "A4", 
+      margin: 35,
+      bufferPages: true
+    });
 
     // Ensure temp directory exists
     const tempPath = path.join(__dirname, "../temp");
@@ -93,30 +97,54 @@ const generateInvoicePDF = async (invoice) => {
 
     doc.pipe(writeStream);
 
+    // Define elegant color scheme with high contrast for readability
+    const colors = {
+      primary: "#1E40AF",       // Deep rich blue
+      secondary: "#F0F5FF",     // Very light blue tint
+      accent: "#F97316",        // Bright orange
+      text: "#111827",          // Near black for readability
+      lightText: "#6B7280",     // Medium gray
+      border: "#E5E7EB",        // Light border
+      success: "#059669",       // Emerald green for paid status
+      highlight: "#FAFAFA"      // Very subtle highlight
+    };
+    
+    // Define page dimensions for precise positioning
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = 35;
+    const contentWidth = pageWidth - (margin * 2);
+
+    // Calculate appropriate scaling factor to distribute content
+    // This will help us evenly space the content to fill the page
+    const scalingFactor = 1.15; // Adjust this to expand spacing as needed
+
     // UPDATED: Improved logo path resolution with more paths for your specific structure
     const possibleLogoPaths = [
-      // From server directory to frontend/public
       path.join(__dirname, "../frontend/public/logo.png"),
-      // From a subdirectory in server to frontend/public
       path.join(__dirname, "../../frontend/public/logo.png"),
-      // From server root to frontend/public
-      path.join(path.dirname(require.main.filename), "../frontend/public/logo.png"),
-      // Absolute path using process.cwd() (project root)
+      path.join(
+        path.dirname(require.main.filename),
+        "../frontend/public/logo.png"
+      ),
       path.join(process.cwd(), "frontend/public/logo.png"),
-      // Original paths as fallback
       path.join(__dirname, "../../public/logo.png"),
       path.join(__dirname, "../public/logo.png"),
       path.join(__dirname, "../frontend/build/logo.png"),
       path.join(process.cwd(), "public/logo.png"),
     ];
 
+    // =============== HEADER SECTION - MODERNIZED ===============
+    // Sleek top bar
+    doc.rect(0, 0, pageWidth, 8).fill(colors.primary);
+    
     // Try each potential logo path
     let logoFound = false;
     for (const logoPath of possibleLogoPaths) {
       try {
         if (fs.existsSync(logoPath)) {
           console.log(`Logo found at: ${logoPath}`);
-          doc.image(logoPath, 50, 45, { width: 50 });
+          doc.image(logoPath, margin, 25, { width: 70 });
           logoFound = true;
           break;
         }
@@ -126,40 +154,115 @@ const generateInvoicePDF = async (invoice) => {
     }
 
     if (!logoFound) {
-      console.warn("Logo not found in any expected locations. Paths tried:", possibleLogoPaths);
-      doc.fontSize(20).text("ESTIA HOSPITALITY", 50, 45);
+      console.warn(
+        "Logo not found in any expected locations. Paths tried:",
+        possibleLogoPaths
+      );
+      doc.fillColor(colors.primary)
+        .fontSize(20)
+        .font('Helvetica-Bold')
+        .text("ESTIA HOSPITALITY", margin, 25);
     }
 
-    // Header
-    doc.fontSize(20).text("Invoice", 50, 100);
-    doc
-      .fontSize(10)
-      .text(`Invoice Number: ${invoice.invoiceNumber}`, 50, 130)
-      .text(
-        `Date: ${new Date(invoice.issuedDate).toLocaleDateString()}`,
-        50,
-        145
-      )
-      .text(`Status: ${invoice.status.toUpperCase()}`, 50, 160);
+    // Company information positioned BELOW the logo, not overlapping
+    // Increased spacing with scaling factor
+    const addressY = logoFound ? 100 : 55; // Adjusted with more space
+    doc.fillColor(colors.lightText)
+      .fontSize(8)
+      .font('Helvetica')
+      .text("Geronimaki Str.41A", margin, addressY)
+      .text("Heraklion Crete Greece, PO: 71307", margin, addressY + 10)
+      .text("VAT: EL 802248273", margin, addressY + 20);
 
-    // Customer Information - Improved fallback handling
-    doc
-      .text(`Name: ${user.name || booking.guestName || "Guest"}`, 300, 100)
-      .text(`Email: ${email}`, 300, 115)
-      .text(`Phone: ${phone}`, 300, 130);
+    // Customer Information - Right aligned for visual balance
+    const customerInfoX = pageWidth - margin - 150;
+    doc.fillColor(colors.primary)
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .text("BILLED", customerInfoX, 25);
+      
+    doc.fillColor(colors.text)
+      .fontSize(9)
+      .font('Helvetica')
+      .text(`${user.name || booking.guestName || "Guest"}`, customerInfoX, 40)
+      .text(`${email}`, customerInfoX, 55)
+      .text(`${phone}`, customerInfoX, 70);
 
-    // Booking Details
-    const bookingTableTop = 200;
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text("Property", 50, bookingTableTop)
-      .text("Check-In", 200, bookingTableTop)
-      .text("Check-Out", 300, bookingTableTop)
-      .text("Total", 400, bookingTableTop)
-      .font("Helvetica");
+    // Invoice title position - adjusted with scaling factor
+    const invoiceTitleY = addressY + (40 * scalingFactor);
 
-    // Format dates more safely with multiple fallback options
+    // Large invoice heading
+    doc.fillColor(colors.primary)
+      .fontSize(20)
+      .font('Helvetica-Bold')
+      .text("ESTIA HOSPITALITY", margin, invoiceTitleY);
+    
+    // Format status
+    const formattedStatus = invoice.status ? 
+      invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1).toLowerCase() : 
+      "Pending";
+    
+    // Status pill
+    const statusWidth = doc.widthOfString(formattedStatus) + 16;
+    doc.roundedRect(pageWidth - margin - statusWidth, invoiceTitleY, statusWidth, 20, 10)
+      .fill(invoice.status?.toLowerCase() === "paid" ? colors.success : colors.accent);
+    
+    doc.fillColor("white")
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .text(formattedStatus, pageWidth - margin - statusWidth + 8, invoiceTitleY + 6);
+
+    // =============== INVOICE DETAILS - MINIMALIST APPROACH ===============
+    // Spacing adjusted with scaling factor
+    const detailsY = invoiceTitleY + (30 * scalingFactor);
+    
+    // Draw thin separator line
+    doc.moveTo(margin, detailsY).lineTo(margin + contentWidth, detailsY)
+      .lineWidth(0.5)
+      .stroke(colors.border);
+    
+    // Column layout for details
+    const colWidth = contentWidth / 3;
+    
+    // Invoice number
+    doc.fillColor(colors.lightText)
+      .fontSize(8)
+      .font('Helvetica-Bold')
+      .text("INVOICE NUMBER", margin, detailsY + 10);
+      
+    doc.fillColor(colors.text)
+      .fontSize(9)
+      .font('Helvetica')
+      .text(invoice.invoiceNumber, margin, detailsY + 25);
+    
+    // Issue date
+    doc.fillColor(colors.lightText)
+      .fontSize(8)
+      .font('Helvetica-Bold')
+      .text("DATE ISSUED", margin + colWidth, detailsY + 10);
+      
+    doc.fillColor(colors.text)
+      .fontSize(9)
+      .font('Helvetica')
+      .text(new Date(invoice.issuedDate).toLocaleDateString(), margin + colWidth, detailsY + 25);
+    
+    // Payment method
+    doc.fillColor(colors.lightText)
+      .fontSize(8)
+      .font('Helvetica-Bold')
+      .text("PAYMENT METHOD", margin + colWidth * 2, detailsY + 10);
+      
+    doc.fillColor(colors.text)
+      .fontSize(9)
+      .font('Helvetica')
+      .text(invoice.paymentMethod || booking.paymentMethod || "N/A", margin + colWidth * 2, detailsY + 25);
+
+    // Bottom separator line - adjusted with scaling factor
+    doc.moveTo(margin, detailsY + (45 * scalingFactor)).lineTo(margin + contentWidth, detailsY + (45 * scalingFactor))
+      .lineWidth(0.5)
+      .stroke(colors.border);
+
+    // Format dates safely with fallbacks
     const formatDate = (dateString) => {
       if (!dateString) return "N/A";
       try {
@@ -170,38 +273,136 @@ const generateInvoicePDF = async (invoice) => {
       }
     };
 
-    doc
-      .text(property.title || "Unknown Property", 50, bookingTableTop + 20)
-      .text(formatDate(booking.checkInDate), 200, bookingTableTop + 20)
-      .text(formatDate(booking.checkOutDate), 300, bookingTableTop + 20)
-      .text(
-        `${invoice.amounts.total} ${invoice.amounts.currency}`,
-        400,
-        bookingTableTop + 20
-      );
-
-    // Guest Details - Prioritize guestDetails from invoice, then fall back to booking
-    // Improve extraction with more reliable fallbacks
-    const rooms = invoice.guestDetails?.rooms || booking.rooms || "N/A";
+    // Calculate reservation details
     const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
+    const rooms = invoice.guestDetails?.rooms || booking.rooms || "N/A";
     const adults = invoice.guestDetails?.adults || booking.adults || "N/A";
     const children = invoice.guestDetails?.children || booking.children || 0;
-    const paymentMethod =
-      invoice.paymentMethod || booking.paymentMethod || "N/A";
 
-    doc
-      .text(`Rooms: ${rooms}`, 50, 250)
-      .text(`Nights: ${nights || "N/A"}`, 150, 250)
-      .text(`Adults: ${adults}`, 250, 250)
-      .text(`Children: ${children}`, 350, 250);
+    // =============== RESERVATION DETAILS - COMPACT CARDS ===============
+    // Spacing adjusted with scaling factor
+    const reservationY = detailsY + (55 * scalingFactor);
+    doc.fillColor(colors.primary)
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text("RESERVATION DETAILS", margin, reservationY);
 
-    // Payment Method
-    doc.text(`Payment Method: ${paymentMethod.toUpperCase()}`, 50, 280);
-
-    // Footer
-    doc.fontSize(10).text("Thank you for choosing our service!", 50, 700, {
-      align: "center",
+    // Card dimensions adjusted with scaling factor
+    const cardY = reservationY + (20 * scalingFactor);
+    const cardHeight = 70; // Increased height
+    const cardSpacing = 6;
+    const cardWidth = (contentWidth - cardSpacing * 3) / 4;
+    
+    // Define streamlined cards
+    const cards = [
+      { title: "PROPERTY", value: property.title || "Unknown Property" },
+      { title: "DATES", value: `${formatDate(booking.checkInDate)} - ${formatDate(booking.checkOutDate)}` },
+      { title: "GUESTS", value: `${adults} Adults, ${children} Children` },
+      { title: "ROOMS", value: rooms }
+    ];
+    
+    // Draw modern cards with increased internal spacing
+    cards.forEach((card, i) => {
+      const x = margin + (cardWidth + cardSpacing) * i;
+      
+      // Card background with subtle shadow effect
+      doc.rect(x, cardY, cardWidth, cardHeight)
+        .fill(colors.secondary);
+      
+      // Accent strip
+      doc.rect(x, cardY, 3, cardHeight)
+        .fill(colors.primary);
+      
+      // Card title - adjusted spacing
+      doc.fillColor(colors.primary)
+        .fontSize(7)
+        .font('Helvetica-Bold')
+        .text(card.title, x + 8, cardY + 15);
+      
+      // Card value - adjusted spacing
+      doc.fillColor(colors.text)
+        .fontSize(9)
+        .font('Helvetica')
+        .text(card.value, x + 8, cardY + 30, {
+          width: cardWidth - 16,
+          height: cardHeight - 35
+        });
     });
+
+    // =============== PAYMENT DETAILS - MINIMALIST TABLE ===============
+    // Spacing adjusted with scaling factor
+    const paymentY = cardY + cardHeight + (25 * scalingFactor);
+    doc.fillColor(colors.primary)
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text("PAYMENT DETAILS", margin, paymentY);
+    
+    // Table spacing adjusted with scaling factor
+    const tableY = paymentY + (20 * scalingFactor);
+    
+    // Subtle table header
+    doc.rect(margin, tableY, contentWidth, 25) // Increased height
+      .fill(colors.secondary);
+    
+    // Table headers - adjusted spacing
+    doc.fillColor(colors.primary)
+      .fontSize(8)
+      .font('Helvetica-Bold')
+      .text("DESCRIPTION", margin + 10, tableY + 9)
+      .text("NIGHTS", margin + 280, tableY + 9, { width: 50, align: 'right' })
+      .text("AMOUNT", margin + contentWidth - 60, tableY + 9, { width: 50, align: 'right' });
+    
+    // Table content row - adjusted spacing
+    const rowY = tableY + 35;
+    doc.fillColor(colors.text)
+      .fontSize(9)
+      .font('Helvetica')
+      .text(`Stay at ${property.title}`, margin + 10, rowY)
+      .text(nights || "N/A", margin + 280, rowY, { width: 50, align: 'right' })
+      .text(`${invoice.amounts.total} ${invoice.amounts.currency}`, margin + contentWidth - 60, rowY, { width: 50, align: 'right' });
+    
+    // Subtle line separator - adjusted spacing
+    doc.moveTo(margin, rowY + 25).lineTo(margin + contentWidth, rowY + 25)
+      .lineWidth(0.5)
+      .stroke(colors.border);
+    
+    // Total section - adjusted spacing
+    const totalY = rowY + (35 * scalingFactor);
+    doc.rect(margin + 220, totalY, contentWidth - 220, 35) // Increased height
+      .fill(colors.primary);
+    
+    doc.fillColor("white")
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text("TOTAL", margin + 235, totalY + 13)
+      .text(`${invoice.amounts.total} ${invoice.amounts.currency}`, margin + contentWidth - 60, totalY + 13, { width: 50, align: 'right' });
+    
+    // =============== FOOTER - PROPERLY POSITIONED ===============
+    // Calculate better footer positioning to eliminate excess white space
+    // Position footer based on a percentage of the page height instead of absolute positioning
+    const footerPosition = 0.94; // Position at 94% of page height
+    const footerY = pageHeight * footerPosition - 50; // 50px from the position for the footer height
+    
+    // Attractive footer background
+    doc.rect(0, footerY, pageWidth, 50).fill(colors.secondary);
+    
+    // Bottom accent bar
+    doc.rect(0, footerY + 42, pageWidth, 8).fill(colors.primary);
+    
+    // Footer text - centered nicely
+    doc.fillColor(colors.primary)
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .text("Thank you for choosing ESTIA HOSPITALITY!", 0, footerY + 12, {
+        align: "center",
+      });
+    
+    doc.fillColor(colors.lightText)
+      .fontSize(8)
+      .font('Helvetica')
+      .text("For any questions regarding this invoice, please contact us", 0, footerY + 25, {
+        align: "center",
+      });
 
     // End the document
     doc.end();
