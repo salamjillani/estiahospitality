@@ -96,7 +96,6 @@ exports.generateInvoice = async (req, res) => {
       });
     }
 
-    // Get platform-specific tax details
     const platformConfig = property.platformSettings[platform];
     if (!platformConfig || !platformConfig.enabled) {
       return res.status(400).json({
@@ -121,8 +120,6 @@ exports.generateInvoice = async (req, res) => {
     });
 
     await invoice.save();
-
-    // Generate PDF
     const pdfBuffer = await generatePDF(invoice, property);
     
     res.json({
@@ -140,7 +137,7 @@ exports.generateInvoice = async (req, res) => {
   }
 };
 
-// In property controller
+
 exports.getProperty = async (req, res) => {
   const property = await Property.findById(req.params.id);
   if (!property) return res.status(404).json({ error: 'Property not found' });

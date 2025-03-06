@@ -18,6 +18,7 @@ import {
   DollarSign,
   FileText,
   Cloud,
+  Star,
 } from "lucide-react";
 import PropTypes from "prop-types";
 
@@ -48,6 +49,16 @@ const PropertyForm = () => {
       swiftCode: "",
       iban: "",
       currency: "USD",
+    },
+    amenities: {
+      swimmingPool: false,
+      wifi: false,
+      parking: false,
+      airConditioning: false,
+      kitchen: false,
+      tv: false,
+      washer: false,
+      balcony: false,
     },
     pricePerNight: "",
     photos: [],
@@ -178,6 +189,16 @@ const PropertyForm = () => {
             iban: data.bankDetails?.iban || "",
             currency: data.bankDetails?.currency || "USD",
           },
+          amenities: {
+            swimmingPool: data.amenities?.swimmingPool || false,
+            wifi: data.amenities?.wifi || false,
+            parking: data.amenities?.parking || false,
+            airConditioning: data.amenities?.airConditioning || false,
+            kitchen: data.amenities?.kitchen || false,
+            tv: data.amenities?.tv || false,
+            washer: data.amenities?.washer || false,
+            balcony: data.amenities?.balcony || false,
+          },
           photos: data.photos || [],
         });
       } catch (err) {
@@ -194,7 +215,9 @@ const PropertyForm = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-white">
         <div className="flex flex-col items-center justify-center gap-4">
           <Loader2 className="animate-spin h-16 w-16 text-indigo-600" />
-          <p className="text-indigo-800 font-medium animate-pulse">Loading property details...</p>
+          <p className="text-indigo-800 font-medium animate-pulse">
+            Loading property details...
+          </p>
         </div>
       </div>
     );
@@ -205,10 +228,22 @@ const PropertyForm = () => {
       <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-50 to-white">
         <div className="max-w-md text-center">
           <div className="bg-red-50 text-red-700 p-6 rounded-2xl mb-6 shadow-sm border border-red-100">
-            <svg className="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <svg
+              className="w-16 h-16 text-red-500 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
             </svg>
-            <h3 className="text-lg font-semibold mb-2">Error Loading Property</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              Error Loading Property
+            </h3>
             <p>{error}</p>
           </div>
           <button
@@ -323,18 +358,28 @@ const PropertyForm = () => {
             <X className="w-6 h-6 text-gray-500" />
           </button>
         </div>
-        
+
         {error && (
           <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-5 rounded-r-xl shadow-sm animate-pulse">
             <div className="flex items-center gap-3">
-              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-6 h-6 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <p className="text-red-700 font-medium">{error}</p>
             </div>
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Basic Information Card */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg">
@@ -344,6 +389,7 @@ const PropertyForm = () => {
               </div>
               Basic Information
             </h3>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <InputField
                 label="Property Title"
@@ -383,7 +429,7 @@ const PropertyForm = () => {
                   </svg>
                 </div>
               </div>
-              
+
               <div className="relative">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
                   Bedrooms <span className="text-red-500">*</span>
@@ -396,13 +442,15 @@ const PropertyForm = () => {
                     type="number"
                     min="1"
                     value={property.bedrooms}
-                    onChange={(e) => handleInputChange("bedrooms", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("bedrooms", e.target.value)
+                    }
                     className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm"
                     required
                   />
                 </div>
               </div>
-              
+
               <div className="relative">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
                   Bathrooms <span className="text-red-500">*</span>
@@ -415,13 +463,15 @@ const PropertyForm = () => {
                     type="number"
                     min="1"
                     value={property.bathrooms}
-                    onChange={(e) => handleInputChange("bathrooms", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("bathrooms", e.target.value)
+                    }
                     className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm"
                     required
                   />
                 </div>
               </div>
-              
+
               <div className="relative">
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
                   Price Per Night <span className="text-red-500">*</span>
@@ -434,13 +484,15 @@ const PropertyForm = () => {
                     type="number"
                     min="1"
                     value={property.pricePerNight}
-                    onChange={(e) => handleInputChange("pricePerNight", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("pricePerNight", e.target.value)
+                    }
                     className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm"
                     required
                   />
                 </div>
               </div>
-              
+
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-2">
                   <FileText className="w-5 h-5 text-indigo-500" />
@@ -457,7 +509,44 @@ const PropertyForm = () => {
               </div>
             </div>
           </div>
-          
+
+          {/* Amenities Card */}
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg">
+            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+              <div className="bg-purple-100 p-2 rounded-lg">
+                <Star className="w-6 h-6 text-purple-600" />
+              </div>
+              Key Amenities
+            </h3>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Object.keys(property.amenities || {}).map((amenity) => (
+                <label
+                  key={amenity}
+                  className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={property.amenities[amenity]}
+                    onChange={(e) =>
+                      setProperty((prev) => ({
+                        ...prev,
+                        amenities: {
+                          ...prev.amenities,
+                          [amenity]: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                  />
+                  <span className="capitalize text-gray-700">
+                    {amenity.replace(/([A-Z])/g, " $1").trim()}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           {/* Location Details Card */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg">
             <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
@@ -480,7 +569,7 @@ const PropertyForm = () => {
               ))}
             </div>
           </div>
-          
+
           {/* Bank Information Card */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg">
             <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
@@ -505,7 +594,7 @@ const PropertyForm = () => {
               ))}
             </div>
           </div>
-          
+
           {/* Property Photos Card */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg">
             <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
@@ -514,7 +603,7 @@ const PropertyForm = () => {
               </div>
               Property Photos
             </h3>
-            
+
             {property.photos.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 {property.photos.map((photo, index) => (
@@ -546,11 +635,15 @@ const PropertyForm = () => {
             ) : (
               <div className="flex flex-col items-center justify-center py-12 px-6 bg-gray-50 rounded-xl mb-8 border-2 border-dashed border-gray-200">
                 <Cloud className="w-16 h-16 text-gray-300 mb-4" />
-                <p className="text-gray-500 text-center">No photos uploaded yet</p>
-                <p className="text-sm text-gray-400 text-center mt-1">Upload high-quality photos to showcase this property</p>
+                <p className="text-gray-500 text-center">
+                  No photos uploaded yet
+                </p>
+                <p className="text-sm text-gray-400 text-center mt-1">
+                  Upload high-quality photos to showcase this property
+                </p>
               </div>
             )}
-            
+
             <div className="flex items-center gap-4">
               <label className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg">
                 <Upload className="w-5 h-5 mr-2" />
@@ -568,7 +661,7 @@ const PropertyForm = () => {
               </p>
             </div>
           </div>
-          
+
           {/* Action Buttons */}
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 sticky bottom-4">
             {id && (

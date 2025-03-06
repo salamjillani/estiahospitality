@@ -41,11 +41,14 @@ const propertySchema = new mongoose.Schema({
     }
   },
   amenities: {
-    swimmingPool: Boolean,
-    parking: Boolean,
-    wifi: Boolean,
-    airConditioning: Boolean,
-    kitchen: Boolean
+    swimmingPool: { type: Boolean, default: false },
+    wifi: { type: Boolean, default: false },
+    parking: { type: Boolean, default: false },
+    airConditioning: { type: Boolean, default: false },
+    kitchen: { type: Boolean, default: false },
+    tv: { type: Boolean, default: false },
+    washer: { type: Boolean, default: false },
+    balcony: { type: Boolean, default: false },
   },
   guestCapacity: Number,
   rules: [String],

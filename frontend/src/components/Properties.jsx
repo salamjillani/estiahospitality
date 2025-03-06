@@ -11,7 +11,9 @@ import {
   Bath,
   Bed,
   Edit,
- 
+  Droplet,
+  Wifi,
+  Car,
   Home,
 } from "lucide-react";
 import Navbar from "./Navbar";
@@ -42,8 +44,14 @@ const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
               </h3>
               <p className="text-gray-600 mt-2">
                 Are you sure you want to delete{" "}
-                {propertyTitle ? <span className="font-medium">&quot;{propertyTitle}&quot;</span> : "this property"}? This
-                action cannot be undone.
+                {propertyTitle ? (
+                  <span className="font-medium">
+                    &quot;{propertyTitle}&quot;
+                  </span>
+                ) : (
+                  "this property"
+                )}
+                ? This action cannot be undone.
               </p>
             </div>
           </div>
@@ -146,7 +154,9 @@ const Properties = () => {
         <div className="mt-16 flex items-center justify-center min-h-[calc(100vh-4rem)]">
           <div className="flex flex-col items-center gap-6 p-8 bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl">
             <Loader2 className="animate-spin w-16 h-16 text-blue-600" />
-            <p className="text-lg text-gray-600 font-medium animate-pulse">Loading your properties...</p>
+            <p className="text-lg text-gray-600 font-medium animate-pulse">
+              Loading your properties...
+            </p>
           </div>
         </div>
       </div>
@@ -173,13 +183,15 @@ const Properties = () => {
         setIsSidebarOpen={setIsSidebarOpen}
       />
       <main className="pt-24 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pb-16">
-      <div className="fixed top-0 left-0 w-full h-screen bg-[url('https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center opacity-[0.04] z-0"></div>
+        <div className="fixed top-0 left-0 w-full h-screen bg-[url('https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?ixlib=rb-1.2.1&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center opacity-[0.04] z-0"></div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 gap-6">
           <div className="space-y-2">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               Your Properties
             </h1>
-            <p className="text-gray-600">Manage and browse all your property listings</p>
+            <p className="text-gray-600">
+              Manage and browse all your property listings
+            </p>
           </div>
           {user?.role === "admin" && (
             <Link
@@ -234,6 +246,56 @@ const Properties = () => {
                     <Home className="w-16 h-16 text-blue-400" />
                   </div>
                 )}
+
+                <div className="absolute bottom-4 left-4 flex gap-2 flex-wrap">
+                  {Object.entries(property.amenities || {})
+                    .filter(([_, value]) => value)
+                    .slice(0, 3) // Show first 3 key amenities
+                    .map(([amenity]) => (
+                      <div
+                        key={amenity}
+                        className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm flex items-center gap-2 shadow-sm"
+                      >
+                        {amenity === "swimmingPool" && (
+                          <Droplet className="w-4 h-4 text-blue-500" />
+                        )}
+                        {amenity === "wifi" && (
+                          <Wifi className="w-4 h-4 text-green-500" />
+                        )}
+                        {amenity === "parking" && (
+                          <Car className="w-4 h-4 text-purple-500" />
+                        )}
+                        {amenity === "airConditioning" && (
+                          <Car className="w-4 h-4 text-purple-500" />
+                        )}
+                        {amenity === "kitchen" && (
+                          <Car className="w-4 h-4 text-purple-500" />
+                        )}
+                        {amenity === "tv" && (
+                          <Car className="w-4 h-4 text-purple-500" />
+                        )}
+                        {amenity === "washer" && (
+                          <Car className="w-4 h-4 text-purple-500" />
+                        )}
+                        {amenity === "balcony" && (
+                          <Car className="w-4 h-4 text-purple-500" />
+                        )}
+
+                        <span className="capitalize text-gray-700">
+                          {amenity.replace(/([A-Z])/g, " $1").trim()}
+                        </span>
+                      </div>
+                    ))}
+                  {Object.values(property.amenities || {}).filter((v) => v)
+                    .length > 3 && (
+                    <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm text-gray-500">
+                      +
+                      {Object.values(property.amenities).filter((v) => v)
+                        .length - 3}{" "}
+                      more
+                    </div>
+                  )}
+                </div>
                 <div className="absolute top-4 left-4 right-4 flex justify-between">
                   <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white/90 text-blue-700 shadow-lg backdrop-blur-sm">
                     {property.type}
@@ -325,7 +387,8 @@ const Properties = () => {
                 No properties yet
               </h3>
               <p className="text-gray-600 mb-8 text-lg">
-                Start building your portfolio by adding your first property listing!
+                Start building your portfolio by adding your first property
+                listing!
               </p>
               <Link
                 to="/properties/new"
