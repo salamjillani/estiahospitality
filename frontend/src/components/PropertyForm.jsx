@@ -408,10 +408,21 @@ const PropertyForm = () => {
                   onChange={(e) => handleInputChange("type", e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white appearance-none shadow-sm"
                 >
-                  <option value="Apartment">Apartment</option>
-                  <option value="House">House</option>
-                  <option value="Villa">Villa</option>
-                  <option value="Cabin">Cabin</option>
+                  <option value="Short Term Rental">
+                    Short Term Rental (≤80 sq.m)
+                  </option>
+                  <option value="Short Term Rental >80 sq.m">
+                    Short Term Rental ({">"}80 sq.m)
+                  </option>
+                  <option value="Self Sustained Villa">
+                    Self Sustained Villa
+                  </option>
+                  <option value="Self Sustained Residency <=80sq.m">
+                    Self Sustained Residency (≤80sq.m)
+                  </option>
+                  <option value="Self Sustained Residency >80sq.m">
+                    Self Sustained Residency ({">"}80sq.m)
+                  </option>
                 </select>
                 <div className="absolute right-4 top-10 pointer-events-none">
                   <svg

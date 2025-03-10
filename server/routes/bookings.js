@@ -4,6 +4,7 @@ const { auth, adminOnly, checkRole } = require("../middleware/auth");
 const Booking = require("../models/Booking");
 const Property = require("../models/Property");
 const Invoice = require("../models/Invoice");
+const mongoose = require('mongoose');
 
 // Original admin route (keep for compatibility)
 router.get("/", auth, adminOnly, async (req, res) => {
@@ -69,11 +70,19 @@ router.get("/owner", auth, checkRole(["owner"]), async (req, res) => {
   }
 });
 
-router.get("/client/:userId", auth, checkRole(["client"]), async (req, res) => {
+router.get("/client/:userId", auth, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
+      return res.status(400).json({ message: "Invalid user ID format" });
+    }
+    
+    // Allow clients to access only their own bookings, but admins can access any client's bookings
+    if (req.user.role === 'client' && req.user._id.toString() !== req.params.userId) {
+      return res.status(403).json({ message: "Unauthorized access" });
+    }
+    
     const bookings = await Booking.find({ user: req.params.userId })
-      .populate("invoice")
-      .populate("property", "title location")
+      .populate("property", "title location pricePerNight")
       .populate({
         path: "invoice",
         populate: [
@@ -85,6 +94,7 @@ router.get("/client/:userId", auth, checkRole(["client"]), async (req, res) => {
           },
         ],
       });
+      
     res.json(bookings);
   } catch (err) {
     console.error("Error fetching client bookings:", err);

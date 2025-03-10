@@ -54,25 +54,36 @@ router.get('/owner/:ownerId', auth, async (req, res) => {
   }
 });
 
-
-
+// In your properties route (server)
 router.post('/', auth, checkRole(['admin']), async (req, res) => {
   try {
-
     if (!req.body.bankDetails?.currency) {
       return res.status(400).json({ message: 'Currency is required' });
     }
+
+    const newProperty = new Property({ 
+      ...req.body,
+      createdBy: req.user._id 
+    });
     
-    const { pricePerNight, ...rest } = req.body;
-    const newProperty = new Property({ ...req.body, pricePerNight, createdBy: req.user._id });
     await newProperty.save();
-    
+
   
-    req.app.locals.broadcast('property_created', newProperty);
-    
     res.status(201).json(newProperty);
+
+ 
+    try {
+      req.app.locals.broadcast('property_created', newProperty);
+    } catch (broadcastError) {
+      console.error('Broadcast failed:', broadcastError);
+    }
+
   } catch (err) {
-    res.status(403).json({ message: "Admin access required" });
+  
+    console.error('Property creation error:', err);
+    res.status(500).json({ 
+      message: err.message || 'Property creation failed' 
+    });
   }
 });
 

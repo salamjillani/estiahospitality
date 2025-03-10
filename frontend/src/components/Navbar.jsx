@@ -35,7 +35,7 @@ const Navbar = () => {
           </Link>
 
           <div className="hidden md:flex items-center space-x-3">
-            {user?.role === "admin" && (
+          
               <Link
                 to="/dashboard"
                 className={`px-4 py-2 flex items-center transition-all duration-300 ${
@@ -44,7 +44,7 @@ const Navbar = () => {
               >
                 <Calendar className="w-4 h-4 mr-2" /> Calendar
               </Link>
-            )}
+            
             
             <button
               onClick={handlePropertyNavigation}
