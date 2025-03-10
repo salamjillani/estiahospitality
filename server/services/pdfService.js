@@ -329,7 +329,7 @@ const generateInvoicePDF = async (invoice) => {
         });
     });
 
-    // =============== PAYMENT DETAILS - MINIMALIST TABLE ===============
+    // =============== PAYMENT DETAILS - MINIMALIST TABLE WITH TAX BREAKDOWN ===============
     // Spacing adjusted with scaling factor
     const paymentY = cardY + cardHeight + (25 * scalingFactor);
     doc.fillColor(colors.primary)
@@ -349,33 +349,69 @@ const generateInvoicePDF = async (invoice) => {
       .fontSize(8)
       .font('Helvetica-Bold')
       .text("DESCRIPTION", margin + 10, tableY + 9)
-      .text("NIGHTS", margin + 280, tableY + 9, { width: 50, align: 'right' })
+      .text("NIGHTS", margin + 230, tableY + 9, { width: 50, align: 'right' })
+      .text("UNIT PRICE", margin + 290, tableY + 9, { width: 80, align: 'right' })
       .text("AMOUNT", margin + contentWidth - 60, tableY + 9, { width: 50, align: 'right' });
     
-    // Table content row - adjusted spacing
-    const rowY = tableY + 35;
+    // Calculate tax components based on the total amount
+    const totalAmount = parseFloat(invoice.amounts.total) || 0;
+    const vatRate = 13; // 13% VAT rate as specified
+    
+    // Calculate the net and tax amounts
+    const netAmount = (totalAmount * 100) / (100 + vatRate);
+    const taxAmount = totalAmount - netAmount;
+    
+    // Calculate per night prices
+    const nightlyNetPrice = nights ? (netAmount / nights).toFixed(2) : "N/A";
+    const nightlyTaxAmount = nights ? (taxAmount / nights).toFixed(2) : "N/A";
+    
+    // Format currency amounts
+    const formatCurrency = (amount, decimals = 2) => {
+      return typeof amount === 'number' 
+        ? amount.toFixed(decimals) 
+        : amount;
+    };
+    
+    const currency = invoice.amounts.currency || "EUR";
+    
+    // Table content rows - adjusted spacing with tax breakdown
+    let rowY = tableY + 35;
+    
+    // Net price row
     doc.fillColor(colors.text)
       .fontSize(9)
       .font('Helvetica')
-      .text(`Stay at ${property.title}`, margin + 10, rowY)
-      .text(nights || "N/A", margin + 280, rowY, { width: 50, align: 'right' })
-      .text(`${invoice.amounts.total} ${invoice.amounts.currency}`, margin + contentWidth - 60, rowY, { width: 50, align: 'right' });
+      .text(`Stay at ${property.title} (Net)`, margin + 10, rowY)
+      .text(nights || "N/A", margin + 230, rowY, { width: 50, align: 'right' })
+      .text(`${formatCurrency(nightlyNetPrice)} ${currency}`, margin + 290, rowY, { width: 80, align: 'right' })
+      .text(`${formatCurrency(netAmount)} ${currency}`, margin + contentWidth - 60, rowY, { width: 50, align: 'right' });
+    
+    // Tax row
+    rowY += 25;
+    doc.fillColor(colors.text)
+      .fontSize(9)
+      .font('Helvetica')
+      .text(`VAT/Tax (${vatRate}%)`, margin + 10, rowY)
+      .text(nights || "N/A", margin + 230, rowY, { width: 50, align: 'right' })
+      .text(`${formatCurrency(nightlyTaxAmount)} ${currency}`, margin + 290, rowY, { width: 80, align: 'right' })
+      .text(`${formatCurrency(taxAmount)} ${currency}`, margin + contentWidth - 60, rowY, { width: 50, align: 'right' });
     
     // Subtle line separator - adjusted spacing
-    doc.moveTo(margin, rowY + 25).lineTo(margin + contentWidth, rowY + 25)
+    rowY += 25;
+    doc.moveTo(margin, rowY).lineTo(margin + contentWidth, rowY)
       .lineWidth(0.5)
       .stroke(colors.border);
     
     // Total section - adjusted spacing
-    const totalY = rowY + (35 * scalingFactor);
+    const totalY = rowY + (20 * scalingFactor);
     doc.rect(margin + 220, totalY, contentWidth - 220, 35) // Increased height
       .fill(colors.primary);
     
     doc.fillColor("white")
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text("TOTAL", margin + 235, totalY + 13)
-      .text(`${invoice.amounts.total} ${invoice.amounts.currency}`, margin + contentWidth - 60, totalY + 13, { width: 50, align: 'right' });
+      .text("TOTAL COST", margin + 235, totalY + 13)
+      .text(`${formatCurrency(totalAmount)} ${currency}`, margin + contentWidth - 60, totalY + 13, { width: 50, align: 'right' });
     
     // =============== FOOTER - PROPERLY POSITIONED ===============
     // Calculate better footer positioning to eliminate excess white space
