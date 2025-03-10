@@ -307,7 +307,7 @@ const Properties = () => {
           
           <div className="space-y-2">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              Your Properties
+              All Listings
             </h1>
             <p className="text-gray-600">
               Manage and browse all your property listings

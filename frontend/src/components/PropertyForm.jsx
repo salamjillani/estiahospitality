@@ -22,6 +22,44 @@ import {
 } from "lucide-react";
 import PropTypes from "prop-types";
 
+const categories = [
+  {
+    type: "Short Term Rental",
+    description: "Short Term Rental (≤80 sq.m)",
+    lowSeason: 8,
+    highSeason: 12,
+    sqm: 80,
+  },
+  {
+    type: "Short Term Rental >80 sq.m",
+    description: "Short Term Rental (>80 sq.m)",
+    lowSeason: 9,
+    highSeason: 15,
+    sqm: 81,
+  },
+  {
+    type: "Self Sustained Villa",
+    description: "Self Sustained Villa",
+    lowSeason: 9,
+    highSeason: 18,
+    sqm: null,
+  },
+  {
+    type: "Self Sustained Residency <=80sq.m",
+    description: "Self Sustained Residency (≤80sq.m)",
+    lowSeason: 8,
+    highSeason: 14,
+    sqm: 80,
+  },
+  {
+    type: "Self Sustained Residency >80sq.m",
+    description: "Self Sustained Residency (>80sq.m)",
+    lowSeason: 9,
+    highSeason: 19,
+    sqm: 81,
+  },
+];
+
 const PropertyForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -32,7 +70,7 @@ const PropertyForm = () => {
   const { user } = useAuth();
   const [property, setProperty] = useState({
     title: "",
-    type: "Apartment",
+    type: "Short Term Rental",
     description: "",
     bedrooms: 1,
     bathrooms: 1,
@@ -166,6 +204,31 @@ const PropertyForm = () => {
     required: PropTypes.bool,
     options: PropTypes.array,
   };
+
+  useEffect(() => {
+    const currentMonth = new Date().getMonth() + 1;
+    const isHighSeason = currentMonth >= 4 && currentMonth <= 10;
+    const selectedCategory = categories.find(
+      (cat) => cat.type === property.type
+    );
+
+    if (selectedCategory) {
+      const price = isHighSeason
+        ? selectedCategory.highSeason
+        : selectedCategory.lowSeason;
+      setProperty((prev) => ({
+        ...prev,
+        pricePerNight: price,
+        currency: "EUR",
+      }));
+    } else {
+      setProperty((prev) => ({
+        ...prev,
+        pricePerNight: "",
+        currency: "EUR",
+      }));
+    }
+  }, [property.type]);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -495,10 +558,8 @@ const PropertyForm = () => {
                     type="number"
                     min="1"
                     value={property.pricePerNight}
-                    onChange={(e) =>
-                      handleInputChange("pricePerNight", e.target.value)
-                    }
-                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white shadow-sm"
+                    readOnly
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 cursor-not-allowed shadow-sm"
                     required
                   />
                 </div>
