@@ -291,12 +291,12 @@ const PropertyForm = () => {
 
   if (error && id) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-        <div className="max-w-md text-center">
-          <div className="bg-white text-red-700 p-8 rounded-2xl mb-6 shadow-xl border border-red-100 relative overflow-hidden">
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-8 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+        <div className="max-w-md w-full text-center">
+          <div className="bg-white text-red-700 p-6 sm:p-8 rounded-2xl mb-6 shadow-xl border border-red-100 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-red-600"></div>
             <svg
-              className="w-16 h-16 text-red-500 mx-auto mb-4"
+              className="w-12 h-12 sm:w-16 sm:h-16 text-red-500 mx-auto mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -327,13 +327,13 @@ const PropertyForm = () => {
 
   if (!user || user.role !== "admin") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-        <div className="text-center bg-white p-10 rounded-2xl shadow-2xl max-w-md relative overflow-hidden border border-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-4">
+        <div className="text-center bg-white p-6 sm:p-10 rounded-2xl shadow-2xl max-w-md w-full relative overflow-hidden border border-gray-100">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-red-600"></div>
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full text-red-600 mb-6 ring-4 ring-red-50">
-            <X className="w-10 h-10" />
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-red-100 rounded-full text-red-600 mb-6 ring-4 ring-red-50">
+            <X className="w-8 h-8 sm:w-10 sm:h-10" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">
             Access Denied
           </h2>
           <p className="text-gray-600 mb-8">
@@ -341,7 +341,7 @@ const PropertyForm = () => {
           </p>
           <button
             onClick={() => navigate("/")}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-8 rounded-xl hover:shadow-lg transition-all duration-300 font-medium transform hover:-translate-y-1"
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-8 rounded-xl hover:shadow-lg transition-all duration-300 font-medium transform hover:-translate-y-1 w-full sm:w-auto"
           >
             Return to Homepage
           </button>
@@ -428,36 +428,36 @@ const PropertyForm = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-4 sm:py-8">
       <div className="max-w-5xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
             <button
               onClick={() => navigate("/properties")}
-              className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 mb-3 group"
+              className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 mb-2 sm:mb-3 group"
             >
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" />
               <span className="font-medium">Back to Properties</span>
             </button>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative">
+            <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent relative">
               {id ? "Edit Property" : "Create New Property"}
-              <div className="absolute -bottom-2 left-0 w-24 h-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full"></div>
+              <div className="absolute -bottom-2 left-0 w-20 sm:w-24 h-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full"></div>
             </h2>
           </div>
           <button
             onClick={() => navigate("/properties")}
-            className="p-2 bg-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg transform hover:rotate-90"
+            className="p-2 bg-white rounded-full transition-all duration-300 shadow-md hover:shadow-lg transform hover:rotate-90 self-end sm:self-auto"
           >
-            <X className="w-6 h-6 text-gray-500" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-6 bg-white border-l-4 border-red-500 p-5 rounded-r-xl shadow-lg relative overflow-hidden animate-pulse">
+          <div className="mb-6 bg-white border-l-4 border-red-500 p-4 sm:p-5 rounded-r-xl shadow-lg relative overflow-hidden animate-pulse">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-red-600"></div>
             <div className="flex items-center gap-3">
               <svg
-                className="w-6 h-6 text-red-500"
+                className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -469,30 +469,36 @@ const PropertyForm = () => {
                   d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <p className="text-red-700 font-medium">{error}</p>
+              <p className="text-red-700 font-medium text-sm sm:text-base">
+                {error}
+              </p>
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           {/* Basic Information Card */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 transition-all duration-300 hover:shadow-xl relative overflow-hidden group">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8 transition-all duration-300 hover:shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-indigo-600"></div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
               <div
                 className={`${getSectionBgColor(
                   "basic"
-                )} p-3 rounded-xl shadow-sm transition-all duration-300 group-hover:shadow-md`}
+                )} p-2 sm:p-3 rounded-xl shadow-sm transition-all duration-300 group-hover:shadow-md`}
               >
-                <Home className={`w-6 h-6 ${getSectionColor("basic")}`} />
+                <Home
+                  className={`w-5 h-5 sm:w-6 sm:h-6 ${getSectionColor(
+                    "basic"
+                  )}`}
+                />
               </div>
               <span className="relative">
                 Basic Information
-                <span className="absolute -bottom-1 left-0 w-12 h-0.5 bg-indigo-600 rounded-full"></span>
+                <span className="absolute -bottom-1 left-0 w-10 sm:w-12 h-0.5 bg-indigo-600 rounded-full"></span>
               </span>
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <InputField
                 label="Property Title"
                 required
@@ -606,7 +612,7 @@ const PropertyForm = () => {
                 </div>
               </div>
 
-              <div className="md:col-span-2">
+              <div className="sm:col-span-2">
                 <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-indigo-500" />
                   Description
@@ -616,7 +622,7 @@ const PropertyForm = () => {
                   onChange={(e) =>
                     handleInputChange("description", e.target.value)
                   }
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-300 min-h-32 shadow-sm hover:border-indigo-400"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-300 min-h-24 sm:min-h-32 shadow-sm hover:border-indigo-400"
                   placeholder="Describe the property features and amenities..."
                 />
               </div>
@@ -624,27 +630,31 @@ const PropertyForm = () => {
           </div>
 
           {/* Amenities Card */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 transition-all duration-300 hover:shadow-xl relative overflow-hidden group">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8 transition-all duration-300 hover:shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-purple-600"></div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
               <div
                 className={`${getSectionBgColor(
                   "amenities"
-                )} p-3 rounded-xl shadow-sm transition-all duration-300 group-hover:shadow-md`}
+                )} p-2 sm:p-3 rounded-xl shadow-sm transition-all duration-300 group-hover:shadow-md`}
               >
-                <Star className={`w-6 h-6 ${getSectionColor("amenities")}`} />
+                <Star
+                  className={`w-5 h-5 sm:w-6 sm:h-6 ${getSectionColor(
+                    "amenities"
+                  )}`}
+                />
               </div>
               <span className="relative">
                 Key Amenities
-                <span className="absolute -bottom-1 left-0 w-12 h-0.5 bg-purple-600 rounded-full"></span>
+                <span className="absolute -bottom-1 left-0 w-10 sm:w-12 h-0.5 bg-purple-600 rounded-full"></span>
               </span>
             </h3>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {Object.keys(property.amenities || {}).map((amenity) => (
                 <label
                   key={amenity}
-                  className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md"
+                  className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-xl border border-gray-100 hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md"
                 >
                   <input
                     type="checkbox"
@@ -658,9 +668,9 @@ const PropertyForm = () => {
                         },
                       }))
                     }
-                    className="w-5 h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                    className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
                   />
-                  <span className="capitalize text-gray-700 font-medium">
+                  <span className="capitalize text-gray-700 font-medium text-sm sm:text-base">
                     {amenity.replace(/([A-Z])/g, " $1").trim()}
                   </span>
                 </label>
@@ -669,22 +679,26 @@ const PropertyForm = () => {
           </div>
 
           {/* Location Details Card */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 transition-all duration-300 hover:shadow-xl relative overflow-hidden group">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 md:p-8 transition-all duration-300 hover:shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
               <div
                 className={`${getSectionBgColor(
                   "location"
-                )} p-3 rounded-xl shadow-sm transition-all duration-300 group-hover:shadow-md`}
+                )} p-2 sm:p-3 rounded-xl shadow-sm transition-all duration-300 group-hover:shadow-md`}
               >
-                <MapPin className={`w-6 h-6 ${getSectionColor("location")}`} />
+                <MapPin
+                  className={`w-5 h-5 sm:w-6 sm:h-6 ${getSectionColor(
+                    "location"
+                  )}`}
+                />
               </div>
               <span className="relative">
                 Location Details
                 <span className="absolute -bottom-1 left-0 w-12 h-0.5 bg-emerald-600 rounded-full"></span>
               </span>
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {Object.entries(property.location).map(([key, value]) => (
                 <InputField
                   key={key}
@@ -700,14 +714,13 @@ const PropertyForm = () => {
           </div>
 
           {/* Bank Information Card */}
-          {/* Bank Information Card */}
-          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg overflow-hidden relative group">
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8 transition-all duration-200 hover:shadow-lg overflow-hidden relative group">
             <div className="absolute -right-16 -top-16 bg-amber-50 w-32 h-32 rounded-full opacity-30 group-hover:opacity-50 transition-all duration-300"></div>
             <div className="absolute -left-16 -bottom-16 bg-amber-50 w-32 h-32 rounded-full opacity-30 group-hover:opacity-50 transition-all duration-300"></div>
 
-            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
               <div className="bg-gradient-to-br from-amber-100 to-amber-200 p-2 rounded-lg shadow-sm">
-                <Banknote className="w-6 h-6 text-amber-600" />
+                <Banknote className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
               </div>
               <span className="relative">
                 Bank Information
@@ -715,7 +728,7 @@ const PropertyForm = () => {
               </span>
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {bankDetailsFields.map(({ key, label, options }) => (
                 <InputField
                   key={key}
@@ -733,13 +746,13 @@ const PropertyForm = () => {
           </div>
 
           {/* Property Photos Card */}
-          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 transition-all duration-200 hover:shadow-lg overflow-hidden relative group">
+          <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8 transition-all duration-200 hover:shadow-lg overflow-hidden relative group">
             <div className="absolute -right-16 -top-16 bg-purple-50 w-32 h-32 rounded-full opacity-30 group-hover:opacity-50 transition-all duration-300"></div>
             <div className="absolute -left-16 -bottom-16 bg-purple-50 w-32 h-32 rounded-full opacity-30 group-hover:opacity-50 transition-all duration-300"></div>
 
-            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
               <div className="bg-gradient-to-br from-purple-100 to-purple-200 p-2 rounded-lg shadow-sm">
-                <Image className="w-6 h-6 text-purple-600" />
+                <Image className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
               </div>
               <span className="relative">
                 Property Photos
@@ -748,7 +761,7 @@ const PropertyForm = () => {
             </h3>
 
             {property.photos.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {property.photos.map((photo, index) => (
                   <div
                     key={index}
@@ -757,7 +770,7 @@ const PropertyForm = () => {
                     <img
                       src={photo.url}
                       alt={`Property ${index + 1}`}
-                      className="w-full h-40 object-cover transition-transform duration-300 group-hover:scale-110"
+                      className="w-full h-32 sm:h-40 object-cover transition-transform duration-300 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
                     <button
@@ -776,20 +789,20 @@ const PropertyForm = () => {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 px-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl mb-8 border-2 border-dashed border-gray-200 transition-all duration-300 hover:border-purple-200">
-                <Cloud className="w-16 h-16 text-gray-300 mb-4 drop-shadow-md" />
+              <div className="flex flex-col items-center justify-center py-8 sm:py-12 px-4 sm:px-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl mb-6 sm:mb-8 border-2 border-dashed border-gray-200 transition-all duration-300 hover:border-purple-200">
+                <Cloud className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mb-3 sm:mb-4 drop-shadow-md" />
                 <p className="text-gray-500 text-center font-medium">
                   No photos uploaded yet
                 </p>
-                <p className="text-sm text-gray-400 text-center mt-1">
+                <p className="text-xs sm:text-sm text-gray-400 text-center mt-1">
                   Upload high-quality photos to showcase this property
                 </p>
               </div>
             )}
 
-            <div className="flex items-center gap-4">
-              <label className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-1">
-                <Upload className="w-5 h-5 mr-2" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+              <label className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-1 w-full sm:w-auto justify-center">
+                <Upload className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 {uploading ? "Uploading..." : "Upload Photos"}
                 <input
                   type="file"
@@ -799,34 +812,34 @@ const PropertyForm = () => {
                   accept="image/*"
                 />
               </label>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs sm:text-sm text-gray-500">
                 Upload high-quality photos (JPEG, PNG, WEBP). Max 10 files.
               </p>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 sticky bottom-4 z-10">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 sticky bottom-4 z-10">
             {id && (
               <button
                 type="button"
                 onClick={handleDelete}
-                className="px-6 py-4 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 flex items-center justify-center gap-2 w-full sm:w-auto transition-all duration-200 shadow-sm hover:shadow border border-red-100"
+                className="px-4 sm:px-6 py-3 sm:py-4 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 flex items-center justify-center gap-2 w-full sm:w-auto transition-all duration-200 shadow-sm hover:shadow border border-red-100"
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                 Delete Property
               </button>
             )}
             <button
               type="submit"
               disabled={loading || uploading}
-              className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 flex items-center justify-center gap-2 w-full sm:w-auto transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed transform hover:-translate-y-1 relative overflow-hidden group"
+              className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 flex items-center justify-center gap-2 w-full sm:w-auto transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed transform hover:-translate-y-1 relative overflow-hidden group"
             >
               <span className="absolute inset-0 w-full h-full bg-white opacity-0 group-hover:opacity-10 transition-opacity"></span>
               {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
               ) : (
-                <Save className="w-5 h-5" />
+                <Save className="w-4 h-4 sm:w-5 sm:h-5" />
               )}
               {id ? "Save Changes" : "Create Property"}
             </button>
@@ -836,5 +849,4 @@ const PropertyForm = () => {
     </div>
   );
 };
-
 export default PropertyForm;

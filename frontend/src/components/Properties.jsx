@@ -35,17 +35,17 @@ const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
       />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-3xl p-8 w-full max-w-md m-4 shadow-2xl transform transition-all animate-in slide-in-from-bottom duration-300">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-start gap-5">
-            <div className="p-4 bg-red-100 rounded-full">
-              <Trash2 className="w-7 h-7 text-red-600" />
+      <div className="relative bg-white rounded-3xl p-4 sm:p-8 w-full max-w-md mx-4 shadow-2xl transform transition-all animate-in slide-in-from-bottom duration-300">
+        <div className="flex flex-col gap-4 sm:gap-6">
+          <div className="flex items-start gap-3 sm:gap-5">
+            <div className="p-3 sm:p-4 bg-red-100 rounded-full">
+              <Trash2 className="w-5 h-5 sm:w-7 sm:h-7 text-red-600" />
             </div>
             <div>
-              <h3 className="text-2xl font-bold text-gray-900">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
                 Delete {propertyTitle || "Property"}
               </h3>
-              <p className="text-gray-600 mt-2">
+              <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">
                 Are you sure you want to delete{" "}
                 {propertyTitle ? (
                   <span className="font-medium">
@@ -59,16 +59,16 @@ const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
             </div>
           </div>
 
-          <div className="flex gap-4 justify-end mt-2">
+          <div className="flex gap-3 sm:gap-4 justify-end mt-2">
             <button
               onClick={onClose}
-              className="px-6 py-3 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all duration-200 hover:shadow-md"
+              className="px-4 sm:px-6 py-2 sm:py-3 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all duration-200 hover:shadow-md"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              className="px-6 py-3 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all duration-200 flex items-center gap-2 hover:shadow-lg shadow-md"
+              className="px-4 sm:px-6 py-2 sm:py-3 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all duration-200 flex items-center gap-2 hover:shadow-lg shadow-md"
             >
               <Trash2 className="w-4 h-4" />
               Delete Property
@@ -86,7 +86,7 @@ const Properties = () => {
   const [error, setError] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [viewMode, setViewMode] = useState('properties');
+  const [viewMode, setViewMode] = useState("properties");
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
 
   const [deleteDialog, setDeleteDialog] = useState({
@@ -112,35 +112,35 @@ const Properties = () => {
       description: "Short Term Rental (≤80 sq.m)",
       lowSeason: 8, // Nov-Mar: less than 10 euros
       highSeason: 12, // Apr-Oct: more than 10, less than 20 euros
-      sqm: 80
+      sqm: 80,
     },
     {
       type: "Short Term Rental >80 sq.m",
       description: "Short Term Rental (>80 sq.m)",
       lowSeason: 9,
       highSeason: 15,
-      sqm: 81
+      sqm: 81,
     },
     {
       type: "Self Sustained Villa",
       description: "Self Sustained Villa",
       lowSeason: 9,
       highSeason: 18,
-      sqm: null
+      sqm: null,
     },
     {
       type: "Self Sustained Residency <=80sq.m",
       description: "Self Sustained Residency (≤80sq.m)",
       lowSeason: 8,
       highSeason: 14,
-      sqm: 80
+      sqm: 80,
     },
     {
       type: "Self Sustained Residency >80sq.m",
       description: "Self Sustained Residency (>80sq.m)",
       lowSeason: 9,
       highSeason: 19,
-      sqm: 81
+      sqm: 81,
     },
   ];
 
@@ -181,9 +181,9 @@ const Properties = () => {
     const currentMonth = new Date().getMonth() + 1;
     const isHighSeason = currentMonth >= 4 && currentMonth <= 10;
     const category = categories.find((cat) => cat.type === propertyType);
-    
+
     if (!category) return "N/A";
-  
+
     const price = isHighSeason ? category.highSeason : category.lowSeason;
     return `${currencySymbols[currency] || currencySymbols.EUR}${price}`;
   };
@@ -205,7 +205,9 @@ const Properties = () => {
   };
 
   const handleCategorySelect = (categoryType) => {
-    setSelectedCategory(categoryType === selectedCategory ? null : categoryType);
+    setSelectedCategory(
+      categoryType === selectedCategory ? null : categoryType
+    );
     setShowCategoryFilter(false);
   };
 
@@ -234,49 +236,78 @@ const Properties = () => {
 
   // Revised CategoriesTable component to match your requested format
   const CategoriesTable = () => (
-    <div className="bg-white rounded-2xl shadow-lg p-8 animate-fadeIn border border-blue-50">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Pricing Categories</h2>
+    <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8 animate-fadeIn border border-blue-50">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-800 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+        Pricing Categories
+      </h2>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b-2 border-gray-100">
-              <th className="text-left py-4 px-4 text-indigo-700">Category</th>
-              <th className="text-center py-4 px-4 text-indigo-700">Low Season (Nov-Mar)</th>
-              <th className="text-center py-4 px-4 text-indigo-700">High Season (Apr-Oct)</th>
-              <th className="text-left py-4 px-4 text-indigo-700">Description</th>
+              <th className="text-left py-3 sm:py-4 px-2 sm:px-4 text-indigo-700 text-xs sm:text-sm">
+                Category
+              </th>
+              <th className="text-center py-3 sm:py-4 px-2 sm:px-4 text-indigo-700 text-xs sm:text-sm">
+                Low Season (Nov-Mar)
+              </th>
+              <th className="text-center py-3 sm:py-4 px-2 sm:px-4 text-indigo-700 text-xs sm:text-sm">
+                High Season (Apr-Oct)
+              </th>
+              <th className="text-left py-3 sm:py-4 px-2 sm:px-4 text-indigo-700 text-xs sm:text-sm">
+                Description
+              </th>
             </tr>
           </thead>
           <tbody>
             {categories.map((category, index) => (
-              <tr 
-                key={category.type} 
+              <tr
+                key={category.type}
                 className="border-b border-gray-50 hover:bg-blue-50/50 transition-colors"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <td className="py-4 px-4 font-medium">{category.type}</td>
-                <td className="text-center py-4 px-4 text-blue-600 font-medium">€{category.lowSeason}/night</td>
-                <td className="text-center py-4 px-4 text-blue-600 font-medium">€{category.highSeason}/night</td>
-                <td className="py-4 px-4">{category.description}</td>
+                <td className="py-3 sm:py-4 px-2 sm:px-4 font-medium text-xs sm:text-sm">
+                  {category.type}
+                </td>
+                <td className="text-center py-3 sm:py-4 px-2 sm:px-4 text-blue-600 font-medium text-xs sm:text-sm">
+                  €{category.lowSeason}/night
+                </td>
+                <td className="text-center py-3 sm:py-4 px-2 sm:px-4 text-blue-600 font-medium text-xs sm:text-sm">
+                  €{category.highSeason}/night
+                </td>
+                <td className="py-3 sm:py-4 px-2 sm:px-4 text-xs sm:text-sm">
+                  {category.description}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      
-      <div className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100">
-        <h3 className="text-lg font-bold text-blue-700 mb-2">Seasonal Pricing Notes</h3>
-        <ul className="space-y-2 text-blue-800">
+
+      <div className="mt-6 sm:mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-xl border border-blue-100">
+        <h3 className="text-base sm:text-lg font-bold text-blue-700 mb-2">
+          Seasonal Pricing Notes
+        </h3>
+        <ul className="space-y-2 text-blue-800 text-xs sm:text-sm">
           <li className="flex items-start gap-2">
             <span className="inline-block h-2 w-2 rounded-full bg-blue-600 mt-2"></span>
-            <span>Low Season (November to March): Prices range from €8 to €9 per night</span>
+            <span>
+              Low Season (November to March): Prices range from €8 to €9 per
+              night
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="inline-block h-2 w-2 rounded-full bg-blue-600 mt-2"></span>
-            <span>High Season (April to October): Prices range from €12 to €19 per night</span>
+            <span>
+              High Season (April to October): Prices range from €12 to €19 per
+              night
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="inline-block h-2 w-2 rounded-full bg-blue-600 mt-2"></span>
-            <span>Property cards display exact current seasonal price based on today&apos;s date</span>
+            <span>
+              Property cards display exact current seasonal price based on
+              today&apos;s date
+            </span>
           </li>
         </ul>
       </div>
@@ -302,25 +333,24 @@ const Properties = () => {
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
       />
-      <main className="pt-24 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pb-16">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12 gap-6">
-          
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+      <main className="pt-16 sm:pt-20 md:pt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 pb-16">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 sm:mb-12 gap-4 sm:gap-6">
+          <div className="space-y-1 sm:space-y-2">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
               All Listings
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Manage and browse all your property listings
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 w-full sm:w-auto">
             {user?.role === "admin" && (
               <Link
                 to="/properties/new"
-                className="group bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 rounded-full hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 w-full sm:w-auto justify-center shadow-lg"
+                className="group bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-full hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-center shadow-lg text-sm sm:text-base"
               >
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg">
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform duration-300" />
                 </div>
                 <span className="font-medium">Add New Property</span>
               </Link>
@@ -329,11 +359,11 @@ const Properties = () => {
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-5 rounded-2xl mb-10 animate-slide-in shadow-lg">
-            <div className="flex items-center gap-4">
-              <div className="flex-shrink-0 bg-red-100 rounded-full p-3">
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 sm:p-5 rounded-2xl mb-6 sm:mb-10 animate-slide-in shadow-lg">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex-shrink-0 bg-red-100 rounded-full p-2 sm:p-3">
                 <svg
-                  className="h-6 w-6 text-red-600"
+                  className="h-5 w-5 sm:h-6 sm:w-6 text-red-600"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -344,98 +374,120 @@ const Properties = () => {
                   />
                 </svg>
               </div>
-              <p className="text-red-800 font-medium">{error}</p>
+              <p className="text-sm sm:text-base text-red-800 font-medium">
+                {error}
+              </p>
             </div>
           </div>
         )}
 
         {/* View mode switcher */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-6 sm:mb-8">
           <div className="bg-white p-1 rounded-xl flex shadow-md border border-blue-100">
             <button
-              onClick={() => setViewMode('properties')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
-                viewMode === 'properties'
-                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+              onClick={() => setViewMode("properties")}
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-lg font-medium transition-all text-xs sm:text-sm ${
+                viewMode === "properties"
+                  ? "bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md text-white"
+                  : "text-gray-600 hover:bg-gray-100"
               }`}
             >
-              <Grid className="w-5 h-5" />
+              <Grid className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Properties</span>
             </button>
             <button
-              onClick={() => setViewMode('categories')}
-              className={`flex items-center gap-2 px-5 py-3 rounded-lg font-medium transition-all ${
-                viewMode === 'categories'
-                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+              onClick={() => setViewMode("categories")}
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-lg font-medium transition-all text-xs sm:text-sm ${
+                viewMode === "categories"
+                  ? "bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md text-white"
+                  : "text-gray-600 hover:bg-gray-100"
               }`}
             >
-              <List className="w-5 h-5" />
+              <List className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Categories</span>
             </button>
           </div>
         </div>
 
-        {viewMode === 'categories' ? (
+        {viewMode === "categories" ? (
           <CategoriesTable />
         ) : (
           <>
             {/* Add category filter */}
-            <div className="mb-8 flex justify-between items-center">
+            <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-0">
               <div className="relative">
-                <button 
+                <button
                   onClick={toggleCategoryFilter}
-                  className="flex items-center gap-2 px-4 py-3 bg-white shadow-md rounded-xl hover:bg-gray-50 transition-colors border border-blue-100"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-white shadow-md rounded-xl hover:bg-gray-50 transition-colors border border-blue-100 text-xs sm:text-sm w-full sm:w-auto"
                 >
-                  <Filter className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium">
-                    {selectedCategory ? `Category: ${selectedCategory}` : "Filter by Category"}
+                  <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                  <span className="font-medium truncate">
+                    {selectedCategory
+                      ? `Category: ${selectedCategory}`
+                      : "Filter by Category"}
                   </span>
                   {selectedCategory && (
-                    <button 
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         clearCategoryFilter();
                       }}
                       className="ml-2 p-1 bg-gray-100 rounded-full hover:bg-gray-200"
                     >
-                      <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                      <svg
+                        className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        ></path>
                       </svg>
                     </button>
                   )}
                 </button>
-                
+
                 {showCategoryFilter && (
-                  <div className="absolute top-full left-0 mt-2 w-72 bg-white rounded-xl shadow-lg z-10 py-2 animate-in slide-in-from-top duration-200 border border-blue-100">
+                  <div className="absolute top-full left-0 mt-2 w-full sm:w-72 bg-white rounded-xl shadow-lg z-10 py-2 animate-in slide-in-from-top duration-200 border border-blue-100">
                     <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-                      <p className="text-sm font-medium text-indigo-700">Select a category</p>
+                      <p className="text-xs sm:text-sm font-medium text-indigo-700">
+                        Select a category
+                      </p>
                     </div>
                     {categories.map((category) => (
                       <button
                         key={category.type}
-                        className={`w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors ${
-                          selectedCategory === category.type ? "bg-blue-50 text-blue-700" : ""
+                        className={`w-full text-left px-3 sm:px-4 py-2 sm:py-3 hover:bg-blue-50 transition-colors text-xs sm:text-sm ${
+                          selectedCategory === category.type
+                            ? "bg-blue-50 text-blue-700"
+                            : ""
                         }`}
                         onClick={() => handleCategorySelect(category.type)}
                       >
                         <div className="font-medium">{category.type}</div>
-                        <div className="text-sm text-gray-500">{category.description}</div>
+                        <div className="text-xs text-gray-500">
+                          {category.description}
+                        </div>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-              
+
               {selectedCategory && (
-                <div className="text-sm text-gray-600 bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-                  Showing {properties.filter(p => p.type === selectedCategory).length} of {properties.length} properties
+                <div className="text-xs sm:text-sm text-gray-600 bg-white/70 backdrop-blur-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm">
+                  Showing{" "}
+                  {properties.filter((p) => p.type === selectedCategory).length}{" "}
+                  of {properties.length} properties
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               {properties
                 .filter(
                   (property) =>
@@ -444,7 +496,7 @@ const Properties = () => {
                 .map((property, index) => (
                   <div
                     key={property._id}
-                    className="bg-white rounded-3xl border border-blue-100 hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 overflow-hidden group"
+                    className="bg-white rounded-2xl sm:rounded-3xl border border-blue-100 hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 overflow-hidden group"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
                     <div className="relative overflow-hidden group">
@@ -452,56 +504,57 @@ const Properties = () => {
                         <img
                           src={property.photos[0].url}
                           alt={property.title}
-                          className="w-full h-64 object-cover transform group-hover:scale-110 transition-transform duration-700"
+                          className="w-full h-48 sm:h-56 md:h-64 object-cover transform group-hover:scale-110 transition-transform duration-700"
                         />
                       ) : (
-                        <div className="w-full h-64 bg-gradient-to-r from-blue-400 to-indigo-500 flex items-center justify-center">
-                          <Home className="w-16 h-16 text-white" />
+                        <div className="w-full h-48 sm:h-56 md:h-64 bg-gradient-to-r from-blue-400 to-indigo-500 flex items-center justify-center">
+                          <Home className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
                         </div>
                       )}
 
-                      <div className="absolute bottom-4 left-4 flex gap-2 flex-wrap">
+                      <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 flex gap-1.5 sm:gap-2 flex-wrap">
                         {Object.entries(property.amenities || {})
                           .filter(([_, value]) => value)
                           .slice(0, 3)
                           .map(([amenity]) => (
                             <div
                               key={amenity}
-                              className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm flex items-center gap-2 shadow-sm border border-blue-100"
+                              className="bg-white/90 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs flex items-center gap-1 sm:gap-2 shadow-sm border border-blue-100"
                             >
                               {amenity === "swimmingPool" && (
-                                <Droplet className="w-4 h-4 text-blue-500" />
+                                <Droplet className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500" />
                               )}
                               {amenity === "wifi" && (
-                                <Wifi className="w-4 h-4 text-green-500" />
+                                <Wifi className="w-3 h-3 sm:w-4 sm:h-4 text-green-500" />
                               )}
                               {amenity === "parking" && (
-                                <Car className="w-4 h-4 text-purple-500" />
+                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
                               )}
                               {amenity === "airConditioning" && (
-                                <Car className="w-4 h-4 text-purple-500" />
+                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
                               )}
                               {amenity === "kitchen" && (
-                                <Car className="w-4 h-4 text-purple-500" />
+                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
                               )}
                               {amenity === "tv" && (
-                                <Car className="w-4 h-4 text-purple-500" />
+                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
                               )}
                               {amenity === "washer" && (
-                                <Car className="w-4 h-4 text-purple-500" />
+                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
                               )}
                               {amenity === "balcony" && (
-                                <Car className="w-4 h-4 text-purple-500" />
+                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
                               )}
 
-                              <span className="capitalize text-gray-700">
+                              <span className="capitalize text-gray-700 hidden sm:inline">
                                 {amenity.replace(/([A-Z])/g, " $1").trim()}
                               </span>
                             </div>
                           ))}
-                        {Object.values(property.amenities || {}).filter((v) => v)
-                          .length > 3 && (
-                          <div className="bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm text-gray-500 border border-blue-100">
+                        {Object.values(property.amenities || {}).filter(
+                          (v) => v
+                        ).length > 3 && (
+                          <div className="bg-white/90 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs text-gray-500 border border-blue-100">
                             +
                             {Object.values(property.amenities).filter((v) => v)
                               .length - 3}{" "}
@@ -509,47 +562,54 @@ const Properties = () => {
                           </div>
                         )}
                       </div>
-                      
-                      <div className="absolute top-4 left-4 right-4 flex justify-between">
-                        <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-white/90 text-blue-700 shadow-lg backdrop-blur-sm border border-blue-100">
+
+                      <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 flex justify-between">
+                        <span className="inline-flex items-center px-2 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-white/90 text-blue-700 shadow-lg backdrop-blur-sm border border-blue-100">
                           {property.type}
                         </span>
-                        <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg backdrop-blur-sm">
-                          {getSeasonalPrice(property.type, property.currency || "EUR")}
-                          <span className="text-xs font-normal ml-1">/night</span>
+                        <span className="inline-flex items-center px-2 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg backdrop-blur-sm">
+                          {getSeasonalPrice(
+                            property.type,
+                            property.currency || "EUR"
+                          )}
+                          <span className="text-xs font-normal ml-1">
+                            /night
+                          </span>
                         </span>
                       </div>
                     </div>
 
-                    <div className="p-8 space-y-5">
+                    <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5">
                       <div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-3 line-clamp-1 hover:text-blue-700 transition-colors">
+                        <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2 sm:mb-3 line-clamp-1 hover:text-blue-700 transition-colors">
                           {property.title}
                         </h3>
                         <div className="flex items-center gap-2 text-gray-700 mb-1">
-                          <div className="bg-blue-100 p-1.5 rounded-lg">
-                            <MapPin className="w-4 h-4 text-blue-600" />
+                          <div className="bg-blue-100 p-1 sm:p-1.5 rounded-lg">
+                            <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
                           </div>
-                          <p className="text-sm truncate font-medium">
-                            {property.location?.address || "No address specified"}
+                          <p className="text-xs sm:text-sm truncate font-medium">
+                            {property.location?.address ||
+                              "No address specified"}
                           </p>
                         </div>
-                        <p className="text-sm text-gray-600 pl-8">
-                          {property.location?.city}, {property.location?.country}
+                        <p className="text-xs sm:text-sm text-gray-600 pl-6 sm:pl-8">
+                          {property.location?.city},{" "}
+                          {property.location?.country}
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between border-t border-gray-100 pt-5">
-                        <div className="flex items-center gap-5">
-                          <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
-                            <Bed className="w-4 h-4 text-blue-600" />
-                            <span className="text-sm font-medium">
+                      <div className="flex items-center justify-between border-t border-gray-100 pt-4 sm:pt-5">
+                        <div className="flex items-center gap-3 sm:gap-5">
+                          <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-gray-100">
+                            <Bed className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+                            <span className="text-xs sm:text-sm font-medium">
                               {property.bedrooms}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
-                            <Bath className="w-4 h-4 text-blue-600" />
-                            <span className="text-sm font-medium">
+                          <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-gray-100">
+                            <Bath className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+                            <span className="text-xs sm:text-sm font-medium">
                               {property.bathrooms}
                             </span>
                           </div>
@@ -614,22 +674,29 @@ const Properties = () => {
                 </div>
               </div>
             )}
-            
-            {properties.length > 0 && selectedCategory && properties.filter(p => p.type === selectedCategory).length === 0 && (
-              <div className="text-center py-12 bg-white rounded-2xl shadow-md border border-blue-100">
-                <div className="p-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full inline-flex mb-4">
-                  <Filter className="w-10 h-10 text-indigo-600" />
+
+            {properties.length > 0 &&
+              selectedCategory &&
+              properties.filter((p) => p.type === selectedCategory).length ===
+                0 && (
+                <div className="text-center py-12 bg-white rounded-2xl shadow-md border border-blue-100">
+                  <div className="p-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full inline-flex mb-4">
+                    <Filter className="w-10 h-10 text-indigo-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    No properties in this category
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    Try selecting a different category or clear the filter
+                  </p>
+                  <button
+                    onClick={clearCategoryFilter}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-colors shadow-md hover:shadow-lg"
+                  >
+                    Clear Filter
+                  </button>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">No properties in this category</h3>
-                <p className="text-gray-600 mb-6">Try selecting a different category or clear the filter</p>
-                <button
-                  onClick={clearCategoryFilter}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-colors shadow-md hover:shadow-lg"
-                >
-                  Clear Filter
-                </button>
-              </div>
-            )}
+              )}
           </>
         )}
       </main>

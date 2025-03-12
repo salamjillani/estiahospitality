@@ -69,11 +69,14 @@ const generateInvoicePDF = async (invoice) => {
         invoice.amounts.currency || booking.currency || "USD";
     }
 
-    // Create PDF document with optimized margins
+    // Create PDF document with responsive settings
+    // Using A4 size which is standard and works well across devices
     doc = new PDFDocument({ 
       size: "A4", 
       margin: 35,
-      bufferPages: true
+      bufferPages: true,
+      autoFirstPage: true,
+      layout: "portrait" // Portrait mode works better for responsive viewing
     });
 
     // Ensure temp directory exists
@@ -98,6 +101,7 @@ const generateInvoicePDF = async (invoice) => {
     doc.pipe(writeStream);
 
     // Define elegant color scheme with high contrast for readability
+    // High contrast colors improve readability across all devices
     const colors = {
       primary: "#1E40AF",       // Deep rich blue
       secondary: "#F0F5FF",     // Very light blue tint
@@ -110,14 +114,15 @@ const generateInvoicePDF = async (invoice) => {
     };
     
     // Define page dimensions for precise positioning
+    // Use percentages for positioning where possible for better adaptability
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
-    const margin = 35;
+    const margin = Math.min(35, pageWidth * 0.05); // Responsive margin (5% of width, max 35pt)
     const contentWidth = pageWidth - (margin * 2);
 
-    // Calculate appropriate scaling factor to distribute content
-    // This will help us evenly space the content to fill the page
-    const scalingFactor = 1.15; // Adjust this to expand spacing as needed
+    // Responsive scaling factor - adjusts based on page width
+    // This makes content proportionally distributed regardless of device
+    const scalingFactor = Math.max(1.1, Math.min(1.2, pageWidth / 500)); 
 
     // UPDATED: Improved logo path resolution with more paths for your specific structure
     const possibleLogoPaths = [
@@ -134,17 +139,20 @@ const generateInvoicePDF = async (invoice) => {
       path.join(process.cwd(), "public/logo.png"),
     ];
 
-    // =============== HEADER SECTION - MODERNIZED ===============
-    // Sleek top bar
+    // =============== HEADER SECTION - RESPONSIVELY DESIGNED ===============
+    // Sleek top bar - full width for consistency across devices
     doc.rect(0, 0, pageWidth, 8).fill(colors.primary);
     
     // Try each potential logo path
     let logoFound = false;
+    const logoHeight = pageHeight * 0.05; // Responsive logo height
+    const logoWidth = logoHeight * 1.4;  // Maintain aspect ratio
+
     for (const logoPath of possibleLogoPaths) {
       try {
         if (fs.existsSync(logoPath)) {
           console.log(`Logo found at: ${logoPath}`);
-          doc.image(logoPath, margin, 25, { width: 70 });
+          doc.image(logoPath, margin, 25, { width: logoWidth });
           logoFound = true;
           break;
         }
@@ -159,41 +167,46 @@ const generateInvoicePDF = async (invoice) => {
         possibleLogoPaths
       );
       doc.fillColor(colors.primary)
-        .fontSize(20)
+        .fontSize(Math.max(16, pageWidth * 0.05)) // Responsive font size
         .font('Helvetica-Bold')
         .text("ESTIA HOSPITALITY", margin, 25);
     }
 
     // Company information positioned BELOW the logo, not overlapping
-    // Increased spacing with scaling factor
-    const addressY = logoFound ? 100 : 55; // Adjusted with more space
+    // Responsive spacing based on page dimensions
+    const addressY = logoFound ? margin + logoHeight + 15 : 55;
+    const addressFontSize = Math.max(7, pageWidth * 0.02); // Responsive font size
+
     doc.fillColor(colors.lightText)
-      .fontSize(8)
+      .fontSize(addressFontSize)
       .font('Helvetica')
       .text("Geronimaki Str.41A", margin, addressY)
-      .text("Heraklion Crete Greece, PO: 71307", margin, addressY + 10)
-      .text("VAT: EL 802248273", margin, addressY + 20);
+      .text("Heraklion Crete Greece, PO: 71307", margin, addressY + addressFontSize + 2)
+      .text("VAT: EL 802248273", margin, addressY + (addressFontSize + 2) * 2);
 
-    // Customer Information - Right aligned for visual balance
-    const customerInfoX = pageWidth - margin - 150;
+    // Customer Information - Right aligned with responsive positioning
+    const infoFontSize = Math.max(8, pageWidth * 0.022); // Responsive font size
+    const customerInfoX = pageWidth - margin - pageWidth * 0.25; // 25% of page width from right
+    
     doc.fillColor(colors.primary)
-      .fontSize(9)
+      .fontSize(infoFontSize + 1) // Slightly larger for title
       .font('Helvetica-Bold')
       .text("BILLED", customerInfoX, 25);
       
     doc.fillColor(colors.text)
-      .fontSize(9)
+      .fontSize(infoFontSize)
       .font('Helvetica')
-      .text(`${user.name || booking.guestName || "Guest"}`, customerInfoX, 40)
-      .text(`${email}`, customerInfoX, 55)
-      .text(`${phone}`, customerInfoX, 70);
+      .text(`${user.name || booking.guestName || "Guest"}`, customerInfoX, 25 + (infoFontSize + 4))
+      .text(`${email}`, customerInfoX, 25 + (infoFontSize + 4) * 2)
+      .text(`${phone}`, customerInfoX, 25 + (infoFontSize + 4) * 3);
 
-    // Invoice title position - adjusted with scaling factor
-    const invoiceTitleY = addressY + (40 * scalingFactor);
+    // Invoice title with responsive positioning
+    const titleFontSize = Math.max(16, pageWidth * 0.045); // Responsive title font size
+    const invoiceTitleY = addressY + addressFontSize * 4 + 10; // Dynamic positioning
 
     // Large invoice heading
     doc.fillColor(colors.primary)
-      .fontSize(20)
+      .fontSize(titleFontSize)
       .font('Helvetica-Bold')
       .text("ESTIA HOSPITALITY", margin, invoiceTitleY);
     
@@ -202,74 +215,91 @@ const generateInvoicePDF = async (invoice) => {
       invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1).toLowerCase() : 
       "Pending";
     
-    // Status pill
-    const statusWidth = doc.widthOfString(formattedStatus) + 16;
-    doc.roundedRect(pageWidth - margin - statusWidth, invoiceTitleY, statusWidth, 20, 10)
-      .fill(invoice.status?.toLowerCase() === "paid" ? colors.success : colors.accent);
+    // Status pill with responsive sizing
+    const statusFontSize = Math.max(8, pageWidth * 0.022);
+    const statusPadding = 8;
+    const statusWidth = doc.widthOfString(formattedStatus) + statusPadding * 2;
+    const statusHeight = statusFontSize + statusPadding;
+    
+    doc.roundedRect(
+      pageWidth - margin - statusWidth, 
+      invoiceTitleY, 
+      statusWidth, 
+      statusHeight, 
+      Math.min(10, statusHeight / 2) // Responsive corner radius
+    ).fill(invoice.status?.toLowerCase() === "paid" ? colors.success : colors.accent);
     
     doc.fillColor("white")
-      .fontSize(9)
+      .fontSize(statusFontSize)
       .font('Helvetica-Bold')
-      .text(formattedStatus, pageWidth - margin - statusWidth + 8, invoiceTitleY + 6);
+      .text(
+        formattedStatus, 
+        pageWidth - margin - statusWidth + statusPadding, 
+        invoiceTitleY + (statusHeight - statusFontSize) / 2
+      );
 
-    // =============== INVOICE DETAILS - MINIMALIST APPROACH ===============
-    // Spacing adjusted with scaling factor
-    const detailsY = invoiceTitleY + (30 * scalingFactor);
+    // =============== INVOICE DETAILS - RESPONSIVE GRID ===============
+    // Dynamic spacing based on content
+    const detailsY = invoiceTitleY + titleFontSize + 10;
     
     // Draw thin separator line
     doc.moveTo(margin, detailsY).lineTo(margin + contentWidth, detailsY)
       .lineWidth(0.5)
       .stroke(colors.border);
     
-    // Column layout for details - Changed from 3 to 4 columns to include reservation code
-    const colWidth = contentWidth / 4;
+    // Responsive column layout - adapt number of columns based on page width
+    const detailLabelSize = Math.max(7, pageWidth * 0.02);
+    const detailValueSize = Math.max(8, pageWidth * 0.022);
+    const detailPadding = 10 * scalingFactor;
     
-    // Invoice number
-    doc.fillColor(colors.lightText)
-      .fontSize(8)
-      .font('Helvetica-Bold')
-      .text("INVOICE NUMBER", margin, detailsY + 10);
-      
-    doc.fillColor(colors.text)
-      .fontSize(9)
-      .font('Helvetica')
-      .text(invoice.invoiceNumber, margin, detailsY + 25);
+    // For narrow screens (like mobile), stack in 2 columns instead of 4
+    const numCols = pageWidth < 400 ? 2 : 4;
+    const colWidth = contentWidth / numCols;
     
-    // Reservation code - New addition
-    doc.fillColor(colors.lightText)
-      .fontSize(8)
-      .font('Helvetica-Bold')
-      .text("RESERVATION CODE", margin + colWidth, detailsY + 10);
-      
-    doc.fillColor(colors.text)
-      .fontSize(9)
-      .font('Helvetica')
-      .text(booking.reservationCode || "N/A", margin + colWidth, detailsY + 25);
-    
-    // Issue date - Now in 3rd column
-    doc.fillColor(colors.lightText)
-      .fontSize(8)
-      .font('Helvetica-Bold')
-      .text("DATE ISSUED", margin + colWidth * 2, detailsY + 10);
-      
-    doc.fillColor(colors.text)
-      .fontSize(9)
-      .font('Helvetica')
-      .text(new Date(invoice.issuedDate).toLocaleDateString(), margin + colWidth * 2, detailsY + 25);
-    
-    // Payment method - Now in 4th column
-    doc.fillColor(colors.lightText)
-      .fontSize(8)
-      .font('Helvetica-Bold')
-      .text("PAYMENT METHOD", margin + colWidth * 3, detailsY + 10);
-      
-    doc.fillColor(colors.text)
-      .fontSize(9)
-      .font('Helvetica')
-      .text(invoice.paymentMethod || booking.paymentMethod || "N/A", margin + colWidth * 3, detailsY + 25);
+    const details = [
+      { 
+        label: "INVOICE NUMBER", 
+        value: invoice.invoiceNumber 
+      },
+      { 
+        label: "RESERVATION CODE", 
+        value: booking.reservationCode || "N/A" 
+      },
+      { 
+        label: "DATE ISSUED", 
+        value: new Date(invoice.issuedDate).toLocaleDateString() 
+      },
+      { 
+        label: "PAYMENT METHOD", 
+        value: invoice.paymentMethod || booking.paymentMethod || "N/A" 
+      }
+    ];
 
-    // Bottom separator line - adjusted with scaling factor
-    doc.moveTo(margin, detailsY + (45 * scalingFactor)).lineTo(margin + contentWidth, detailsY + (45 * scalingFactor))
+    // Render details responsively
+    details.forEach((detail, i) => {
+      const col = i % numCols;
+      const row = Math.floor(i / numCols);
+      const x = margin + col * colWidth;
+      const y = detailsY + detailPadding + row * (detailLabelSize + detailValueSize + detailPadding);
+      
+      doc.fillColor(colors.lightText)
+        .fontSize(detailLabelSize)
+        .font('Helvetica-Bold')
+        .text(detail.label, x, y);
+        
+      doc.fillColor(colors.text)
+        .fontSize(detailValueSize)
+        .font('Helvetica')
+        .text(detail.value, x, y + detailLabelSize + 5);
+    });
+
+    // Calculate new position after details section
+    const lastRow = Math.ceil(details.length / numCols) - 1;
+    const detailsEndY = detailsY + detailPadding + 
+                        (lastRow + 1) * (detailLabelSize + detailValueSize + detailPadding);
+    
+    // Bottom separator line - adjusted dynamically
+    doc.moveTo(margin, detailsEndY).lineTo(margin + contentWidth, detailsEndY)
       .lineWidth(0.5)
       .stroke(colors.border);
 
@@ -290,21 +320,31 @@ const generateInvoicePDF = async (invoice) => {
     const adults = invoice.guestDetails?.adults || booking.adults || "N/A";
     const children = invoice.guestDetails?.children || booking.children || 0;
 
-    // =============== RESERVATION DETAILS - COMPACT CARDS ===============
-    // Spacing adjusted with scaling factor
-    const reservationY = detailsY + (55 * scalingFactor);
+    // =============== RESERVATION DETAILS - RESPONSIVE CARDS ===============
+    // Dynamic spacing based on page flow
+    const sectionTitleSize = Math.max(9, pageWidth * 0.025);
+    const reservationY = detailsEndY + 15;
+    
     doc.fillColor(colors.primary)
-      .fontSize(10)
+      .fontSize(sectionTitleSize)
       .font('Helvetica-Bold')
       .text("RESERVATION DETAILS", margin, reservationY);
 
-    // Card dimensions adjusted with scaling factor
-    const cardY = reservationY + (20 * scalingFactor);
-    const cardHeight = 70; // Increased height
-    const cardSpacing = 6;
-    const cardWidth = (contentWidth - cardSpacing * 3) / 4;
+    // Card dimensions that adapt to screen size
+    const cardLabelSize = Math.max(7, pageWidth * 0.018);
+    const cardValueSize = Math.max(8, pageWidth * 0.022);
+    const cardPadding = 8 * scalingFactor;
     
-    // UPDATED: Modified Property card to separate property title from location
+    // For narrow screens, use 2 columns instead of 4
+    const cardCols = pageWidth < 400 ? 2 : 4;
+    const cardSpacing = 6 * scalingFactor;
+    const cardWidth = (contentWidth - cardSpacing * (cardCols - 1)) / cardCols;
+    
+    // Dynamic card height based on content
+    const cardY = reservationY + sectionTitleSize + 10;
+    const cardHeight = 70 * scalingFactor; // Base height, adjusts with scaling
+    
+    // UPDATED: Modified cards for responsive display
     const cards = [
       { 
         title: "PROPERTY", 
@@ -324,57 +364,77 @@ const generateInvoicePDF = async (invoice) => {
       }
     ];
     
-    // Draw modern cards with increased internal spacing
+    // Draw responsive cards
     cards.forEach((card, i) => {
-      const x = margin + (cardWidth + cardSpacing) * i;
+      const col = i % cardCols;
+      const row = Math.floor(i / cardCols);
+      const x = margin + (cardWidth + cardSpacing) * col;
+      const y = cardY + (cardHeight + cardSpacing) * row;
       
       // Card background with subtle shadow effect
-      doc.rect(x, cardY, cardWidth, cardHeight)
+      doc.rect(x, y, cardWidth, cardHeight)
         .fill(colors.secondary);
       
       // Accent strip
-      doc.rect(x, cardY, 3, cardHeight)
+      doc.rect(x, y, 3, cardHeight)
         .fill(colors.primary);
       
       // Card title - adjusted spacing
       doc.fillColor(colors.primary)
-        .fontSize(7)
+        .fontSize(cardLabelSize)
         .font('Helvetica-Bold')
-        .text(card.title, x + 8, cardY + 15);
+        .text(card.title, x + cardPadding, y + cardPadding);
       
       // Card value - adjusted spacing
       doc.fillColor(colors.text)
-        .fontSize(9)
+        .fontSize(cardValueSize)
         .font('Helvetica')
-        .text(card.value, x + 8, cardY + 30, {
-          width: cardWidth - 16,
-          height: cardHeight - 35
+        .text(card.value, x + cardPadding, y + cardPadding + cardLabelSize + 5, {
+          width: cardWidth - (cardPadding * 2),
+          height: cardHeight - (cardPadding * 2) - cardLabelSize - 5
         });
     });
 
-    // =============== PAYMENT DETAILS - MINIMALIST TABLE WITH TAX BREAKDOWN ===============
-    // Spacing adjusted with scaling factor
-    const paymentY = cardY + cardHeight + (25 * scalingFactor);
+    // Calculate new position after cards section
+    const lastCardRow = Math.ceil(cards.length / cardCols) - 1;
+    const cardsEndY = cardY + (lastCardRow + 1) * (cardHeight + cardSpacing);
+
+    // =============== PAYMENT DETAILS - RESPONSIVE TABLE ===============
+    // Dynamic spacing based on page flow
+    const paymentY = cardsEndY + 20;
+    
     doc.fillColor(colors.primary)
-      .fontSize(10)
+      .fontSize(sectionTitleSize)
       .font('Helvetica-Bold')
       .text("PAYMENT DETAILS", margin, paymentY);
     
-    // Table spacing adjusted with scaling factor
-    const tableY = paymentY + (20 * scalingFactor);
+    // Table spacing with responsive dimensions
+    const tableY = paymentY + sectionTitleSize + 10;
+    const tableHeaderSize = Math.max(7, pageWidth * 0.02);
+    const tableValueSize = Math.max(8, pageWidth * 0.022);
+    const tableRowHeight = Math.max(25, pageHeight * 0.03);
+    
+    // Responsive column widths that adapt to screen size
+    const descColWidth = contentWidth * 0.4;
+    const nightsColWidth = contentWidth * 0.15;
+    const priceColWidth = contentWidth * 0.2;
+    const amountColWidth = contentWidth * 0.25;
     
     // Subtle table header
-    doc.rect(margin, tableY, contentWidth, 25) // Increased height
+    doc.rect(margin, tableY, contentWidth, tableRowHeight)
       .fill(colors.secondary);
     
-    // Table headers - adjusted spacing
+    // Table headers with responsive positioning
     doc.fillColor(colors.primary)
-      .fontSize(8)
+      .fontSize(tableHeaderSize)
       .font('Helvetica-Bold')
-      .text("DESCRIPTION", margin + 10, tableY + 9)
-      .text("NIGHTS", margin + 230, tableY + 9, { width: 50, align: 'right' })
-      .text("UNIT PRICE", margin + 290, tableY + 9, { width: 80, align: 'right' })
-      .text("AMOUNT", margin + contentWidth - 60, tableY + 9, { width: 50, align: 'right' });
+      .text("DESCRIPTION", margin + 10, tableY + (tableRowHeight - tableHeaderSize) / 2)
+      .text("NIGHTS", margin + descColWidth, tableY + (tableRowHeight - tableHeaderSize) / 2, 
+            { width: nightsColWidth, align: 'right' })
+      .text("UNIT PRICE", margin + descColWidth + nightsColWidth, tableY + (tableRowHeight - tableHeaderSize) / 2, 
+            { width: priceColWidth, align: 'right' })
+      .text("AMOUNT", margin + descColWidth + nightsColWidth + priceColWidth, tableY + (tableRowHeight - tableHeaderSize) / 2, 
+            { width: amountColWidth, align: 'right' });
     
     // Calculate tax components based on the total amount
     const totalAmount = parseFloat(invoice.amounts.total) || 0;
@@ -397,69 +457,96 @@ const generateInvoicePDF = async (invoice) => {
     
     const currency = invoice.amounts.currency || "EUR";
     
-    // Table content rows - adjusted spacing with tax breakdown
-    let rowY = tableY + 35;
+    // Table content rows with responsive positioning
+    let rowY = tableY + tableRowHeight + 10;
     
     // Net price row
     doc.fillColor(colors.text)
-      .fontSize(9)
+      .fontSize(tableValueSize)
       .font('Helvetica')
       .text(`Stay at ${property.title} (Net)`, margin + 10, rowY)
-      .text(nights || "N/A", margin + 230, rowY, { width: 50, align: 'right' })
-      .text(`${formatCurrency(nightlyNetPrice)} ${currency}`, margin + 290, rowY, { width: 80, align: 'right' })
-      .text(`${formatCurrency(netAmount)} ${currency}`, margin + contentWidth - 60, rowY, { width: 50, align: 'right' });
+      .text(nights || "N/A", margin + descColWidth, rowY, 
+            { width: nightsColWidth, align: 'right' })
+      .text(`${formatCurrency(nightlyNetPrice)} ${currency}`, margin + descColWidth + nightsColWidth, rowY, 
+            { width: priceColWidth, align: 'right' })
+      .text(`${formatCurrency(netAmount)} ${currency}`, margin + descColWidth + nightsColWidth + priceColWidth, rowY, 
+            { width: amountColWidth, align: 'right' });
     
     // Tax row
-    rowY += 25;
+    rowY += tableRowHeight;
     doc.fillColor(colors.text)
-      .fontSize(9)
+      .fontSize(tableValueSize)
       .font('Helvetica')
       .text(`VAT/Tax (${vatRate}%)`, margin + 10, rowY)
-      .text(nights || "N/A", margin + 230, rowY, { width: 50, align: 'right' })
-      .text(`${formatCurrency(nightlyTaxAmount)} ${currency}`, margin + 290, rowY, { width: 80, align: 'right' })
-      .text(`${formatCurrency(taxAmount)} ${currency}`, margin + contentWidth - 60, rowY, { width: 50, align: 'right' });
+      .text(nights || "N/A", margin + descColWidth, rowY, 
+            { width: nightsColWidth, align: 'right' })
+      .text(`${formatCurrency(nightlyTaxAmount)} ${currency}`, margin + descColWidth + nightsColWidth, rowY, 
+            { width: priceColWidth, align: 'right' })
+      .text(`${formatCurrency(taxAmount)} ${currency}`, margin + descColWidth + nightsColWidth + priceColWidth, rowY, 
+            { width: amountColWidth, align: 'right' });
     
-    // Subtle line separator - adjusted spacing
-    rowY += 25;
+    // Subtle line separator
+    rowY += tableRowHeight;
     doc.moveTo(margin, rowY).lineTo(margin + contentWidth, rowY)
       .lineWidth(0.5)
       .stroke(colors.border);
     
-    // Total section - adjusted spacing
-    const totalY = rowY + (20 * scalingFactor);
-    doc.rect(margin + 220, totalY, contentWidth - 220, 35) // Increased height
+    // Total section with responsive positioning
+    const totalY = rowY + 15;
+    const totalHeight = Math.max(35, pageHeight * 0.04);
+    
+    doc.rect(margin + contentWidth * 0.4, totalY, contentWidth * 0.6, totalHeight)
       .fill(colors.primary);
     
     doc.fillColor("white")
-      .fontSize(10)
+      .fontSize(tableValueSize * 1.2) // Slightly larger for emphasis
       .font('Helvetica-Bold')
-      .text("TOTAL COST", margin + 235, totalY + 13)
-      .text(`${formatCurrency(totalAmount)} ${currency}`, margin + contentWidth - 60, totalY + 13, { width: 50, align: 'right' });
+      .text("TOTAL COST", margin + contentWidth * 0.4 + 15, totalY + (totalHeight - tableValueSize * 1.2) / 2)
+      .text(`${formatCurrency(totalAmount)} ${currency}`, 
+            margin + contentWidth * 0.4 + contentWidth * 0.35, 
+            totalY + (totalHeight - tableValueSize * 1.2) / 2, 
+            { width: contentWidth * 0.25, align: 'right' });
     
-    // =============== FOOTER - PROPERLY POSITIONED ===============
-    // Calculate better footer positioning to eliminate excess white space
-    // Position footer based on a percentage of the page height instead of absolute positioning
-    const footerPosition = 0.94; // Position at 94% of page height
-    const footerY = pageHeight * footerPosition - 50; // 50px from the position for the footer height
+    // =============== FOOTER - ADAPTIVELY POSITIONED ===============
+    // Calculate appropriate footer position based on content
+    // This ensures it stays at the bottom regardless of content length
+    const minFooterDistance = 50; // Minimum space between content and footer
+    const footerHeight = pageHeight * 0.06; // Responsive footer height
+    
+    // Determine if we need to add a new page for the footer
+    const footerY = Math.max(
+      totalY + totalHeight + minFooterDistance,
+      pageHeight - footerHeight - margin
+    );
+    
+    // Check if we need a new page for the footer
+    if (footerY + footerHeight > pageHeight) {
+      doc.addPage();
+      // Reset footerY to top of new page
+      footerY = margin;
+    }
     
     // Attractive footer background
-    doc.rect(0, footerY, pageWidth, 50).fill(colors.secondary);
+    doc.rect(0, footerY, pageWidth, footerHeight).fill(colors.secondary);
     
     // Bottom accent bar
-    doc.rect(0, footerY + 42, pageWidth, 8).fill(colors.primary);
+    doc.rect(0, footerY + footerHeight - 8, pageWidth, 8).fill(colors.primary);
     
-    // Footer text - centered nicely
+    // Footer text - centered nicely with responsive font sizes
+    const footerTitleSize = Math.max(8, pageWidth * 0.022);
+    const footerTextSize = Math.max(7, pageWidth * 0.018);
+    
     doc.fillColor(colors.primary)
-      .fontSize(9)
+      .fontSize(footerTitleSize)
       .font('Helvetica-Bold')
-      .text("Thank you for choosing ESTIA HOSPITALITY!", 0, footerY + 12, {
+      .text("Thank you for choosing ESTIA HOSPITALITY!", 0, footerY + (footerHeight - 8 - footerTitleSize - footerTextSize - 5) / 2, {
         align: "center",
       });
     
     doc.fillColor(colors.lightText)
-      .fontSize(8)
+      .fontSize(footerTextSize)
       .font('Helvetica')
-      .text("For any questions regarding this invoice, please contact us", 0, footerY + 25, {
+      .text("For any questions regarding this invoice, please contact us", 0, footerY + (footerHeight - 8 - footerTitleSize - footerTextSize - 5) / 2 + footerTitleSize + 5, {
         align: "center",
       });
 

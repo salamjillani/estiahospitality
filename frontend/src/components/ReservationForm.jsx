@@ -109,7 +109,7 @@ const ReservationForm = () => {
           pricePerNight: data.pricePerNight,
           currency: data.currency || data.bankDetails?.currency || "USD",
           title: data.title || "Property",
-          rooms: data.bedrooms, // Add bedrooms from property data
+          rooms: data.bedrooms,
         });
       } catch (err) {
         setError("Failed to load property details");
@@ -171,8 +171,10 @@ const ReservationForm = () => {
     }
 
     try {
-      const propertyDetails = await api.get(`/api/properties/${formData.property}`);
-    
+      const propertyDetails = await api.get(
+        `/api/properties/${formData.property}`
+      );
+
       if (formData.rooms > propertyDetails.bedrooms) {
         throw new Error(
           `This property only has ${propertyDetails.bedrooms} rooms available`
@@ -264,50 +266,58 @@ const ReservationForm = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto my-12 bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div className="w-full max-w-4xl mx-auto my-4 sm:my-8 md:my-12 bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl overflow-hidden px-4 sm:px-0">
       {/* Form Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-4 sm:p-6 md:p-8 text-white">
         <div className="flex items-center space-x-3">
-          <Hotel className="h-8 w-8" />
-          <h2 className="text-3xl font-bold">
+          <Hotel className="h-6 w-6 sm:h-8 sm:w-8" />
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">
             {propertyDetails.title || "Book Your Stay"}
           </h2>
         </div>
-        <p className="mt-2 opacity-90 max-w-md">
+        <p className="mt-2 opacity-90 max-w-md text-sm sm:text-base">
           Complete the form below to make your reservation. We look forward to
           hosting you!
         </p>
       </div>
 
       {/* Form Content */}
-      <div className="p-8">
+      <div className="p-4 sm:p-6 md:p-8">
         {error && (
-          <div className="bg-red-50 p-4 rounded-xl mb-8 flex items-center gap-3 border border-red-200">
+          <div className="bg-red-50 p-3 sm:p-4 rounded-lg sm:rounded-xl mb-4 sm:mb-6 md:mb-8 flex items-center gap-3 border border-red-200 text-sm sm:text-base">
             <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
             <p className="text-red-700 font-medium">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           <input type="hidden" name="property" value={formData.property} />
 
           {/* Pricing Card */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100 shadow-sm">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-lg sm:rounded-xl border border-blue-100 shadow-sm">
             <div className="flex justify-between items-center mb-3">
-              <span className="text-gray-700 font-medium">Price per night</span>
-              <span className="text-lg font-semibold">
+              <span className="text-gray-700 font-medium text-sm sm:text-base">
+                Price per night
+              </span>
+              <span className="text-base sm:text-lg font-semibold">
                 {propertyDetails.currency} {propertyDetails.pricePerNight}
               </span>
             </div>
 
             <div className="flex justify-between items-center mb-3">
-              <span className="text-gray-700 font-medium">Nights</span>
-              <span className="text-lg font-semibold">{formData.nights}</span>
+              <span className="text-gray-700 font-medium text-sm sm:text-base">
+                Nights
+              </span>
+              <span className="text-base sm:text-lg font-semibold">
+                {formData.nights}
+              </span>
             </div>
 
             <div className="border-t border-blue-200 my-3 pt-3 flex justify-between items-center">
-              <span className="text-gray-900 font-semibold">Total Price</span>
-              <span className="text-2xl font-bold text-blue-700">
+              <span className="text-gray-900 font-semibold text-sm sm:text-base">
+                Total Price
+              </span>
+              <span className="text-xl sm:text-2xl font-bold text-blue-700">
                 {propertyDetails.currency} {calculatedPrice.toFixed(2)}
               </span>
             </div>
@@ -315,14 +325,14 @@ const ReservationForm = () => {
 
           {/* Guest Information Section */}
           <div>
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 flex items-center gap-2">
+            <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-800 flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-600" />
               Guest Information
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Guest Name *
                 </label>
                 <input
@@ -330,14 +340,14 @@ const ReservationForm = () => {
                   name="guestName"
                   value={formData.guestName}
                   onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                   placeholder="Full Name"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Email *
                 </label>
                 <input
@@ -345,14 +355,14 @@ const ReservationForm = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                   placeholder="your.email@example.com"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Phone *
                 </label>
                 <input
@@ -360,23 +370,23 @@ const ReservationForm = () => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="w-full p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                   placeholder="+1 (234) 567-8900"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Nationality *
                 </label>
                 <div className="relative">
-                  <Globe className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Globe className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
                   <select
                     name="nationality"
                     value={formData.nationality}
                     onChange={handleChange}
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white"
+                    className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white text-sm sm:text-base"
                     required
                   >
                     <option value="">Select Nationality</option>
@@ -399,16 +409,16 @@ const ReservationForm = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Currency
                 </label>
                 <div className="relative">
-                  <Coins className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Coins className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
                   <select
                     name="currency"
                     value={formData.currency}
                     onChange={handleChange}
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white"
+                    className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white text-sm sm:text-base"
                     required
                   >
                     {currencies.map((currency) => (
@@ -433,24 +443,24 @@ const ReservationForm = () => {
 
           {/* Stay Details Section */}
           <div>
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 flex items-center gap-2">
+            <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-800 flex items-center gap-2">
               <Calendar className="h-5 w-5 text-blue-600" />
               Stay Details
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Check-in Date *
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Calendar className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
                   <input
                     type="date"
                     name="checkInDate"
                     value={formData.checkInDate}
                     onChange={handleChange}
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                     required
                     min={new Date().toISOString().split("T")[0]}
                   />
@@ -458,17 +468,17 @@ const ReservationForm = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Check-out Date *
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Calendar className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
                   <input
                     type="date"
                     name="checkOutDate"
                     value={formData.checkOutDate}
                     onChange={handleChange}
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                     required
                     min={
                       formData.checkInDate ||
@@ -479,27 +489,27 @@ const ReservationForm = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Arrival Time
                 </label>
                 <div className="relative">
-                  <Clock className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Clock className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
                   <input
                     type="time"
                     name="arrivalTime"
                     value={formData.arrivalTime}
                     onChange={handleChange}
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Rooms *
                 </label>
                 <div className="relative">
-                  <Bed className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Bed className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
                   <input
                     type="number"
                     name="rooms"
@@ -507,48 +517,48 @@ const ReservationForm = () => {
                     max={propertyDetails.rooms || 1}
                     value={formData.rooms}
                     onChange={handleChange}
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                     required
                   />
                 </div>
                 {propertyDetails.rooms && (
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
                     Maximum {propertyDetails.rooms} rooms available
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Adults *
                 </label>
                 <div className="relative">
-                  <Users className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Users className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
                   <input
                     type="number"
                     name="adults"
                     min="1"
                     value={formData.adults}
                     onChange={handleChange}
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Children
                 </label>
                 <div className="relative">
-                  <Users className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Users className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
                   <input
                     type="number"
                     name="children"
                     min="0"
                     value={formData.children}
                     onChange={handleChange}
-                    className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
                   />
                 </div>
               </div>
@@ -557,32 +567,32 @@ const ReservationForm = () => {
 
           {/* Payment Method Section */}
           <div>
-            <h3 className="text-xl font-semibold mb-4 text-gray-800 flex items-center gap-2">
+            <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-800 flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-blue-600" />
               Payment Method
             </h3>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <button
                 type="button"
                 onClick={() =>
                   setFormData({ ...formData, paymentMethod: "cash" })
                 }
-                className={`p-4 border rounded-xl flex items-center justify-center transition-all ${
+                className={`p-3 sm:p-4 border rounded-lg sm:rounded-xl flex items-center justify-center transition-all ${
                   formData.paymentMethod === "cash"
                     ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
                     : "border-gray-200 hover:border-blue-300"
                 }`}
               >
                 <DollarSign
-                  className={`h-5 w-5 mr-2 ${
+                  className={`h-4 sm:h-5 w-4 sm:w-5 mr-2 ${
                     formData.paymentMethod === "cash"
                       ? "text-blue-600"
                       : "text-gray-500"
                   }`}
                 />
                 <span
-                  className={`font-medium ${
+                  className={`font-medium text-sm sm:text-base ${
                     formData.paymentMethod === "cash"
                       ? "text-blue-700"
                       : "text-gray-700"
@@ -597,15 +607,19 @@ const ReservationForm = () => {
                 onClick={() =>
                   setFormData({ ...formData, paymentMethod: "stripe" })
                 }
-                className={`p-4 border rounded-xl flex items-center justify-center transition-all ${
+                className={`p-3 sm:p-4 border rounded-lg sm:rounded-xl flex items-center justify-center transition-all ${
                   formData.paymentMethod === "stripe"
                     ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
                     : "border-gray-200 hover:border-blue-300"
                 }`}
               >
-                <img src="/stripe.png" className="h-5 mr-2" alt="Stripe" />
+                <img
+                  src="/stripe.png"
+                  className="h-4 sm:h-5 mr-2"
+                  alt="Stripe"
+                />
                 <span
-                  className={`font-medium ${
+                  className={`font-medium text-sm sm:text-base ${
                     formData.paymentMethod === "stripe"
                       ? "text-blue-700"
                       : "text-gray-700"
@@ -619,14 +633,14 @@ const ReservationForm = () => {
 
           {/* Special Requests Section */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
               Special Requests
             </label>
             <textarea
               name="specialRequests"
               value={formData.specialRequests}
               onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all h-32"
+              className="w-full p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all h-24 sm:h-32 text-sm sm:text-base"
               placeholder="Let us know if you have any special requirements..."
             />
           </div>
@@ -635,16 +649,16 @@ const ReservationForm = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 rounded-xl hover:from-blue-700 hover:to-indigo-800 flex items-center justify-center gap-2 disabled:opacity-70 shadow-md font-medium text-lg"
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-3 sm:p-4 rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-indigo-800 flex items-center justify-center gap-2 disabled:opacity-70 shadow-md font-medium text-base sm:text-lg"
           >
             {loading ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-4 sm:h-5 w-4 sm:w-5 animate-spin" />
                 Processing...
               </>
             ) : (
               <>
-                <Send className="h-5 w-5" />
+                <Send className="h-4 sm:h-5 w-4 sm:w-5" />
                 Complete Reservation
               </>
             )}
@@ -654,27 +668,29 @@ const ReservationForm = () => {
 
       {/* Confirmation Modal */}
       {showConfirmation && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-gray-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 max-w-md w-full mx-auto shadow-2xl border border-gray-200">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800">
                 Confirm Your Booking
               </h3>
               <button
                 onClick={() => setShowConfirmation(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 sm:h-6 w-5 sm:w-6" />
               </button>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
-              <div className="flex items-center mb-4 text-blue-700">
-                <Hotel className="h-5 w-5 mr-2" />
-                <h4 className="font-semibold">{propertyDetails.title}</h4>
+            <div className="bg-blue-50 p-3 sm:p-4 rounded-lg sm:rounded-xl mb-4 sm:mb-6 border border-blue-100">
+              <div className="flex items-center mb-3 sm:mb-4 text-blue-700">
+                <Hotel className="h-4 sm:h-5 w-4 sm:w-5 mr-2" />
+                <h4 className="font-semibold text-sm sm:text-base truncate">
+                  {propertyDetails.title}
+                </h4>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3 text-sm sm:text-base">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Check-in</span>
                   <span className="font-medium text-gray-900">
@@ -763,5 +779,4 @@ const ReservationForm = () => {
     </div>
   );
 };
-
 export default ReservationForm;

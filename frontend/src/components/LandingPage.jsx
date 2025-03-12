@@ -174,7 +174,7 @@ const LandingPage = () => {
     },
   ];
 
-  // Featured Locations
+  // Updated Featured Locations (Europe only)
   const featuredLocations = [
     {
       city: "Santorini",
@@ -183,10 +183,10 @@ const LandingPage = () => {
         "https://images.unsplash.com/photo-1531572753322-ad063cecc140?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
     },
     {
-      city: "Bali",
-      country: "Indonesia",
+      city: "Paris",
+      country: "France",
       image:
-        "https://images.unsplash.com/photo-1537996194471-e657df975ab4?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cGFyaXN8ZW58MHx8MHx8fDA%3D",
     },
     {
       city: "Amalfi Coast",
@@ -195,10 +195,10 @@ const LandingPage = () => {
         "https://plus.unsplash.com/premium_photo-1677359734743-231e33b5c7d3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8QU1BTEZJJTIwQ09BU1QlMjBJVEFMWXxlbnwwfHwwfHx8MA%3D%3D",
     },
     {
-      city: "New York",
-      country: "United States",
+      city: "Barcelona",
+      country: "Spain",
       image:
-        "https://images.unsplash.com/photo-1485871981521-5b1fd3805eee?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8TmV3JTIwWW9ya3xlbnwwfHwwfHx8MA%3D%3D",
+        "https://images.unsplash.com/photo-1583422409516-2895a77efded?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmFyY2Vsb25hfGVufDB8fDB8fHww",
     },
   ];
 
@@ -374,23 +374,17 @@ const LandingPage = () => {
               </button>
             </div>
 
-            {/* Stats Display */}
-            <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            {/* Stats Display - Updated */}
+            <div className="mt-16 grid grid-cols-2 sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
               <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-100">
                 <span className="block text-3xl font-bold text-blue-600 mb-1">
-                  250+
+                  50+
                 </span>
                 <span className="text-gray-600 text-sm">Luxury Properties</span>
               </div>
               <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-100">
                 <span className="block text-3xl font-bold text-blue-600 mb-1">
-                  42
-                </span>
-                <span className="text-gray-600 text-sm">Countries</span>
-              </div>
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-lg border border-gray-100">
-                <span className="block text-3xl font-bold text-blue-600 mb-1">
-                  10k+
+                  1k+
                 </span>
                 <span className="text-gray-600 text-sm">Happy Guests</span>
               </div>
@@ -415,7 +409,7 @@ const LandingPage = () => {
                 Discover Paradise
               </h2>
               <p className="text-gray-600 mt-3 max-w-2xl">
-                Explore our collection of luxury properties in the world&apos;s
+                Explore our collection of luxury properties in Europe&apos;s
                 most sought-after locations
               </p>
             </div>
@@ -623,16 +617,16 @@ const LandingPage = () => {
         </section>
 
         {/* Featured Amenities with Modern Design */}
-        <div className="mb-28 relative overflow-hidden">
+        <div className="mb-16 md:mb-28 relative overflow-hidden px-4 md:px-0">
           <div className="absolute -right-20 top-1/4 w-48 h-48 bg-blue-400 rounded-full filter blur-[100px] opacity-10 animate-pulse"></div>
           <div className="absolute left-16 top-16 w-24 h-24 bg-purple-400 rounded-full filter blur-[50px] opacity-10 animate-pulse"></div>
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 md:mb-12">
             <div>
               <span className="inline-block px-4 py-1.5 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full text-blue-600 font-medium text-sm mb-4">
                 LUXURY LIVING
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
                 Signature Amenities
               </h2>
               <p className="text-gray-600 mt-3 max-w-2xl">
@@ -642,187 +636,100 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
             {featuredAmenities.map((amenity, index) => (
               <div
                 key={index}
-                className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-blue-50 group"
+                className="bg-white p-4 md:p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-2 border border-blue-50 group"
               >
                 <div className="text-blue-600 mb-3 flex justify-center group-hover:scale-110 transition-transform">
                   {amenity.icon}
                 </div>
-                <span className="text-gray-700 font-semibold text-center block">
+                <span className="text-gray-700 font-semibold text-center block text-sm md:text-base">
                   {amenity.label}
                 </span>
               </div>
             ))}
           </div>
 
-          {/* Property Listings with Enhanced UI */}
-          <section id="curated-collection" className="mt-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
-              Curated Collections
-            </h2>
-            <p className="text-gray-600 mb-12 text-center max-w-3xl mx-auto">
-              Handpicked properties that define luxury living in the
-              world&apos;s most beautiful locations
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {properties.slice(0, 3).map((property, index) => (
-                <div
-                  key={property._id}
-                  className="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 group"
-                >
-                  {property.bankDetails && delete property.bankDetails}
-                  <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-medium flex items-center space-x-2 shadow-md">
-                    <Star className="h-4 w-4 text-yellow-500 fill-yellow-400" />
-                    <span>4.98</span>
-                  </div>
-
-                  <div className="h-72 overflow-hidden">
-                    <img
-                      src={
-                        property.photos?.[0]?.url || "/placeholder-property.jpg"
-                      }
-                      alt={property.title}
-                      className="h-full w-full object-cover transform group-hover:scale-105 transition-transform duration-700"
-                    />
-                  </div>
-
-                  <div className="p-6">
-                    <div className="flex items-center space-x-2 text-xs font-semibold mb-2 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                      <Award className="h-4 w-4 text-blue-600" />
-                      <span>VERIFIED LUXURY</span>
-                    </div>
-
-                    <h2 className="text-xl font-bold mb-2 text-gray-900 group-hover:text-blue-600 transition-colors">
-                      {property.title}
-                    </h2>
-                    <div className="flex items-center space-x-2 text-gray-600 mb-4">
-                      <MapPin className="h-5 w-5 text-blue-500" />
-                      <span>
-                        {property.location.city}, {property.location.country}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="flex items-center space-x-2 bg-blue-50 p-2 rounded-lg">
-                        <Bed className="h-5 w-5 text-blue-600" />
-                        <span className="text-gray-700 font-medium">
-                          {property.bedrooms} Bedrooms
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2 bg-blue-50 p-2 rounded-lg">
-                        <Bath className="h-5 w-5 text-blue-600" />
-                        <span className="text-gray-700 font-medium">
-                          {property.bathrooms} Bathrooms
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center border-t border-blue-50 pt-4">
-                      <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                        ${property.pricePerNight}
-                        <span className="text-sm font-normal text-gray-600 ml-1">
-                          /night
-                        </span>
-                      </span>
-                      <Link
-                        to={`/properties/${property._id}`}
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all flex items-center space-x-2"
-                      >
-                        <Heart className="h-4 w-4" />
-                        <span>View Details</span>
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-12 text-center">
-              <Link
-                to="/properties"
-                className="inline-flex items-center space-x-2 text-blue-600 font-medium hover:text-blue-800 transition-colors group relative"
-              >
-                <span>View All Properties</span>
-                <span className="group-hover:translate-x-1 transition-transform">
-                  &rarr;
-                </span>
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-            </div>
-          </section>
-
           {/* Premium Services Section */}
-          <section className="mb-24 bg-gradient-to-br from-blue-50 to-purple-50 rounded-3xl p-12 relative overflow-hidden shadow-xl">
+          <section className="my-16 md:mb-24 bg-gradient-to-br from-blue-50 to-purple-50 rounded-3xl p-6 md:p-12 relative overflow-hidden shadow-xl mx-2 md:mx-0">
             <div className="absolute -left-16 -bottom-16 w-32 h-32 bg-blue-400 rounded-full filter blur-[50px] opacity-20"></div>
             <div className="absolute right-16 top-16 w-16 h-16 bg-purple-400 rounded-full filter blur-[40px] opacity-20"></div>
             <div className="absolute right-32 bottom-32 w-24 h-24 bg-indigo-400 rounded-full filter blur-[60px] opacity-20"></div>
 
-            <h2 className="text-3xl font-bold mb-4 text-center relative z-10 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center relative z-10 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
               Premium Services
             </h2>
-            <p className="text-gray-600 mb-12 text-center max-w-3xl mx-auto relative z-10">
+            <p className="text-gray-600 mb-8 md:mb-12 text-center max-w-3xl mx-auto relative z-10 text-sm md:text-base">
               Elevate your stay with our exclusive services available at select
               properties
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 relative z-10">
               {premiumServices.map((service, index) => (
                 <div
                   key={index}
-                  className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all group border border-white"
+                  className="bg-white/80 backdrop-blur-md p-4 md:p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all group border border-white"
                 >
                   <div className="bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl p-3 inline-flex mb-4 text-blue-600 group-hover:scale-110 transition-transform shadow-sm">
                     {service.icon}
                   </div>
-                  <h3 className="text-lg font-bold mb-2 text-gray-900">
+                  <h3 className="text-base md:text-lg font-bold mb-2 text-gray-900">
                     {service.title}
                   </h3>
-                  <p className="text-gray-600 text-sm">{service.description}</p>
+                  <p className="text-gray-600 text-xs md:text-sm">
+                    {service.description}
+                  </p>
                 </div>
               ))}
             </div>
           </section>
 
           {/* Testimonials with Enhanced Design */}
-          <section id="guest-experiences" className="mb-24">
-            <h2 className="text-3xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
+          <section
+            id="guest-experiences"
+            className="mb-16 md:mb-24 px-4 md:px-0"
+          >
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
               Guest Experiences
             </h2>
-            <p className="text-gray-600 mb-12 text-center max-w-3xl mx-auto">
+            <p className="text-gray-600 mb-8 md:mb-12 text-center max-w-3xl mx-auto text-sm md:text-base">
               Hear what our guests have to say about their unforgettable stays
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
               {testimonials.map((testimonial, index) => (
                 <div
                   key={index}
-                  className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all relative group border border-blue-50"
+                  className="bg-white p-6 md:p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all relative group border border-blue-50"
                 >
-                  <div className="absolute -top-6 -right-6 text-8xl font-serif text-blue-200 opacity-70 select-none">
+                  <div className="absolute -top-6 -right-6 text-6xl md:text-8xl font-serif text-blue-200 opacity-70 select-none">
                     &quot;
                   </div>
-                  <div className="flex items-center space-x-4 mb-6 relative z-10">
+                  <div className="flex items-center space-x-4 mb-4 md:mb-6 relative z-10">
                     <img
                       src={testimonial.photo}
                       alt={testimonial.name}
-                      className="h-14 w-14 rounded-full object-cover ring-2 ring-blue-100 p-1 shadow-md"
+                      className="h-12 w-12 md:h-14 md:w-14 rounded-full object-cover ring-2 ring-blue-100 p-1 shadow-md"
                     />
                     <div>
-                      <h3 className="font-bold text-gray-900">
+                      <h3 className="font-bold text-gray-900 text-sm md:text-base">
                         {testimonial.name}
                       </h3>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-xs md:text-sm text-gray-600">
                         {testimonial.role}
                       </p>
                     </div>
                   </div>
-                  <p className="text-gray-600 italic relative z-10">
+                  <p className="text-gray-600 italic relative z-10 text-xs md:text-sm">
                     {testimonial.text}
                   </p>
                   <div className="mt-4 flex space-x-1 text-yellow-400">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-5 w-5 fill-current" />
+                      <Star
+                        key={i}
+                        className="h-4 w-4 md:h-5 md:w-5 fill-current"
+                      />
                     ))}
                   </div>
                 </div>
@@ -831,60 +738,64 @@ const LandingPage = () => {
           </section>
 
           {/* Host Benefits with Grid Layout */}
-          <section className="mb-24 relative">
+          <section className="mb-16 md:mb-24 relative px-4 md:px-0">
             <div className="absolute -left-40 top-1/3 w-80 h-80 bg-purple-400 rounded-full filter blur-[120px] opacity-5"></div>
             <div className="absolute right-40 bottom-1/3 w-60 h-60 bg-blue-400 rounded-full filter blur-[100px] opacity-5"></div>
 
-            <h2 className="text-3xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
               Become an Estia Guest
             </h2>
-            <p className="text-gray-600 mb-12 text-center max-w-3xl mx-auto">
+            <p className="text-gray-600 mb-8 md:mb-12 text-center max-w-3xl mx-auto text-sm md:text-base">
               Visit our luxury properties and enjoy your time
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {hostBenefits.slice(0, 4).map((benefit, index) => (
                 <div
                   key={index}
-                  className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all group border border-blue-50 hover:border-blue-100"
+                  className="bg-white p-6 md:p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all group border border-blue-50 hover:border-blue-100"
                 >
                   <div className="text-blue-600 mb-4 group-hover:scale-110 transition-transform bg-blue-50 p-3 rounded-lg inline-block">
                     {benefit.icon}
                   </div>
-                  <h3 className="text-xl font-bold mb-2 text-gray-900">
+                  <h3 className="text-lg md:text-xl font-bold mb-2 text-gray-900">
                     {benefit.title}
                   </h3>
-                  <p className="text-gray-600 text-sm">{benefit.description}</p>
+                  <p className="text-gray-600 text-xs md:text-sm">
+                    {benefit.description}
+                  </p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="mt-4 md:mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {hostBenefits.slice(4).map((benefit, index) => (
                 <div
                   key={index + 4}
-                  className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all group border border-blue-50 hover:border-blue-100"
+                  className="bg-white p-6 md:p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all group border border-blue-50 hover:border-blue-100"
                 >
                   <div className="text-blue-600 mb-4 group-hover:scale-110 transition-transform bg-blue-50 p-3 rounded-lg inline-block">
                     {benefit.icon}
                   </div>
-                  <h3 className="text-xl font-bold mb-2 text-gray-900">
+                  <h3 className="text-lg md:text-xl font-bold mb-2 text-gray-900">
                     {benefit.title}
                   </h3>
-                  <p className="text-gray-600 text-sm">{benefit.description}</p>
+                  <p className="text-gray-600 text-xs md:text-sm">
+                    {benefit.description}
+                  </p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-12 text-center">
+            <div className="mt-8 md:mt-12 text-center">
               <button
                 onClick={handleBookingClick}
-                className="group relative inline-flex items-center justify-center px-8 py-3 text-lg font-medium text-white transition-all duration-300 ease-in-out bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full overflow-hidden shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="group relative inline-flex items-center justify-center px-6 md:px-8 py-2 md:py-3 text-base md:text-lg font-medium text-white transition-all duration-300 ease-in-out bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full overflow-hidden shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 <span className="relative z-10 flex items-center">
                   <span>Start Booking Today</span>
                   <svg
-                    className="ml-2 w-5 h-5 transition-transform duration-300 group-hover:translate-x-1"
+                    className="ml-2 w-4 h-4 md:w-5 md:h-5 transition-transform duration-300 group-hover:translate-x-1"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

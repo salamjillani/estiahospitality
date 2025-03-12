@@ -91,16 +91,16 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50 flex items-center justify-center p-6">
-      <div className="max-w-md w-full space-y-8 bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50 flex items-center justify-center p-2 sm:p-4 md:p-6">
+      <div className="w-full max-w-md mx-auto space-y-6 bg-white rounded-xl sm:rounded-2xl shadow-xl sm:shadow-2xl p-4 sm:p-6 md:p-8 border border-gray-100">
         <div className="flex flex-col items-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full flex items-center justify-center mb-4 shadow-lg">
-            <Shield className="h-8 w-8 text-white" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full flex items-center justify-center mb-3 sm:mb-4 shadow-lg">
+            <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
           </div>
-          <h2 className="text-center text-3xl font-extrabold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          <h2 className="text-center text-2xl sm:text-3xl font-extrabold mb-1 sm:mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
             {isLogin ? "Welcome Back" : "Join Us Today"}
           </h2>
-          <p className="text-gray-500 text-center max-w-xs">
+          <p className="text-gray-500 text-center text-sm sm:text-base max-w-xs">
             {isLogin 
               ? "Sign in to access your account" 
               : "Create an account to get started"}
@@ -108,9 +108,9 @@ const Auth = () => {
         </div>
 
         {authError && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg flex items-center gap-3 shadow-sm">
-            <AlertCircle className="h-5 w-5 text-red-400" />
-            <p className="text-red-700 text-sm">{authError}</p>
+          <div className="bg-red-50 border-l-4 border-red-400 p-3 sm:p-4 rounded-lg flex items-center gap-2 sm:gap-3 shadow-sm">
+            <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-400" />
+            <p className="text-red-700 text-xs sm:text-sm">{authError}</p>
             <button 
               onClick={clearAuthError}
               className="ml-auto text-red-400 hover:text-red-600"
@@ -120,10 +120,10 @@ const Auth = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-8">
-          <div className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 mt-4 sm:mt-8">
+          <div className="space-y-4 sm:space-y-5">
             {!isLogin && (
-              <div className="space-y-5">
+              <div className="space-y-4 sm:space-y-5">
                 <InputField
                   icon={User}
                   label="Full Name"
@@ -170,7 +170,7 @@ const Auth = () => {
             <div className="flex items-center justify-end">
               <Link
                 to="/forgot-password"
-                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+                className="text-xs sm:text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
               >
                 Forgot your password?
               </Link>
@@ -180,31 +180,28 @@ const Auth = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 shadow-md hover:shadow-lg"
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2.5 sm:py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-70 shadow-md hover:shadow-lg text-sm sm:text-base"
           >
             {loading ? (
-              <Loader2 className="animate-spin h-5 w-5" />
+              <Loader2 className="animate-spin h-4 w-4 sm:h-5 sm:w-5" />
             ) : (
               isLogin ? "Sign In" : "Create Account"
             )}
           </button>
         </form>
 
-        <div className="pt-4 text-center border-t border-gray-100">
+        <div className="pt-3 sm:pt-4 text-center border-t border-gray-100">
           <Link
             to={isLogin ? "/auth/register" : "/auth/login"}
-            className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
           >
             {isLogin 
               ? "Need an account? Register here"
               : "Already have an account? Sign in"}
           </Link>
         </div>
-        
-      
-        </div>
       </div>
-   
+    </div>
   );
 };
 

@@ -273,20 +273,20 @@ const Dashboard = () => {
         className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-all duration-200"
         style={{ backgroundColor: eventInfo.backgroundColor }}
       >
-        <div className="flex-1 font-medium truncate pl-2 text-white">
+        <div className="flex-1 font-medium truncate pl-2 text-white text-xs sm:text-sm">
           {eventInfo.event.title}
         </div>
         <div className="flex items-center space-x-1 bg-white/30 backdrop-blur-sm rounded-full px-2 py-1 ml-2">
-          <Users size={14} className="text-white" />
-          <span className="text-sm text-white font-medium">
+          <Users size={12} className="text-white hidden sm:inline" />
+          <span className="text-xs text-white font-medium">
             {eventInfo.event.extendedProps.adults}
           </span>
         </div>
 
-        <div className="absolute invisible group-hover:visible bg-white/95 backdrop-blur-sm text-gray-700 text-sm rounded-xl p-4 left-1/2 transform -translate-x-1/2 -top-44 min-w-[320px] z-50 shadow-xl border border-gray-100/50 transition-all duration-200">
+        <div className="absolute invisible group-hover:visible bg-white/95 backdrop-blur-sm text-gray-700 text-sm rounded-xl p-4 left-1/2 transform -translate-x-1/2 -top-44 min-w-[280px] sm:min-w-[320px] z-50 shadow-xl border border-gray-100/50 transition-all duration-200">
           <div className="flex flex-col space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h3 className="font-semibold text-base text-gray-900">
+              <h3 className="font-semibold text-base text-gray-900 truncate max-w-[180px] sm:max-w-[220px]">
                 {property?.title || "Unknown Property"}
               </h3>
               <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
@@ -329,7 +329,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Arrival Time</p>
-                  <p className="text-sm font-medium">
+                  <p className="text-sm font-medium truncate max-w-[100px] sm:max-w-[140px]">
                     {eventInfo.event.extendedProps.arrivalTime ||
                       "Not specified"}
                   </p>
@@ -359,37 +359,37 @@ const Dashboard = () => {
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
       />
-      <div className="pt-16 h-screen flex">
+      <div className="pt-16 h-screen flex flex-col lg:flex-row overflow-hidden">
         {(user?.role === "admin" || user?.role === "client") && (
           <div
-            className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/90 backdrop-blur-xl border-r border-gray-100 h-full transform transition-transform duration-300 ease-in-out z-40 ${
+            className={`fixed lg:static w-full max-w-full lg:max-w-xs xl:max-w-sm 2xl:max-w-md bg-white/90 backdrop-blur-xl border-r border-gray-100 h-full transform transition-transform duration-300 ease-in-out z-40 overflow-hidden ${
               isSidebarOpen
                 ? "translate-x-0"
                 : "-translate-x-full lg:translate-x-0"
             }`}
           >
-            <div className="p-4 lg:p-6 overflow-y-auto h-full">
-              <div className="relative mb-6">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-blue-400" />
+            <div className="p-3 sm:p-4 lg:p-6 overflow-y-auto h-full">
+              <div className="relative mb-4 sm:mb-6">
+                <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-grey-600" />
                 </div>
                 <input
                   type="text"
                   placeholder="Search properties..."
                   value={propertySearchQuery}
                   onChange={(e) => setPropertySearchQuery(e.target.value)}
-                  className="block w-full pl-10 pr-4 py-3 bg-white/70 border border-blue-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-blue-300 shadow-sm"
+                  className="block w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-3 bg-white/70 border border-grey-600 rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-grey-600 shadow-sm text-sm sm:text-base"
                 />
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {filteredProperties.map((property) => (
                   <Link
                     key={property._id}
                     to={`/properties/${property._id}`}
-                    className="group block p-4 bg-white rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-200"
+                    className="group block p-3 sm:p-4 bg-white rounded-xl sm:rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-200"
                   >
-                    <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100 shadow-md shadow-blue-500/5">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100 shadow-md shadow-blue-500/5">
                         {property.photos?.[0] ? (
                           <img
                             src={property.photos[0].url}
@@ -398,30 +398,33 @@ const Dashboard = () => {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <Home className="w-8 h-8 text-blue-400" />
+                            <Home className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
                           </div>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sm sm:text-base text-gray-900 truncate">
                           {property.title}
                         </h3>
-                        <p className="flex items-center gap-1 mt-1 text-sm text-blue-500">
-                          <MapPin className="w-4 h-4" />
-                          {property.location?.city || "Location not specified"}
+                        <p className="flex items-center gap-1 mt-1 text-xs sm:text-sm text-blue-500 truncate">
+                          <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <span className="truncate">
+                            {property.location?.city || "Location not specified"}
+                          </span>
                         </p>
-                        <div className="flex items-center gap-3 mt-2">
-                          <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded-lg text-sm text-blue-600">
-                            <BedDouble className="w-4 h-4" />{" "}
+                        <div className="flex items-center gap-2 sm:gap-3 mt-2">
+                          <span className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 rounded-md sm:rounded-lg text-xs sm:text-sm text-blue-600">
+                            <BedDouble className="w-3 h-3 sm:w-4 sm:h-4" />{" "}
                             {property.bedrooms}
                           </span>
-                          <span className="flex items-center gap-1 px-2 py-1 bg-purple-50 rounded-lg text-sm text-purple-600">
-                            <Bath className="w-4 h-4" /> {property.bathrooms}
+                          <span className="flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-purple-50 rounded-md sm:rounded-lg text-xs sm:text-sm text-purple-600">
+                            <Bath className="w-3 h-3 sm:w-4 sm:h-4" />{" "}
+                            {property.bathrooms}
                           </span>
                         </div>
                       </div>
-                      <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                        <ChevronRight className="w-4 h-4 text-blue-400 group-hover:text-blue-600 transition-colors" />
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors flex-shrink-0">
+                        <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400 group-hover:text-blue-600 transition-colors" />
                       </div>
                     </div>
                   </Link>
@@ -430,8 +433,8 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-        <div className="flex-1 p-4 lg:p-6 bg-transparent">
-          <div className="h-full bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl shadow-blue-500/10 border border-blue-100/30 overflow-hidden">
+        <div className="flex-1 p-3 sm:p-4 lg:p-6 bg-transparent h-full overflow-hidden">
+          <div className="h-full bg-white/90 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-xl shadow-blue-500/10 border border-blue-100/30 overflow-hidden">
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
@@ -459,6 +462,28 @@ const Dashboard = () => {
                 hour: "2-digit",
                 minute: "2-digit",
                 meridiem: false,
+              }}
+              // Responsive views for different screen sizes
+              views={{
+                dayGridMonth: {
+                  titleFormat: { 
+                    year: 'numeric', 
+                    month: 'short' 
+                  }
+                },
+                timeGridWeek: {
+                  titleFormat: { 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }
+                },
+                timeGridDay: {
+                  titleFormat: { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }
+                }
               }}
             />
           </div>
