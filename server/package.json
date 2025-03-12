@@ -1,0 +1,46 @@
+{
+  "name": "estiahospitality",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "server": "nodemon server.js",
+    "frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run frontend\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codesofsalam/estiahospitality.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/codesofsalam/estiahospitality/issues"
+  },
+  "homepage": "https://github.com/codesofsalam/estiahospitality#readme",
+  "description": "",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.5.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "fontkit": "^2.0.4",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "multer": "^1.4.5-lts.1",
+    "pdfkit": "^0.16.0",
+    "png-js": "^1.0.0",
+    "sanitize-filename": "^1.6.3",
+    "shortid": "^2.2.17",
+    "socket.io": "^4.8.1",
+    "unicode-properties": "^1.4.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.9"
+  }
+}

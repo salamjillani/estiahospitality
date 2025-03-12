@@ -1,6 +1,6 @@
 const path = require('path');
 const multer = require('multer');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+require('dotenv').config({ path: path.resolve(__dirname, './.env') });
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
