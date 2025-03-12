@@ -23,57 +23,59 @@ const Navbar = () => {
     return location.pathname === path;
   };
 
-  const activeLinkStyle = "rounded-lg text-white bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md";
-  const inactiveLinkStyle = "rounded-lg text-gray-700 hover:text-blue-600 hover:bg-blue-50";
+  const activeLinkStyle = "rounded-full text-white bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg font-medium";
+  const inactiveLinkStyle = "rounded-full text-gray-700 hover:text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-100 font-medium";
 
   return (
-    <nav className="bg-white shadow-lg fixed w-full z-50 border-b border-gray-100">
+    <nav className="bg-white backdrop-blur-sm bg-opacity-90 shadow-lg fixed w-full z-50 border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          <Link to="/" className="flex items-center space-x-2">
-            <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
+        <div className="flex justify-between h-20 items-center">
+          <Link to="/" className="flex items-center space-x-3 group">
+            <img src="/logo.png" alt="Logo" className="h-12 w-auto transition-transform duration-300 group-hover:scale-105" />
           </Link>
 
-          <div className="hidden md:flex items-center space-x-3">
-          
-              <Link
-                to="/dashboard"
-                className={`px-4 py-2 flex items-center transition-all duration-300 ${
-                  isActiveLink("/dashboard") ? activeLinkStyle : inactiveLinkStyle
-                }`}
-              >
-                <Calendar className="w-4 h-4 mr-2" /> Calendar
-              </Link>
-            
+          <div className="hidden md:flex items-center space-x-4">
+            <Link
+              to="/dashboard"
+              className={`px-5 py-2.5 flex items-center transition-all duration-300 ${
+                isActiveLink("/dashboard") ? activeLinkStyle : inactiveLinkStyle
+              }`}
+            >
+              <Calendar className={`w-4 h-4 mr-2 ${isActiveLink("/dashboard") ? "text-white" : "text-blue-500"}`} /> 
+              Calendar
+            </Link>
             
             <button
               onClick={handlePropertyNavigation}
-              className={`px-4 py-2 flex items-center transition-all duration-300 ${
+              className={`px-5 py-2.5 flex items-center transition-all duration-300 ${
                 isActiveLink("/properties") ? activeLinkStyle : inactiveLinkStyle
               }`}
             >
-              <Building className="w-4 h-4 mr-2" /> Properties
+              <Building className={`w-4 h-4 mr-2 ${isActiveLink("/properties") ? "text-white" : "text-blue-500"}`} /> 
+              Properties
             </button>
 
             {user?.role === "owner" && (
               <Link
                 to="/owner-dashboard"
-                className={`px-4 py-2 flex items-center transition-all duration-300 ${
+                className={`px-5 py-2.5 flex items-center transition-all duration-300 ${
                   isActiveLink("/owner-dashboard") ? activeLinkStyle : inactiveLinkStyle
                 }`}
               >
-                <LayoutDashboard className="w-4 h-4 mr-2" /> Owner Dashboard
+                <LayoutDashboard className={`w-4 h-4 mr-2 ${isActiveLink("/owner-dashboard") ? "text-white" : "text-blue-500"}`} /> 
+                Owner Dashboard
               </Link>
             )}
             
             {user?.role === "client" && (
               <Link 
                 to="/my-bookings" 
-                className={`px-4 py-2 flex items-center transition-all duration-300 ${
+                className={`px-5 py-2.5 flex items-center transition-all duration-300 ${
                   isActiveLink("/my-bookings") ? activeLinkStyle : inactiveLinkStyle
                 }`}
               >
-                <BookOpen className="w-4 h-4 mr-2" /> My Bookings
+                <BookOpen className={`w-4 h-4 mr-2 ${isActiveLink("/my-bookings") ? "text-white" : "text-blue-500"}`} /> 
+                My Bookings
               </Link>
             )}
 
@@ -81,19 +83,21 @@ const Navbar = () => {
               <>
                 <Link 
                   to="/admin/dashboard" 
-                  className={`px-4 py-2 flex items-center transition-all duration-300 ${
+                  className={`px-5 py-2.5 flex items-center transition-all duration-300 ${
                     isActiveLink("/admin/dashboard") ? activeLinkStyle : inactiveLinkStyle
                   }`}
                 >
-                  <LayoutDashboard className="w-4 h-4 mr-2" /> Admin Dashboard
+                  <LayoutDashboard className={`w-4 h-4 mr-2 ${isActiveLink("/admin/dashboard") ? "text-white" : "text-blue-500"}`} /> 
+                  Admin Dashboard
                 </Link>
                 <Link 
                   to="/admin/bookings" 
-                  className={`px-4 py-2 flex items-center transition-all duration-300 ${
+                  className={`px-5 py-2.5 flex items-center transition-all duration-300 ${
                     isActiveLink("/admin/bookings") ? activeLinkStyle : inactiveLinkStyle
                   }`}
                 >
-                  <BookOpen className="w-4 h-4 mr-2" /> New Bookings
+                  <BookOpen className={`w-4 h-4 mr-2 ${isActiveLink("/admin/bookings") ? "text-white" : "text-blue-500"}`} /> 
+                  New Bookings
                 </Link>
               </>
             )}
@@ -101,8 +105,8 @@ const Navbar = () => {
 
           <div className="flex items-center">
             {user ? (
-              <div className="flex items-center space-x-3">
-                <div className="bg-gray-50 rounded-full px-4 py-2 flex items-center shadow-sm border border-gray-200">
+              <div className="flex items-center space-x-4">
+                <div className="bg-gray-50 rounded-full px-5 py-2.5 flex items-center shadow-md border border-gray-200 hover:border-blue-200 hover:bg-blue-50 transition-all duration-300">
                   {user.role === "admin" ? (
                     <Shield className="w-5 h-5 text-indigo-600 mr-2" />
                   ) : (
@@ -112,7 +116,7 @@ const Navbar = () => {
                 </div>
                 <button
                   onClick={logout}
-                  className="px-4 py-2 rounded-lg text-red-600 hover:text-white hover:bg-red-500 transition-all duration-300 flex items-center"
+                  className="px-5 py-2.5 rounded-full text-red-600 hover:text-white hover:bg-red-500 border border-transparent hover:border-red-600 transition-all duration-300 flex items-center font-medium"
                 >
                   <LogOut className="w-4 h-4 mr-2" /> Logout
                 </button>
@@ -121,7 +125,7 @@ const Navbar = () => {
               <Link
                 to="#"
                 onClick={handleAuthClick}
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 flex items-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-full hover:from-blue-700 hover:to-indigo-800 transition-all duration-300 flex items-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
               >
                 <LogIn className="w-4 h-4 mr-2" />
                 Become a Guest

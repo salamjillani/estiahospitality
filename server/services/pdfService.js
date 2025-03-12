@@ -221,8 +221,8 @@ const generateInvoicePDF = async (invoice) => {
       .lineWidth(0.5)
       .stroke(colors.border);
     
-    // Column layout for details
-    const colWidth = contentWidth / 3;
+    // Column layout for details - Changed from 3 to 4 columns to include reservation code
+    const colWidth = contentWidth / 4;
     
     // Invoice number
     doc.fillColor(colors.lightText)
@@ -235,27 +235,38 @@ const generateInvoicePDF = async (invoice) => {
       .font('Helvetica')
       .text(invoice.invoiceNumber, margin, detailsY + 25);
     
-    // Issue date
+    // Reservation code - New addition
     doc.fillColor(colors.lightText)
       .fontSize(8)
       .font('Helvetica-Bold')
-      .text("DATE ISSUED", margin + colWidth, detailsY + 10);
+      .text("RESERVATION CODE", margin + colWidth, detailsY + 10);
       
     doc.fillColor(colors.text)
       .fontSize(9)
       .font('Helvetica')
-      .text(new Date(invoice.issuedDate).toLocaleDateString(), margin + colWidth, detailsY + 25);
+      .text(booking.reservationCode || "N/A", margin + colWidth, detailsY + 25);
     
-    // Payment method
+    // Issue date - Now in 3rd column
     doc.fillColor(colors.lightText)
       .fontSize(8)
       .font('Helvetica-Bold')
-      .text("PAYMENT METHOD", margin + colWidth * 2, detailsY + 10);
+      .text("DATE ISSUED", margin + colWidth * 2, detailsY + 10);
       
     doc.fillColor(colors.text)
       .fontSize(9)
       .font('Helvetica')
-      .text(invoice.paymentMethod || booking.paymentMethod || "N/A", margin + colWidth * 2, detailsY + 25);
+      .text(new Date(invoice.issuedDate).toLocaleDateString(), margin + colWidth * 2, detailsY + 25);
+    
+    // Payment method - Now in 4th column
+    doc.fillColor(colors.lightText)
+      .fontSize(8)
+      .font('Helvetica-Bold')
+      .text("PAYMENT METHOD", margin + colWidth * 3, detailsY + 10);
+      
+    doc.fillColor(colors.text)
+      .fontSize(9)
+      .font('Helvetica')
+      .text(invoice.paymentMethod || booking.paymentMethod || "N/A", margin + colWidth * 3, detailsY + 25);
 
     // Bottom separator line - adjusted with scaling factor
     doc.moveTo(margin, detailsY + (45 * scalingFactor)).lineTo(margin + contentWidth, detailsY + (45 * scalingFactor))
@@ -293,12 +304,24 @@ const generateInvoicePDF = async (invoice) => {
     const cardSpacing = 6;
     const cardWidth = (contentWidth - cardSpacing * 3) / 4;
     
-    // Define streamlined cards
+    // UPDATED: Modified Property card to separate property title from location
     const cards = [
-      { title: "PROPERTY", value: property.title || "Unknown Property" },
-      { title: "DATES", value: `${formatDate(booking.checkInDate)} - ${formatDate(booking.checkOutDate)}` },
-      { title: "GUESTS", value: `${adults} Adults, ${children} Children` },
-      { title: "ROOMS", value: rooms }
+      { 
+        title: "PROPERTY", 
+        value: property.title || "Unknown Property" 
+      },
+      { 
+        title: "LOCATION", 
+        value: `${property.location?.address || "N/A"}\n${property.location?.city || ""}, ${property.location?.country || ""}` 
+      },
+      { 
+        title: "CHECK-IN & CHECK-OUT", 
+        value: `${formatDate(booking.checkInDate)} - ${formatDate(booking.checkOutDate)}` 
+      },
+      { 
+        title: "GUESTS AND ROOMS", 
+        value: `${adults} Adults, ${children} Children\n${rooms} Rooms` 
+      }
     ];
     
     // Draw modern cards with increased internal spacing

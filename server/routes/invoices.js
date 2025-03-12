@@ -84,7 +84,7 @@ router.get("/:id/pdf", auth, async (req, res) => {
       })
       .populate({
         path: "booking",
-        select: "checkInDate checkOutDate status totalPrice currency paymentMethod rooms adults children phone user property guestName email"
+        select: "reservationCode checkInDate checkOutDate status totalPrice currency paymentMethod rooms adults children phone user property guestName email"
       });
 
     // Validate required relationships

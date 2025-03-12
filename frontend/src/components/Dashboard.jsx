@@ -212,8 +212,11 @@ const Dashboard = () => {
   }, [propertySearchQuery, properties]);
 
   const LoadingSpinner = () => (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="bg-white/80 backdrop-blur-xl p-8 rounded-2xl shadow-xl shadow-blue-500/10 border border-white">
+        <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
+        <p className="mt-4 text-blue-800 font-medium">Loading your dashboard...</p>
+      </div>
     </div>
   );
 
@@ -225,15 +228,15 @@ const Dashboard = () => {
   // Error state with retry button
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center p-6 border border-red-300 rounded-lg bg-white shadow-lg max-w-md">
-          <div className="text-red-600 mb-4">{error}</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-50 to-red-100">
+        <div className="text-center p-8 border border-red-200 rounded-2xl bg-white/90 backdrop-blur-xl shadow-xl shadow-red-500/10 max-w-md">
+          <div className="text-red-600 mb-6 font-medium">{error}</div>
           <button
             onClick={() => {
               setError("");
               fetchBookings();
             }}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 font-medium"
           >
             Retry
           </button>
@@ -267,32 +270,34 @@ const Dashboard = () => {
 
     return (
       <div
-        className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-opacity"
+        className="relative group flex items-center justify-between p-1 py-2 rounded-full h-full w-full hover:opacity-90 transition-all duration-200"
         style={{ backgroundColor: eventInfo.backgroundColor }}
       >
-        <div className="flex-1 font-medium truncate pl-2">
+        <div className="flex-1 font-medium truncate pl-2 text-white">
           {eventInfo.event.title}
         </div>
-        <div className="flex items-center space-x-1 bg-white/20 rounded-full px-2 py-1 ml-2">
+        <div className="flex items-center space-x-1 bg-white/30 backdrop-blur-sm rounded-full px-2 py-1 ml-2">
           <Users size={14} className="text-white" />
-          <span className="text-sm">
+          <span className="text-sm text-white font-medium">
             {eventInfo.event.extendedProps.adults}
           </span>
         </div>
 
-        <div className="absolute invisible group-hover:visible bg-white/95 backdrop-blur-sm text-gray-700 text-sm rounded-xl p-4 left-1/2 transform -translate-x-1/2 -top-44 min-w-[320px] z-50 shadow-lg border border-gray-100/50">
+        <div className="absolute invisible group-hover:visible bg-white/95 backdrop-blur-sm text-gray-700 text-sm rounded-xl p-4 left-1/2 transform -translate-x-1/2 -top-44 min-w-[320px] z-50 shadow-xl border border-gray-100/50 transition-all duration-200">
           <div className="flex flex-col space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100/50">
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
               <h3 className="font-semibold text-base text-gray-900">
                 {property?.title || "Unknown Property"}
               </h3>
-              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
                 {eventInfo.event.extendedProps.reservationCode}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-gray-500 shrink-0" />
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Users className="w-4 h-4 text-blue-500" />
+                </div>
                 <div>
                   <p className="text-xs text-gray-500">Adults</p>
                   <p className="text-sm font-medium">
@@ -301,21 +306,27 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <Calendar className="w-4 h-4 text-green-500" />
+                </div>
                 <div>
                   <p className="text-xs text-gray-500">Check-in</p>
                   <p className="text-sm font-medium">{checkInDate}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
+                <div className="p-2 bg-purple-50 rounded-lg">
+                  <Calendar className="w-4 h-4 text-purple-500" />
+                </div>
                 <div>
                   <p className="text-xs text-gray-500">Check-out</p>
                   <p className="text-sm font-medium">{checkOutDate}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-500 shrink-0" />
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <Clock className="w-4 h-4 text-amber-500" />
+                </div>
                 <div>
                   <p className="text-xs text-gray-500">Arrival Time</p>
                   <p className="text-sm font-medium">
@@ -325,12 +336,12 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-            <div className="pt-2 border-t border-gray-100/50">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">
+            <div className="mt-2 pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between bg-blue-50 p-2 rounded-lg">
+                <span className="text-sm text-gray-700">
                   {nights} {nights === 1 ? "Night" : "Nights"}
                 </span>
-                <span className="text-sm font-semibold text-blue-600">
+                <span className="text-sm font-semibold text-blue-700">
                   {currencySymbol}
                   {totalPrice}
                 </span>
@@ -343,7 +354,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-purple-50/50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <Navbar
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
@@ -351,7 +362,7 @@ const Dashboard = () => {
       <div className="pt-16 h-screen flex">
         {(user?.role === "admin" || user?.role === "client") && (
           <div
-            className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/80 backdrop-blur-xl border-r border-gray-100/50 h-full transform transition-transform duration-300 ease-in-out z-40 ${
+            className={`fixed lg:relative lg:block w-full lg:w-96 bg-white/90 backdrop-blur-xl border-r border-gray-100 h-full transform transition-transform duration-300 ease-in-out z-40 ${
               isSidebarOpen
                 ? "translate-x-0"
                 : "-translate-x-full lg:translate-x-0"
@@ -360,14 +371,14 @@ const Dashboard = () => {
             <div className="p-4 lg:p-6 overflow-y-auto h-full">
               <div className="relative mb-6">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-gray-400" />
+                  <Search className="h-4 w-4 text-blue-400" />
                 </div>
                 <input
                   type="text"
                   placeholder="Search properties..."
                   value={propertySearchQuery}
                   onChange={(e) => setPropertySearchQuery(e.target.value)}
-                  className="block w-full pl-10 pr-4 py-3 bg-white/50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-gray-400"
+                  className="block w-full pl-10 pr-4 py-3 bg-white/70 border border-blue-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-blue-300 shadow-sm"
                 />
               </div>
               <div className="space-y-4">
@@ -375,15 +386,15 @@ const Dashboard = () => {
                   <Link
                     key={property._id}
                     to={`/properties/${property._id}`}
-                    className="group block p-4 bg-white rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-200"
+                    className="group block p-4 bg-white rounded-2xl border border-gray-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-200"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50">
+                      <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100 shadow-md shadow-blue-500/5">
                         {property.photos?.[0] ? (
                           <img
                             src={property.photos[0].url}
                             alt={property.title}
-                            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
@@ -395,21 +406,23 @@ const Dashboard = () => {
                         <h3 className="font-medium text-gray-900">
                           {property.title}
                         </h3>
-                        <p className="flex items-center gap-1 mt-1 text-sm text-gray-500">
+                        <p className="flex items-center gap-1 mt-1 text-sm text-blue-500">
                           <MapPin className="w-4 h-4" />
                           {property.location?.city || "Location not specified"}
                         </p>
                         <div className="flex items-center gap-3 mt-2">
-                          <span className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded-lg text-sm text-gray-600">
+                          <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded-lg text-sm text-blue-600">
                             <BedDouble className="w-4 h-4" />{" "}
                             {property.bedrooms}
                           </span>
-                          <span className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded-lg text-sm text-gray-600">
+                          <span className="flex items-center gap-1 px-2 py-1 bg-purple-50 rounded-lg text-sm text-purple-600">
                             <Bath className="w-4 h-4" /> {property.bathrooms}
                           </span>
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-500 transition-colors" />
+                      <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                        <ChevronRight className="w-4 h-4 text-blue-400 group-hover:text-blue-600 transition-colors" />
+                      </div>
                     </div>
                   </Link>
                 ))}
@@ -418,7 +431,7 @@ const Dashboard = () => {
           </div>
         )}
         <div className="flex-1 p-4 lg:p-6 bg-transparent">
-          <div className="h-full bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-blue-500/5 border border-gray-100/50 overflow-hidden">
+          <div className="h-full bg-white/90 backdrop-blur-xl rounded-3xl shadow-xl shadow-blue-500/10 border border-blue-100/30 overflow-hidden">
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
@@ -437,7 +450,7 @@ const Dashboard = () => {
               height="100%"
               contentHeight="auto"
               themeSystem="standard"
-              eventClassNames="rounded-full"
+              eventClassNames="rounded-full shadow-md hover:shadow-lg transition-shadow duration-200"
               eventDisplay="block"
               slotMinTime="06:00:00"
               slotMaxTime="21:00:00"

@@ -64,26 +64,26 @@ const ReservationForm = () => {
   }, [user?.token]);
 
   // Inside ReservationForm component
-useEffect(() => {
-  // Reset form data when propertyId changes
-  setFormData({
-    checkInDate: "",
-    checkOutDate: "",
-    rooms: 1,
-    nights: 1,
-    adults: 1,
-    children: 0,
-    currency: "USD",
-    nationality: "",
-    specialRequests: "",
-    guestName: "",
-    email: "",
-    phone: "",
-    arrivalTime: "",
-    paymentMethod: "cash",
-    property: propertyId || location.state?.propertyId,
-  });
-}, [propertyId, location.state?.propertyId]);
+  useEffect(() => {
+    // Reset form data when propertyId changes
+    setFormData({
+      checkInDate: "",
+      checkOutDate: "",
+      rooms: 1,
+      nights: 1,
+      adults: 1,
+      children: 0,
+      currency: "USD",
+      nationality: "",
+      specialRequests: "",
+      guestName: "",
+      email: "",
+      phone: "",
+      arrivalTime: "",
+      paymentMethod: "cash",
+      property: propertyId || location.state?.propertyId,
+    });
+  }, [propertyId, location.state?.propertyId]);
 
   // Check authentication first
   useEffect(() => {
@@ -101,7 +101,6 @@ useEffect(() => {
     }
   }, [authLoading, user, navigate, isInitialized]);
 
-  // Load property details
   useEffect(() => {
     const loadProperty = async () => {
       try {
@@ -110,21 +109,19 @@ useEffect(() => {
           pricePerNight: data.pricePerNight,
           currency: data.currency || data.bankDetails?.currency || "USD",
           title: data.title || "Property",
+          rooms: data.bedrooms, // Add bedrooms from property data
         });
       } catch (err) {
         setError("Failed to load property details");
-        console.error("Error fetching property:", err);
       }
     };
 
     if (location.state?.property) {
       setPropertyDetails({
         pricePerNight: location.state.property.pricePerNight,
-        currency:
-          location.state.property.currency ||
-          location.state.property.bankDetails?.currency ||
-          "USD",
-        title: location.state.property.title || "Property",
+        currency: location.state.property.currency,
+        title: location.state.property.title,
+        rooms: location.state.property.bedrooms,
       });
     } else if (propertyId) {
       loadProperty();
@@ -156,24 +153,32 @@ useEffect(() => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
-        <span className="ml-2 text-lg text-gray-700 font-medium">Verifying authentication...</span>
+        <span className="ml-2 text-lg text-gray-700 font-medium">
+          Verifying authentication...
+        </span>
       </div>
     );
   }
 
-  // Form validation only, doesn't submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setError("");
+
     if (!user?._id) {
       setError("User authentication required");
       navigate("/auth");
       return;
     }
 
-    setError("");
-
     try {
+      const propertyDetails = await api.get(`/api/properties/${formData.property}`);
+    
+      if (formData.rooms > propertyDetails.bedrooms) {
+        throw new Error(
+          `This property only has ${propertyDetails.bedrooms} rooms available`
+        );
+      }
+
       const requiredFields = [
         "checkInDate",
         "checkOutDate",
@@ -183,6 +188,7 @@ useEffect(() => {
         "email",
         "phone",
         "nationality",
+        "property",
       ];
 
       const missing = requiredFields.filter((field) => !formData[field]);
@@ -190,10 +196,9 @@ useEffect(() => {
       if (missing.length > 0) {
         throw new Error(`Missing required fields: ${missing.join(", ")}`);
       }
-      
+
       // Show confirmation popup
       setShowConfirmation(true);
-      
     } catch (err) {
       console.error("Validation error:", err);
       setError(err.message || "Please fill in all required fields");
@@ -216,10 +221,10 @@ useEffect(() => {
       };
 
       const response = await api.post("/api/bookings", bookingData);
-      
+
       // Emit websocket event
       websocketService.emit("newBooking", response.data);
-      
+
       // Only navigate after successful API response
       navigate("/my-bookings", {
         state: { success: "Booking request submitted successfully!" },
@@ -264,9 +269,14 @@ useEffect(() => {
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white">
         <div className="flex items-center space-x-3">
           <Hotel className="h-8 w-8" />
-          <h2 className="text-3xl font-bold">{propertyDetails.title || "Book Your Stay"}</h2>
+          <h2 className="text-3xl font-bold">
+            {propertyDetails.title || "Book Your Stay"}
+          </h2>
         </div>
-        <p className="mt-2 opacity-90 max-w-md">Complete the form below to make your reservation. We look forward to hosting you!</p>
+        <p className="mt-2 opacity-90 max-w-md">
+          Complete the form below to make your reservation. We look forward to
+          hosting you!
+        </p>
       </div>
 
       {/* Form Content */}
@@ -280,19 +290,21 @@ useEffect(() => {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <input type="hidden" name="property" value={formData.property} />
-          
+
           {/* Pricing Card */}
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-100 shadow-sm">
             <div className="flex justify-between items-center mb-3">
               <span className="text-gray-700 font-medium">Price per night</span>
-              <span className="text-lg font-semibold">{propertyDetails.currency} {propertyDetails.pricePerNight}</span>
+              <span className="text-lg font-semibold">
+                {propertyDetails.currency} {propertyDetails.pricePerNight}
+              </span>
             </div>
-            
+
             <div className="flex justify-between items-center mb-3">
               <span className="text-gray-700 font-medium">Nights</span>
               <span className="text-lg font-semibold">{formData.nights}</span>
             </div>
-            
+
             <div className="border-t border-blue-200 my-3 pt-3 flex justify-between items-center">
               <span className="text-gray-900 font-semibold">Total Price</span>
               <span className="text-2xl font-bold text-blue-700">
@@ -307,7 +319,7 @@ useEffect(() => {
               <Users className="h-5 w-5 text-blue-600" />
               Guest Information
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -375,7 +387,11 @@ useEffect(() => {
                     ))}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <svg
+                      className="fill-current h-4 w-4"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                    >
                       <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
                     </svg>
                   </div>
@@ -402,7 +418,11 @@ useEffect(() => {
                     ))}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <svg
+                      className="fill-current h-4 w-4"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                    >
                       <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
                     </svg>
                   </div>
@@ -417,7 +437,7 @@ useEffect(() => {
               <Calendar className="h-5 w-5 text-blue-600" />
               Stay Details
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -451,7 +471,8 @@ useEffect(() => {
                     className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     required
                     min={
-                      formData.checkInDate || new Date().toISOString().split("T")[0]
+                      formData.checkInDate ||
+                      new Date().toISOString().split("T")[0]
                     }
                   />
                 </div>
@@ -483,13 +504,18 @@ useEffect(() => {
                     type="number"
                     name="rooms"
                     min="1"
-                    max="10"
+                    max={propertyDetails.rooms || 1}
                     value={formData.rooms}
                     onChange={handleChange}
                     className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     required
                   />
                 </div>
+                {propertyDetails.rooms && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Maximum {propertyDetails.rooms} rooms available
+                  </p>
+                )}
               </div>
 
               <div>
@@ -535,24 +561,42 @@ useEffect(() => {
               <CreditCard className="h-5 w-5 text-blue-600" />
               Payment Method
             </h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, paymentMethod: "cash" })}
+                onClick={() =>
+                  setFormData({ ...formData, paymentMethod: "cash" })
+                }
                 className={`p-4 border rounded-xl flex items-center justify-center transition-all ${
                   formData.paymentMethod === "cash"
                     ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
                     : "border-gray-200 hover:border-blue-300"
                 }`}
               >
-                <DollarSign className={`h-5 w-5 mr-2 ${formData.paymentMethod === "cash" ? "text-blue-600" : "text-gray-500"}`} />
-                <span className={`font-medium ${formData.paymentMethod === "cash" ? "text-blue-700" : "text-gray-700"}`}>Cash</span>
+                <DollarSign
+                  className={`h-5 w-5 mr-2 ${
+                    formData.paymentMethod === "cash"
+                      ? "text-blue-600"
+                      : "text-gray-500"
+                  }`}
+                />
+                <span
+                  className={`font-medium ${
+                    formData.paymentMethod === "cash"
+                      ? "text-blue-700"
+                      : "text-gray-700"
+                  }`}
+                >
+                  Cash
+                </span>
               </button>
-              
+
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, paymentMethod: "stripe" })}
+                onClick={() =>
+                  setFormData({ ...formData, paymentMethod: "stripe" })
+                }
                 className={`p-4 border rounded-xl flex items-center justify-center transition-all ${
                   formData.paymentMethod === "stripe"
                     ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20"
@@ -560,7 +604,15 @@ useEffect(() => {
                 }`}
               >
                 <img src="/stripe.png" className="h-5 mr-2" alt="Stripe" />
-                <span className={`font-medium ${formData.paymentMethod === "stripe" ? "text-blue-700" : "text-gray-700"}`}>Stripe</span>
+                <span
+                  className={`font-medium ${
+                    formData.paymentMethod === "stripe"
+                      ? "text-blue-700"
+                      : "text-gray-700"
+                  }`}
+                >
+                  Stripe
+                </span>
               </button>
             </div>
           </div>
@@ -608,7 +660,7 @@ useEffect(() => {
               <h3 className="text-xl font-bold text-gray-800">
                 Confirm Your Booking
               </h3>
-              <button 
+              <button
                 onClick={() => setShowConfirmation(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -625,24 +677,35 @@ useEffect(() => {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Check-in</span>
-                  <span className="font-medium text-gray-900">{formData.checkInDate}</span>
+                  <span className="font-medium text-gray-900">
+                    {formData.checkInDate}
+                  </span>
                 </div>
 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Check-out</span>
-                  <span className="font-medium text-gray-900">{formData.checkOutDate}</span>
+                  <span className="font-medium text-gray-900">
+                    {formData.checkOutDate}
+                  </span>
                 </div>
 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Guests</span>
                   <span className="font-medium text-gray-900">
-                    {formData.adults} Adult{formData.adults > 1 ? "s" : ""}{formData.children > 0 ? `, ${formData.children} Child${formData.children > 1 ? "ren" : ""}` : ""}
+                    {formData.adults} Adult{formData.adults > 1 ? "s" : ""}
+                    {formData.children > 0
+                      ? `, ${formData.children} Child${
+                          formData.children > 1 ? "ren" : ""
+                        }`
+                      : ""}
                   </span>
                 </div>
 
                 <div className="flex justify-between">
                   <span className="text-gray-600">Rooms</span>
-                  <span className="font-medium text-gray-900">{formData.rooms}</span>
+                  <span className="font-medium text-gray-900">
+                    {formData.rooms}
+                  </span>
                 </div>
 
                 <div className="flex justify-between pt-2 border-t border-blue-200">

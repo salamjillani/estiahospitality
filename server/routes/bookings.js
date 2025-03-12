@@ -156,6 +156,24 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
         .json({ message: "Property currency not configured properly" });
     }
 
+    // Room availability check
+    if (req.body.rooms > property.rooms) {
+      return res.status(400).json({ message: `Only ${property.rooms} rooms available` });
+    }
+
+    // Date conflict check
+    const existingBookings = await Booking.find({
+      property: req.body.property,
+      status: { $ne: "cancelled" },
+      $or: [
+        { checkInDate: { $lt: req.body.checkOutDate }, checkOutDate: { $gt: req.body.checkInDate } }
+      ]
+    });
+
+    if (existingBookings.length > 0) {
+      return res.status(400).json({ message: "Property already booked for these dates" });
+    }
+
     const requiredFields = [
       "property",
       "checkInDate",
@@ -200,12 +218,19 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
 
 router.patch("/:id", auth, adminOnly, async (req, res) => {
   try {
+  
     const booking = await Booking.findById(req.params.id)
       .populate("user", "name email")
       .populate("property", "title pricePerNight");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
+    }
+
+    const property = await Property.findById(booking.property);
+    
+    if (req.body.rooms && req.body.rooms > property.rooms) {
+      return res.status(400).json({ message: `Exceeds available rooms (${property.rooms})` });
     }
 
     // Validate status transition
@@ -272,6 +297,7 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
 
     // Save updated booking
     const updatedBooking = await booking.save();
+    req.io.emit("bookingUpdate", updatedBooking);
 
     // Populate relationships for response
     await updatedBooking.populate([
@@ -294,8 +320,6 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
       });
     }
 
-    // Emit real-time update
-    req.io.emit("bookingUpdate", updatedBooking);
 
     res.json(updatedBooking);
   } catch (err) {
@@ -315,7 +339,13 @@ router.patch("/client/:id", auth, checkRole(["client"]), async (req, res) => {
     if (booking.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "Unauthorized access" });
     }
-
+    const property = await Property.findById(req.body.property);
+    
+    if (req.body.rooms > property.bedrooms) {
+      return res.status(400).json({
+        message: `Only ${property.bedrooms} rooms available`
+      });
+    }
     const updatedBooking = await Booking.findByIdAndUpdate(
       req.params.id,
       {

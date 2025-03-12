@@ -86,11 +86,11 @@ const PropertyDetails = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50">
-        <div className="text-center">
-          <Loader2 className="animate-spin w-12 h-12 text-indigo-600 mx-auto mb-4" />
-          <p className="text-indigo-700 font-medium">
-            Loading property details...
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-lg">
+          <Loader2 className="animate-spin w-14 h-14 text-indigo-600 mx-auto mb-6" />
+          <p className="text-indigo-800 font-semibold text-lg">
+            Loading amazing property details...
           </p>
         </div>
       </div>
@@ -99,8 +99,8 @@ const PropertyDetails = () => {
 
   if (!property) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-10 rounded-3xl shadow-xl max-w-md w-full">
+      <div className="min-h-screen bg-gradient-to-tr from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-10 rounded-3xl shadow-xl max-w-md w-full border border-indigo-100">
           <h2 className="text-3xl font-bold text-gray-800 mb-4 text-center">
             Property Not Found
           </h2>
@@ -129,9 +129,11 @@ const PropertyDetails = () => {
     if (!hasAnyLocation) return null;
 
     return (
-      <div className="bg-white p-6 rounded-2xl hover:shadow-lg transition-shadow border border-gray-100">
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-900">
-          <MapPin className="w-6 h-6 text-indigo-600" />
+      <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-indigo-50">
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-3 text-gray-900">
+          <div className="p-2 bg-indigo-100 rounded-lg">
+            <MapPin className="w-6 h-6 text-indigo-600" />
+          </div>
           Location Details
         </h3>
         <dl className="space-y-4">
@@ -140,7 +142,7 @@ const PropertyDetails = () => {
               value && (
                 <div
                   key={key}
-                  className="flex justify-between items-center border-b border-gray-100 pb-3"
+                  className="flex justify-between items-center border-b border-gray-100 pb-4"
                 >
                   <dt className="text-gray-600 capitalize font-medium">
                     {key}
@@ -163,10 +165,23 @@ const PropertyDetails = () => {
 
     if (!hasAnyAmenities) return null;
 
+    const amenityIcons = {
+      swimmingPool: <Droplet className="w-5 h-5 text-blue-500" />,
+      wifi: <Wifi className="w-5 h-5 text-green-500" />,
+      parking: <Car className="w-5 h-5 text-purple-500" />,
+      airConditioning: <Car className="w-5 h-5 text-cyan-500" />,
+      kitchen: <Car className="w-5 h-5 text-amber-500" />,
+      tv: <Car className="w-5 h-5 text-red-500" />,
+      washer: <Car className="w-5 h-5 text-emerald-500" />,
+      balcony: <Car className="w-5 h-5 text-indigo-500" />,
+    };
+
     return (
-      <div className="bg-white p-6 rounded-2xl hover:shadow-lg transition-shadow border border-gray-100 mt-6">
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-900">
-          <ClipboardList className="w-6 h-6 text-indigo-600" />
+      <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-indigo-50 mt-6">
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-3 text-gray-900">
+          <div className="p-2 bg-indigo-100 rounded-lg">
+            <ClipboardList className="w-6 h-6 text-indigo-600" />
+          </div>
           Facilities & Amenities
         </h3>
 
@@ -176,33 +191,12 @@ const PropertyDetails = () => {
             .map(([amenity]) => (
               <div
                 key={amenity}
-                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-indigo-50 transition-colors duration-200"
               >
-                {amenity === "swimmingPool" && (
-                  <Droplet className="w-5 h-5 text-blue-500" />
-                )}
-                {amenity === "wifi" && (
-                  <Wifi className="w-5 h-5 text-green-500" />
-                )}
-                {amenity === "parking" && (
-                  <Car className="w-5 h-5 text-purple-500" />
-                )}
-                {amenity === "airConditioning" && (
-                  <Car className="w-5 h-5 text-purple-500" />
-                )}
-                {amenity === "kitchen" && (
-                  <Car className="w-5 h-5 text-purple-500" />
-                )}
-                {amenity === "tv" && (
-                  <Car className="w-5 h-5 text-purple-500" />
-                )}
-                {amenity === "washer" && (
-                  <Car className="w-5 h-5 text-purple-500" />
-                )}
-                {amenity === "balcony" && (
-                  <Car className="w-5 h-5 text-purple-500" />
-                )}
-                <span className="capitalize text-gray-700">
+                <div className="p-2 bg-white rounded-lg shadow-sm">
+                  {amenityIcons[amenity] || <Car className="w-5 h-5 text-purple-500" />}
+                </div>
+                <span className="capitalize text-gray-700 font-medium">
                   {amenity.replace(/([A-Z])/g, " $1").trim()}
                 </span>
               </div>
@@ -255,9 +249,11 @@ const PropertyDetails = () => {
     }
 
     return (
-      <div className="bg-white p-6 rounded-2xl hover:shadow-lg transition-shadow border border-gray-100">
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-900">
-          <Banknote className="w-6 h-6 text-indigo-600" />
+      <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-indigo-50">
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-3 text-gray-900">
+          <div className="p-2 bg-indigo-100 rounded-lg">
+            <Banknote className="w-6 h-6 text-indigo-600" />
+          </div>
           Bank Information
         </h3>
         <dl className="space-y-4">
@@ -266,7 +262,7 @@ const PropertyDetails = () => {
               value && (
                 <div
                   key={key}
-                  className="flex justify-between items-center border-b border-gray-100 pb-3"
+                  className="flex justify-between items-center border-b border-gray-100 pb-4"
                 >
                   <dt className="text-gray-600 font-medium">
                     {bankDetailsMapping[key] || key}
@@ -281,13 +277,13 @@ const PropertyDetails = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link
             to="/properties"
-            className="flex items-center gap-2 text-gray-600 hover:text-indigo-600 transition-colors bg-white py-2 px-4 rounded-full shadow-sm"
+            className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors bg-white py-2 px-5 rounded-full shadow-md hover:shadow-lg"
           >
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">Back to Properties</span>
@@ -295,7 +291,7 @@ const PropertyDetails = () => {
           {user?.role === "admin" && (
             <Link
               to={`/properties/${property._id}/edit`}
-              className="p-3 text-indigo-600 bg-white hover:bg-indigo-50 rounded-full shadow-sm transition-colors duration-200 group"
+              className="p-3 text-indigo-600 bg-white hover:bg-indigo-50 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
               title="Edit property"
             >
               <Edit className="w-5 h-5" />
@@ -304,7 +300,7 @@ const PropertyDetails = () => {
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-8 shadow-md">
+          <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg mb-8 shadow-md">
             <p className="text-red-700 font-medium">{error}</p>
           </div>
         )}
@@ -327,13 +323,13 @@ const PropertyDetails = () => {
                     <>
                       <button
                         onClick={prevPhoto}
-                        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/75 hover:bg-white rounded-full p-2 shadow-lg text-gray-800 hover:text-indigo-600 transition-all focus:outline-none"
+                        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg text-gray-800 hover:text-indigo-600 transition-all focus:outline-none"
                       >
                         <ChevronLeft className="w-6 h-6" />
                       </button>
                       <button
                         onClick={nextPhoto}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/75 hover:bg-white rounded-full p-2 shadow-lg text-gray-800 hover:text-indigo-600 transition-all focus:outline-none"
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg text-gray-800 hover:text-indigo-600 transition-all focus:outline-none"
                       >
                         <ChevronRight className="w-6 h-6" />
                       </button>
@@ -342,15 +338,15 @@ const PropertyDetails = () => {
 
                   {/* Photo indicators */}
                   {property.photos.length > 1 && (
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3">
                       {property.photos.map((_, index) => (
                         <button
                           key={index}
                           onClick={() => setCurrentPhotoIndex(index)}
-                          className={`w-2.5 h-2.5 rounded-full ${
+                          className={`w-3 h-3 rounded-full transition-all duration-200 ${
                             currentPhotoIndex === index
-                              ? "bg-indigo-600"
-                              : "bg-white/60"
+                              ? "bg-indigo-600 scale-125"
+                              : "bg-white/80 hover:bg-white"
                           }`}
                         />
                       ))}
@@ -359,21 +355,21 @@ const PropertyDetails = () => {
                 </div>
               ) : (
                 <div className="h-96 bg-gray-100 flex items-center justify-center">
-                  <Home className="w-20 h-20 text-gray-300" />
+                  <Home className="w-24 h-24 text-gray-300" />
                 </div>
               )}
 
               {/* Thumbnail preview */}
               {property.photos && property.photos.length > 1 && (
-                <div className="flex overflow-x-auto p-4 space-x-2 bg-gray-50">
+                <div className="flex overflow-x-auto p-6 space-x-3 bg-gray-50">
                   {property.photos.map((photo, index) => (
                     <div
                       key={index}
                       onClick={() => setCurrentPhotoIndex(index)}
-                      className={`cursor-pointer flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                      className={`cursor-pointer flex-shrink-0 w-24 h-16 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
                         currentPhotoIndex === index
-                          ? "border-indigo-600 shadow-md"
-                          : "border-transparent"
+                          ? "border-indigo-600 shadow-lg scale-105"
+                          : "border-transparent hover:border-indigo-300"
                       }`}
                     >
                       <img
@@ -399,37 +395,37 @@ const PropertyDetails = () => {
                       4.8 (42 reviews)
                     </span>
                   </div>
-                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                  <span className="bg-green-100 text-green-800 px-4 py-1.5 rounded-full text-sm font-semibold">
                     Available Now
                   </span>
                 </div>
 
-                <h1 className="text-3xl font-bold mb-4 text-gray-900">
+                <h1 className="text-3xl font-bold mb-6 text-gray-900">
                   {property.title}
                 </h1>
 
                 <div className="flex flex-wrap items-center gap-4 mb-8">
-                  <div className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full">
+                  <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full">
                     <BedDouble className="w-5 h-5 text-indigo-600" />
                     <span className="font-medium text-gray-800">
-                      {property.bedrooms} Bedrooms
+                      {property.bedrooms} Rooms
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full">
+                  <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full">
                     <Bath className="w-5 h-5 text-indigo-600" />
                     <span className="font-medium text-gray-800">
                       {property.bathrooms} Bathrooms
                     </span>
                   </div>
-                  <span className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full font-medium">
+                  <span className="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full font-semibold">
                     {property.type}
                   </span>
                 </div>
 
                 {property.description && (
                   <div className="mb-8">
-                    <h3 className="text-xl font-bold mb-4 text-gray-900 flex items-center gap-2">
-                      <span className="w-2 h-6 bg-indigo-600 rounded-full"></span>
+                    <h3 className="text-xl font-bold mb-4 text-gray-900 flex items-center gap-3">
+                      <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
                       About This Property
                     </h3>
                     <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
@@ -451,14 +447,14 @@ const PropertyDetails = () => {
           <div className="lg:col-span-4 space-y-6">
             {/* Price and Booking Widget */}
             <div className="bg-white rounded-3xl shadow-xl overflow-hidden sticky top-6">
-              <div className="p-6 border-b border-gray-100">
+              <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-indigo-50 to-indigo-100/30">
                 <div className="flex items-center gap-1 mb-2">
-                  <span className="text-2xl font-bold text-gray-900">
+                  <span className="text-3xl font-bold text-gray-900">
                     {property.currency} {property.pricePerNight}
                   </span>
                   <span className="text-gray-600">/night</span>
                 </div>
-                <div className="flex items-center gap-1 text-yellow-500 mb-4">
+                <div className="flex items-center gap-1 text-yellow-500 mb-6">
                   <Star className="w-4 h-4 fill-current" />
                   <Star className="w-4 h-4 fill-current" />
                   <Star className="w-4 h-4 fill-current" />
@@ -478,7 +474,7 @@ const PropertyDetails = () => {
                         ...property,
                       },
                     }}
-                    className="bg-indigo-600 text-white w-full py-3 px-4 rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 font-medium text-lg"
+                    className="bg-indigo-600 text-white w-full py-4 px-4 rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-3 font-medium text-lg shadow-lg hover:shadow-xl transition-all duration-200"
                   >
                     <Calendar className="w-5 h-5" />
                     Book Now
@@ -486,13 +482,13 @@ const PropertyDetails = () => {
                 )}
               </div>
 
-              <div className="p-6">
-                <h3 className="font-bold text-gray-900 mb-4">
+              <div className="p-8">
+                <h3 className="font-bold text-gray-900 mb-6 text-lg">
                   Property Highlights
                 </h3>
-                <ul className="space-y-3">
+                <ul className="space-y-4">
                   <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0">
+                    <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 shadow-sm">
                       ✓
                     </span>
                     <span className="text-gray-600">
@@ -501,7 +497,7 @@ const PropertyDetails = () => {
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0">
+                    <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 shadow-sm">
                       ✓
                     </span>
                     <span className="text-gray-600">
@@ -509,7 +505,7 @@ const PropertyDetails = () => {
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0">
+                    <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 shadow-sm">
                       ✓
                     </span>
                     <span className="text-gray-600">
@@ -517,7 +513,7 @@ const PropertyDetails = () => {
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0">
+                    <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-700 flex-shrink-0 shadow-sm">
                       ✓
                     </span>
                     <span className="text-gray-600">
