@@ -45,7 +45,7 @@ const ReservationForm = () => {
     phone: "",
     arrivalTime: "",
     paymentMethod: "cash",
-    property: propertyId || location.state?.propertyId,
+    property: propertyId || location.state?.propertyId || "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -85,6 +85,15 @@ const ReservationForm = () => {
     });
   }, [propertyId, location.state?.propertyId]);
 
+
+useEffect(() => {
+  // Redirect if no property ID is found
+  if (!propertyId && !location.state?.propertyId) {
+    navigate("/properties");
+    return;
+  }
+}, [propertyId, location.state?.propertyId, navigate]);
+
   // Check authentication first
   useEffect(() => {
     // Only run this once when auth state is settled
@@ -112,7 +121,7 @@ const ReservationForm = () => {
           rooms: data.bedrooms,
         });
       } catch (err) {
-        setError("Failed to load property details");
+        setError("Failed to load property details", err);
       }
     };
 
@@ -164,11 +173,18 @@ const ReservationForm = () => {
     e.preventDefault();
     setError("");
 
-    if (!user?._id) {
-      setError("User authentication required");
-      navigate("/auth");
-      return;
-    }
+ 
+  if (authLoading) {
+    setError("Please wait while we verify your session...");
+    return;
+  }
+
+
+  if (!user?._id) {
+    setError("Authentication required. Redirecting...");
+    navigate("/auth");
+    return;
+  }
 
     try {
       const propertyDetails = await api.get(
@@ -190,8 +206,13 @@ const ReservationForm = () => {
         "email",
         "phone",
         "nationality",
-        "property",
+        "property"
       ];
+
+      if (!formData.property) {
+        setError("Property information is missing. Please refresh the page.");
+        return;
+      }
 
       const missing = requiredFields.filter((field) => !formData[field]);
 
@@ -233,10 +254,13 @@ const ReservationForm = () => {
       });
     } catch (err) {
       console.error("Booking submission error:", err);
-      setError(
-        err.response?.data?.message || err.message || "Failed to submit booking"
-      );
-      // Keep the confirmation dialog open if there's an error
+      setError(err.response?.data?.message || err.message || "Failed to submit booking");
+      
+      // Handle expired sessions
+      if (err.response?.status === 401) {
+        navigate("/auth?session=expired");
+      }
+      
       setShowConfirmation(false);
     } finally {
       setLoading(false);
@@ -648,7 +672,7 @@ const ReservationForm = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || authLoading}
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-3 sm:p-4 rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-indigo-800 flex items-center justify-center gap-2 disabled:opacity-70 shadow-md font-medium text-base sm:text-lg"
           >
             {loading ? (

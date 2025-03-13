@@ -227,17 +227,15 @@ const ClientBookings = () => {
           <div className="text-center p-6 sm:p-8 bg-white rounded-2xl shadow-xl max-w-md mx-auto border border-blue-100 w-full">
             <div className="relative">
               <Loader2 className="animate-spin h-12 sm:h-16 w-12 sm:w-16 text-blue-600 mx-auto mb-6" />
-              <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-blue-100 rounded-full flex items-center justify-center">
-                <Calendar className="h-3 w-3 text-blue-600" />
-              </div>
             </div>
             <h3 className="text-xl sm:text-2xl font-semibold text-slate-800 mb-3">
               Loading Your Bookings
             </h3>
             <p className="text-slate-500 mb-5 text-sm sm:text-base">
-              If it takes too long to load, please click the refresh button below.
+              If it takes too long to load, please click the refresh button
+              below.
             </p>
-            <button 
+            <button
               onClick={() => window.location.reload()}
               className="bg-blue-600 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2 font-medium mx-auto text-sm sm:text-base"
             >
@@ -402,7 +400,9 @@ const ClientBookings = () => {
                               <div className="bg-white p-1.5 rounded-lg shadow-sm border border-blue-100">
                                 <Calendar className="h-4 sm:h-5 w-4 sm:w-5 text-blue-500" />
                               </div>
-                              <span className="text-sm sm:text-base">{formatDate(booking.checkInDate)}</span>
+                              <span className="text-sm sm:text-base">
+                                {formatDate(booking.checkInDate)}
+                              </span>
                             </div>
                             {booking.arrivalTime && (
                               <div className="flex items-center gap-2 text-slate-500 text-xs sm:text-sm mt-1.5 ml-9">
@@ -420,7 +420,9 @@ const ClientBookings = () => {
                               <div className="bg-white p-1.5 rounded-lg shadow-sm border border-blue-100">
                                 <Calendar className="h-4 sm:h-5 w-4 sm:w-5 text-blue-500" />
                               </div>
-                              <span className="text-sm sm:text-base">{formatDate(booking.checkOutDate)}</span>
+                              <span className="text-sm sm:text-base">
+                                {formatDate(booking.checkOutDate)}
+                              </span>
                             </div>
                           </div>
 
