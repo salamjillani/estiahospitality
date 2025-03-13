@@ -7,15 +7,14 @@ import { dirname, resolve } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Create a default API URL
-const defaultApiUrl = 'http://localhost:5000';
-
 export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
       "/api": {
-        target: defaultApiUrl,
+        target: import.meta.env.PROD 
+          ? 'https://estiahospitality.onrender.com' 
+          : 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
       },
@@ -36,4 +35,8 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1600,
   },
+  define: {
+    // Make process.env available in client code
+    'process.env': {}
+  }
 });
