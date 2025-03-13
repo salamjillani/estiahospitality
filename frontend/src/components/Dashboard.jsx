@@ -65,14 +65,14 @@ const Dashboard = () => {
 
   const fetchProperties = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/properties", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/properties`, {
         headers: {
           Authorization: `Bearer ${getAuthToken()}`,
           "Content-Type": "application/json",
         },
         credentials: "include",
       });
-
+      
       if (!response.ok) {
         if (response.status === 401) {
           navigate("/auth");
@@ -80,7 +80,7 @@ const Dashboard = () => {
         }
         throw new Error("Failed to fetch properties");
       }
-
+      
       const data = await response.json();
       setProperties(data || []);
       setFilteredProperties(data || []);

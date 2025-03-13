@@ -19,7 +19,10 @@ const server = http.createServer(app);
 // Enhanced Socket.io configuration
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL,
+    origin: [
+      process.env.CLIENT_URL,
+      'https://estiahospitality.onrender.com'
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
   },
@@ -46,7 +49,10 @@ app.use((req, res, next) => {
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: [
+      process.env.CLIENT_URL,
+      'https://estiahospitality.onrender.com'
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
   })
