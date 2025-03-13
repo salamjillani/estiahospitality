@@ -48,9 +48,8 @@ app.use((req, res, next) => {
 });
 
 const allowedOrigins = [
-  process.env.CLIENT_URL,
   'https://estiahospitality.onrender.com',
-  'http://localhost:5173'
+  process.env.CLIENT_URL
 ];
 
 app.use(cors({
@@ -120,12 +119,10 @@ app.use("/api/booking-agents", require("./routes/bookingAgents"));
 app.use("/api/invoices", invoiceRoutes);
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../../frontend/dist")));
-  
+  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
   app.get("*", (req, res) => {
-    res.sendFile(
-      path.resolve(__dirname, "../../frontend", "dist", "index.html")
-    );
+    res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
   });
 }
 
