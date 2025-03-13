@@ -20,8 +20,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: [
-      process.env.CLIENT_URL,
-      'https://estiahospitality.onrender.com'
+      'https://estiahospitality.onrender.com/',
+      process.env.CLIENT_URL
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
@@ -47,16 +47,23 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(
-  cors({
-    origin: [
-      process.env.CLIENT_URL,
-      'https://estiahospitality.onrender.com'
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true,
-  })
-);
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'https://estiahospitality.onrender.com',
+  'http://localhost:5173'
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+}));
 
 // File upload handling
 const upload = multer({
