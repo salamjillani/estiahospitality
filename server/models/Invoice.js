@@ -74,22 +74,19 @@ invoiceSchema.index({ createdAt: 1 });
 
 // models/Invoice.js
 invoiceSchema.pre('save', async function(next) {
-  if (!this.isNew) return next();
+  if (!this.isNew || this.invoiceNumber) return next();
 
   try {
+    const counter = await mongoose.model('Counter').findByIdAndUpdate(
+      { _id: 'invoiceNumber' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+
     const now = new Date();
     const year = now.getUTCFullYear();
     const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-    
-
-    const startOfMonth = new Date(Date.UTC(year, now.getUTCMonth(), 1));
-    const endOfMonth = new Date(Date.UTC(year, now.getUTCMonth() + 1, 1));
-    
-    const count = await this.constructor.countDocuments({
-      createdAt: { $gte: startOfMonth, $lt: endOfMonth }
-    });
-
-    this.invoiceNumber = `INV-${year}${month}-${String(count + 1).padStart(4, '0')}`;
+    this.invoiceNumber = `INV-${year}${month}-${String(counter.seq).padStart(4, '0')}`;
     next();
   } catch (err) {
     next(err);

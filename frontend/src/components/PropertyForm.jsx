@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -22,43 +22,64 @@ import {
 } from "lucide-react";
 import PropTypes from "prop-types";
 
-const categories = [
-  {
-    type: "Short Term Rental",
-    description: "Short Term Rental (≤80 sq.m)",
-    lowSeason: 8,
-    highSeason: 12,
-    sqm: 80,
-  },
-  {
-    type: "Short Term Rental >80 sq.m",
-    description: "Short Term Rental (>80 sq.m)",
-    lowSeason: 9,
-    highSeason: 15,
-    sqm: 81,
-  },
-  {
-    type: "Self Sustained Villa",
-    description: "Self Sustained Villa",
-    lowSeason: 9,
-    highSeason: 18,
-    sqm: null,
-  },
-  {
-    type: "Self Sustained Residency <=80sq.m",
-    description: "Self Sustained Residency (≤80sq.m)",
-    lowSeason: 8,
-    highSeason: 14,
-    sqm: 80,
-  },
-  {
-    type: "Self Sustained Residency >80sq.m",
-    description: "Self Sustained Residency (>80sq.m)",
-    lowSeason: 9,
-    highSeason: 19,
-    sqm: 81,
-  },
-];
+const InputField = ({
+  label,
+  value,
+  onChange,
+  name,
+  section = null,
+  type = "text",
+  required = false,
+  options,
+  ...props
+}) => (
+  <div className="relative">
+    <label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+      {label} {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    {options ? (
+      <div className="relative group">
+        <select
+          value={value}
+          onChange={(e) => onChange(name, e.target.value, section)}
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-300 bg-white appearance-none shadow-sm hover:border-indigo-400 group-hover:border-indigo-400"
+          required={required}
+          {...props}
+        >
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-500 transition-transform duration-300 group-hover:scale-110">
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </div>
+      </div>
+    ) : (
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(name, e.target.value, section)}
+        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-300 bg-white shadow-sm hover:border-indigo-400"
+        required={required}
+        {...props}
+      />
+    )}
+  </div>
+);
 
 const PropertyForm = () => {
   const { id } = useParams();
@@ -68,12 +89,16 @@ const PropertyForm = () => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const { user } = useAuth();
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
   const [property, setProperty] = useState({
     title: "",
-    type: "Short Term Rental",
+    type: "",
     description: "",
     bedrooms: 1,
     bathrooms: 1,
+    guestCapacity: 1,
     location: {
       address: "",
       city: "",
@@ -194,16 +219,19 @@ const PropertyForm = () => {
     []
   );
 
-  InputField.propTypes = {
-    label: PropTypes.string.isRequired,
-    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    onChange: PropTypes.func.isRequired,
-    name: PropTypes.string.isRequired,
-    section: PropTypes.string,
-    type: PropTypes.string,
-    required: PropTypes.bool,
-    options: PropTypes.array,
-  };
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await api.get("/api/category-prices");
+        setCategories(data);
+      } catch (err) {
+        console.error("Failed to load categories:", err);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     const currentMonth = new Date().getMonth() + 1;
@@ -213,22 +241,27 @@ const PropertyForm = () => {
     );
 
     if (selectedCategory) {
-      const price = isHighSeason
-        ? selectedCategory.highSeason
-        : selectedCategory.lowSeason;
       setProperty((prev) => ({
         ...prev,
-        pricePerNight: price,
-        currency: "EUR",
+        pricePerNight: isHighSeason
+          ? selectedCategory.highSeason
+          : selectedCategory.lowSeason,
+        bankDetails: {
+          ...prev.bankDetails,
+          currency: selectedCategory.currency || "EUR",
+        },
       }));
     } else {
       setProperty((prev) => ({
         ...prev,
         pricePerNight: "",
-        currency: "EUR",
+        bankDetails: {
+          ...prev.bankDetails,
+          currency: "EUR",
+        },
       }));
     }
-  }, [property.type]);
+  }, [property.type, categories]);
 
   useEffect(() => {
     const fetchProperty = async () => {
@@ -403,7 +436,6 @@ const PropertyForm = () => {
     }
   };
 
-  // Helper function to get icon color based on section
   const getSectionColor = (section) => {
     const colors = {
       basic: "text-indigo-600",
@@ -415,7 +447,6 @@ const PropertyForm = () => {
     return colors[section] || "text-indigo-600";
   };
 
-  // Helper function to get background color based on section
   const getSectionBgColor = (section) => {
     const colors = {
       basic: "bg-indigo-100",
@@ -477,7 +508,6 @@ const PropertyForm = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
-          {/* Basic Information Card */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8 transition-all duration-300 hover:shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-indigo-600"></div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
@@ -516,22 +546,25 @@ const PropertyForm = () => {
                     value={property.type}
                     onChange={(e) => handleInputChange("type", e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-300 bg-white appearance-none shadow-sm hover:border-indigo-400 group-hover:border-indigo-400"
+                    disabled={categoriesLoading || categories.length === 0}
+                    required
                   >
-                    <option value="Short Term Rental">
-                      Short Term Rental (≤80 sq.m)
-                    </option>
-                    <option value="Short Term Rental >80 sq.m">
-                      Short Term Rental ({">"}80 sq.m)
-                    </option>
-                    <option value="Self Sustained Villa">
-                      Self Sustained Villa
-                    </option>
-                    <option value="Self Sustained Residency <=80sq.m">
-                      Self Sustained Residency (≤80sq.m)
-                    </option>
-                    <option value="Self Sustained Residency >80sq.m">
-                      Self Sustained Residency ({">"}80sq.m)
-                    </option>
+                    {categoriesLoading ? (
+                      <option>Loading categories...</option>
+                    ) : categories.length === 0 ? (
+                      <option>No categories available</option>
+                    ) : (
+                      <>
+                        <option value="" disabled>
+                          Select a category
+                        </option>
+                        {categories.map((category) => (
+                          <option key={category.type} value={category.type}>
+                            {category.description}
+                          </option>
+                        ))}
+                      </>
+                    )}
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-500 transition-transform duration-300 group-hover:scale-110">
                     <svg
@@ -595,6 +628,24 @@ const PropertyForm = () => {
 
               <div className="relative">
                 <label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  Max Occupancy <span className="text-red-500 ml-1">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="1"
+                    value={property.guestCapacity}
+                    onChange={(e) =>
+                      handleInputChange("guestCapacity", e.target.value)
+                    }
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-300 bg-white shadow-sm hover:border-indigo-400"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="relative">
+                <label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                   Price Per Night <span className="text-red-500 ml-1">*</span>
                 </label>
                 <div className="relative">
@@ -629,7 +680,6 @@ const PropertyForm = () => {
             </div>
           </div>
 
-          {/* Amenities Card */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8 transition-all duration-300 hover:shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-purple-600"></div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
@@ -678,7 +728,6 @@ const PropertyForm = () => {
             </div>
           </div>
 
-          {/* Location Details Card */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 md:p-8 transition-all duration-300 hover:shadow-xl relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
@@ -713,7 +762,6 @@ const PropertyForm = () => {
             </div>
           </div>
 
-          {/* Bank Information Card */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8 transition-all duration-200 hover:shadow-lg overflow-hidden relative group">
             <div className="absolute -right-16 -top-16 bg-amber-50 w-32 h-32 rounded-full opacity-30 group-hover:opacity-50 transition-all duration-300"></div>
             <div className="absolute -left-16 -bottom-16 bg-amber-50 w-32 h-32 rounded-full opacity-30 group-hover:opacity-50 transition-all duration-300"></div>
@@ -745,7 +793,6 @@ const PropertyForm = () => {
             </div>
           </div>
 
-          {/* Property Photos Card */}
           <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 sm:p-6 md:p-8 transition-all duration-200 hover:shadow-lg overflow-hidden relative group">
             <div className="absolute -right-16 -top-16 bg-purple-50 w-32 h-32 rounded-full opacity-30 group-hover:opacity-50 transition-all duration-300"></div>
             <div className="absolute -left-16 -bottom-16 bg-purple-50 w-32 h-32 rounded-full opacity-30 group-hover:opacity-50 transition-all duration-300"></div>
@@ -818,7 +865,6 @@ const PropertyForm = () => {
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4 sticky bottom-4 z-10">
             {id && (
               <button
@@ -832,7 +878,7 @@ const PropertyForm = () => {
             )}
             <button
               type="submit"
-              disabled={loading || uploading}
+              disabled={loading || uploading || categoriesLoading}
               className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 flex items-center justify-center gap-2 w-full sm:w-auto transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed transform hover:-translate-y-1 relative overflow-hidden group"
             >
               <span className="absolute inset-0 w-full h-full bg-white opacity-0 group-hover:opacity-10 transition-opacity"></span>
@@ -849,4 +895,16 @@ const PropertyForm = () => {
     </div>
   );
 };
+
+InputField.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  onChange: PropTypes.func.isRequired,
+  name: PropTypes.string.isRequired,
+  section: PropTypes.string,
+  type: PropTypes.string,
+  required: PropTypes.bool,
+  options: PropTypes.array,
+};
+
 export default PropertyForm;

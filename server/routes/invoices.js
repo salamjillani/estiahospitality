@@ -6,6 +6,7 @@ const { auth, checkRole, adminOnly } = require("../middleware/auth");
 const { generateInvoicePDF } = require("../services/pdfService");
 const fs = require("fs");
 const path = require("path");
+const Counter = require("../models/Counter");
 
 router.get("/", auth, adminOnly, async (req, res) => {
   try {
@@ -52,22 +53,28 @@ router.get("/:id/pdf", auth, async (req, res) => {
     console.log(`PDF request for invoice: ${invoiceId}`);
 
     // Initial minimal fetch for authorization check
-    const basicInvoice = await Invoice.findById(invoiceId)
-      .populate("user", "_id");
+    const basicInvoice = await Invoice.findById(invoiceId).populate(
+      "user",
+      "_id"
+    );
 
     // Handle missing invoice immediately
     if (!basicInvoice) {
-      return res.status(404)
+      return res
+        .status(404)
         .set("Content-Type", "application/json")
         .json({ message: "Invoice not found" });
     }
 
     // Strict authorization check
-    const isAuthorized = req.user.role === "admin" || 
-      (basicInvoice.user && basicInvoice.user._id.toString() === req.user._id.toString());
+    const isAuthorized =
+      req.user.role === "admin" ||
+      (basicInvoice.user &&
+        basicInvoice.user._id.toString() === req.user._id.toString());
 
     if (!isAuthorized) {
-      return res.status(403)
+      return res
+        .status(403)
         .set("Content-Type", "application/json")
         .json({ message: "Unauthorized access to this invoice" });
     }
@@ -76,15 +83,16 @@ router.get("/:id/pdf", auth, async (req, res) => {
     const fullInvoice = await Invoice.findById(invoiceId)
       .populate({
         path: "user",
-        select: "name email phone"
+        select: "name email phone",
       })
       .populate({
         path: "property",
-        select: "title location"
+        select: "title location",
       })
       .populate({
         path: "booking",
-        select: "reservationCode checkInDate checkOutDate status totalPrice currency paymentMethod rooms adults children phone user property guestName email"
+        select:
+          "reservationCode checkInDate checkOutDate status totalPrice currency paymentMethod rooms adults children phone user property guestName email",
       });
 
     // Validate required relationships
@@ -94,13 +102,13 @@ router.get("/:id/pdf", auth, async (req, res) => {
     if (!fullInvoice.booking) missingRelations.push("booking");
 
     if (missingRelations.length > 0) {
-      console.error(`Missing required relations: ${missingRelations.join(", ")}`);
-      return res.status(400)
-        .set("Content-Type", "application/json")
-        .json({
-          message: "Invoice data incomplete",
-          missing: missingRelations,
-        });
+      console.error(
+        `Missing required relations: ${missingRelations.join(", ")}`
+      );
+      return res.status(400).set("Content-Type", "application/json").json({
+        message: "Invoice data incomplete",
+        missing: missingRelations,
+      });
     }
 
     // Generate PDF
@@ -108,18 +116,17 @@ router.get("/:id/pdf", auth, async (req, res) => {
       filePath = await generateInvoicePDF(fullInvoice);
     } catch (genError) {
       console.error(`PDF generation failed: ${genError.message}`);
-      return res.status(500)
-        .set("Content-Type", "application/json")
-        .json({
-          message: "PDF generation failed",
-          detail: genError.message,
-        });
+      return res.status(500).set("Content-Type", "application/json").json({
+        message: "PDF generation failed",
+        detail: genError.message,
+      });
     }
 
     // Verify PDF exists
     if (!fs.existsSync(filePath)) {
       console.error(`Generated PDF missing: ${filePath}`);
-      return res.status(500)
+      return res
+        .status(500)
         .set("Content-Type", "application/json")
         .json({ message: "PDF file not created" });
     }
@@ -132,12 +139,14 @@ router.get("/:id/pdf", auth, async (req, res) => {
     );
 
     // Stream with cleanup
-    const fileStream = fs.createReadStream(filePath)
+    const fileStream = fs
+      .createReadStream(filePath)
       .on("open", () => console.log(`Streaming PDF: ${filePath}`))
       .on("error", (streamError) => {
         console.error(`Stream error: ${streamError.message}`);
         if (!res.headersSent) {
-          res.status(500)
+          res
+            .status(500)
             .set("Content-Type", "application/json")
             .json({ message: "Error streaming PDF" });
         }
@@ -156,7 +165,6 @@ router.get("/:id/pdf", auth, async (req, res) => {
       });
 
     fileStream.pipe(res);
-
   } catch (err) {
     console.error(`PDF endpoint error: ${err.message}`);
 
@@ -170,16 +178,18 @@ router.get("/:id/pdf", auth, async (req, res) => {
     // Handle specific error types
     if (!res.headersSent) {
       const statusCode = err.name === "CastError" ? 400 : 500;
-      res.status(statusCode)
+      res
+        .status(statusCode)
         .set("Content-Type", "application/json")
         .json({
           message: "Invoice processing failed",
-          error: process.env.NODE_ENV === "development" ? err.message : undefined,
+          error:
+            process.env.NODE_ENV === "development" ? err.message : undefined,
         });
     }
   }
 });
-// Add this route to invoices.js
+
 router.post("/generate/:bookingId", auth, adminOnly, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.bookingId)
@@ -200,13 +210,30 @@ router.post("/generate/:bookingId", auth, adminOnly, async (req, res) => {
       });
     }
 
+    // Generate a unique invoice number using Counter model
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+
+    // Use findOneAndUpdate with upsert to atomically increment the counter
+    const counter = await Counter.findOneAndUpdate(
+      { _id: "invoiceNumber" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+
+    const invoiceNumber = `INV-${year}${month}-${String(counter.seq).padStart(
+      4,
+      "0"
+    )}`;
+
     // Create new invoice
     invoice = new Invoice({
+      invoiceNumber,
       user: booking.user._id,
       booking: booking._id,
       property: booking.property._id,
       status: booking.status,
-
       amounts: {
         total: booking.totalPrice,
         currency: booking.currency || "USD",

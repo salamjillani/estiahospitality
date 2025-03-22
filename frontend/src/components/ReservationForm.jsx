@@ -28,6 +28,7 @@ const ReservationForm = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [maxGuests, setMaxGuests] = useState(0);
   const { user, loading: authLoading } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -55,17 +56,15 @@ const ReservationForm = () => {
     pricePerNight: 0,
     currency: "USD",
     title: "",
+    rooms: 1,
   });
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Handle socket connection
   useEffect(() => {
     websocketService.connect();
   }, [user?.token]);
 
-  // Inside ReservationForm component
   useEffect(() => {
-    // Reset form data when propertyId changes
     setFormData({
       checkInDate: "",
       checkOutDate: "",
@@ -81,27 +80,21 @@ const ReservationForm = () => {
       phone: "",
       arrivalTime: "",
       paymentMethod: "cash",
-      property: propertyId || location.state?.propertyId,
+      property: propertyId || location.state?.propertyId || "",
     });
   }, [propertyId, location.state?.propertyId]);
 
-
-useEffect(() => {
-  // Redirect if no property ID is found
-  if (!propertyId && !location.state?.propertyId) {
-    navigate("/properties");
-    return;
-  }
-}, [propertyId, location.state?.propertyId, navigate]);
-
-  // Check authentication first
   useEffect(() => {
-    // Only run this once when auth state is settled
+    if (!propertyId && !location.state?.propertyId) {
+      navigate("/properties");
+    }
+  }, [propertyId, location.state?.propertyId, navigate]);
+
+  useEffect(() => {
     if (!authLoading && !isInitialized) {
       setIsInitialized(true);
 
       if (!user) {
-        // Redirect to auth page with return URL
         const returnUrl = encodeURIComponent(
           window.location.pathname + window.location.search
         );
@@ -114,11 +107,12 @@ useEffect(() => {
     const loadProperty = async () => {
       try {
         const data = await api.get(`/api/properties/${propertyId}`);
+        setMaxGuests(data.guestCapacity || 1);
         setPropertyDetails({
-          pricePerNight: data.pricePerNight,
+          pricePerNight: data.pricePerNight || 0,
           currency: data.currency || data.bankDetails?.currency || "USD",
           title: data.title || "Property",
-          rooms: data.bedrooms,
+          rooms: data.bedrooms || 1,
         });
       } catch (err) {
         setError("Failed to load property details", err);
@@ -126,18 +120,18 @@ useEffect(() => {
     };
 
     if (location.state?.property) {
+      setMaxGuests(location.state.property.guestCapacity || 1);
       setPropertyDetails({
-        pricePerNight: location.state.property.pricePerNight,
-        currency: location.state.property.currency,
-        title: location.state.property.title,
-        rooms: location.state.property.bedrooms,
+        pricePerNight: location.state.property.pricePerNight || 0,
+        currency: location.state.property.currency || "USD",
+        title: location.state.property.title || "Property",
+        rooms: location.state.property.bedrooms || 1,
       });
     } else if (propertyId) {
       loadProperty();
     }
   }, [propertyId, location.state]);
 
-  // Calculate price when dates change
   useEffect(() => {
     if (formData.checkInDate && formData.checkOutDate) {
       const nights = calculateNights(
@@ -157,7 +151,6 @@ useEffect(() => {
     propertyDetails.pricePerNight,
   ]);
 
-  // If still loading auth or no user is set yet, show loading
   if (authLoading || (!isInitialized && !user)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -173,27 +166,25 @@ useEffect(() => {
     e.preventDefault();
     setError("");
 
- 
-  if (authLoading) {
-    setError("Please wait while we verify your session...");
-    return;
-  }
+    if (authLoading) {
+      setError("Please wait while we verify your session...");
+      return;
+    }
 
-
-  if (!user?._id) {
-    setError("Authentication required. Redirecting...");
-    navigate("/auth");
-    return;
-  }
+    if (!user?._id) {
+      setError("Authentication required. Redirecting...");
+      navigate("/auth");
+      return;
+    }
 
     try {
-      const propertyDetails = await api.get(
+      const propertyData = await api.get(
         `/api/properties/${formData.property}`
       );
 
-      if (formData.rooms > propertyDetails.bedrooms) {
+      if (formData.rooms > propertyData.bedrooms) {
         throw new Error(
-          `This property only has ${propertyDetails.bedrooms} rooms available`
+          `This property only has ${propertyData.bedrooms} rooms available`
         );
       }
 
@@ -206,12 +197,18 @@ useEffect(() => {
         "email",
         "phone",
         "nationality",
-        "property"
+        "property",
       ];
 
       if (!formData.property) {
         setError("Property information is missing. Please refresh the page.");
         return;
+      }
+
+      if (formData.adults > propertyData.guestCapacity) {
+        throw new Error(
+          `Maximum occupancy exceeded. This property accommodates up to ${propertyData.guestCapacity} adults`
+        );
       }
 
       const missing = requiredFields.filter((field) => !formData[field]);
@@ -220,15 +217,12 @@ useEffect(() => {
         throw new Error(`Missing required fields: ${missing.join(", ")}`);
       }
 
-      // Show confirmation popup
       setShowConfirmation(true);
     } catch (err) {
-      console.error("Validation error:", err);
       setError(err.message || "Please fill in all required fields");
     }
   };
 
-  // Actual booking submission
   const submitBooking = async () => {
     setLoading(true);
     setError("");
@@ -244,23 +238,20 @@ useEffect(() => {
       };
 
       const response = await api.post("/api/bookings", bookingData);
-
-      // Emit websocket event
       websocketService.emit("newBooking", response.data);
 
-      // Only navigate after successful API response
       navigate("/my-bookings", {
         state: { success: "Booking request submitted successfully!" },
       });
     } catch (err) {
-      console.error("Booking submission error:", err);
-      setError(err.response?.data?.message || err.message || "Failed to submit booking");
-      
-      // Handle expired sessions
+      setError(
+        err.response?.data?.message || err.message || "Failed to submit booking"
+      );
+
       if (err.response?.status === 401) {
         navigate("/auth?session=expired");
       }
-      
+
       setShowConfirmation(false);
     } finally {
       setLoading(false);
@@ -268,13 +259,46 @@ useEffect(() => {
   };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+  
+    if (name === "adults") {
+      // Allow empty input temporarily when user is typing
+      if (value === "") {
+        setFormData((prev) => ({ ...prev, [name]: value }));
+        return;
+      }
+      
+      let newValue = parseInt(value, 10);
+      // Only apply constraints if it's a valid number
+      if (!isNaN(newValue)) {
+        newValue = Math.max(1, newValue);
+        
+        if (newValue > maxGuests) {
+          setFormData((prev) => ({ ...prev, adults: maxGuests }));
+          setError(`Maximum ${maxGuests} adults allowed`);
+        } else {
+          setFormData((prev) => ({ ...prev, adults: newValue }));
+          setError("");
+        }
+      }
+    } else if (name === "children") {
+      // Allow empty input temporarily when user is typing
+      if (value === "") {
+        setFormData((prev) => ({ ...prev, [name]: value }));
+        return;
+      }
+      
+      let newValue = parseInt(value, 10);
+      // Only apply constraints if it's a valid number
+      if (!isNaN(newValue)) {
+        newValue = Math.max(0, newValue);
+        setFormData((prev) => ({ ...prev, children: newValue }));
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
-  // List of common currencies and nationalities
   const currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "INR", "SGD"];
   const nationalities = [
     "United States",
@@ -291,7 +315,6 @@ useEffect(() => {
 
   return (
     <div className="w-full max-w-4xl mx-auto my-4 sm:my-8 md:my-12 bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl overflow-hidden px-4 sm:px-0">
-      {/* Form Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-4 sm:p-6 md:p-8 text-white">
         <div className="flex items-center space-x-3">
           <Hotel className="h-6 w-6 sm:h-8 sm:w-8" />
@@ -305,7 +328,6 @@ useEffect(() => {
         </p>
       </div>
 
-      {/* Form Content */}
       <div className="p-4 sm:p-6 md:p-8">
         {error && (
           <div className="bg-red-50 p-3 sm:p-4 rounded-lg sm:rounded-xl mb-4 sm:mb-6 md:mb-8 flex items-center gap-3 border border-red-200 text-sm sm:text-base">
@@ -317,7 +339,6 @@ useEffect(() => {
         <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
           <input type="hidden" name="property" value={formData.property} />
 
-          {/* Pricing Card */}
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-lg sm:rounded-xl border border-blue-100 shadow-sm">
             <div className="flex justify-between items-center mb-3">
               <span className="text-gray-700 font-medium text-sm sm:text-base">
@@ -347,7 +368,6 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Guest Information Section */}
           <div>
             <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-800 flex items-center gap-2">
               <Users className="h-5 w-5 text-blue-600" />
@@ -465,7 +485,6 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Stay Details Section */}
           <div>
             <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-800 flex items-center gap-2">
               <Calendar className="h-5 w-5 text-blue-600" />
@@ -554,7 +573,7 @@ useEffect(() => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                  Adults *
+                  Adults * ({formData.adults}/{maxGuests} maximum)
                 </label>
                 <div className="relative">
                   <Users className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
@@ -569,7 +588,6 @@ useEffect(() => {
                   />
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Children
@@ -579,17 +597,16 @@ useEffect(() => {
                   <input
                     type="number"
                     name="children"
-                    min="0"
                     value={formData.children}
                     onChange={handleChange}
                     className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
+                    min="0"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Payment Method Section */}
           <div>
             <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-800 flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-blue-600" />
@@ -655,7 +672,6 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Special Requests Section */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
               Special Requests
@@ -669,10 +685,9 @@ useEffect(() => {
             />
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || authLoading}
+            disabled={loading || authLoading || formData.adults > maxGuests}
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-3 sm:p-4 rounded-lg sm:rounded-xl hover:from-blue-700 hover:to-indigo-800 flex items-center justify-center gap-2 disabled:opacity-70 shadow-md font-medium text-base sm:text-lg"
           >
             {loading ? (
@@ -690,7 +705,6 @@ useEffect(() => {
         </form>
       </div>
 
-      {/* Confirmation Modal */}
       {showConfirmation && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 max-w-md w-full mx-auto shadow-2xl border border-gray-200">

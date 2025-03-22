@@ -4,6 +4,7 @@ const { auth, adminOnly, checkRole } = require("../middleware/auth");
 const Booking = require("../models/Booking");
 const Property = require("../models/Property");
 const Invoice = require("../models/Invoice");
+const Counter = require("../models/Counter");
 const mongoose = require('mongoose');
 
 // Original admin route (keep for compatibility)
@@ -160,6 +161,11 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
     if (req.body.rooms > property.rooms) {
       return res.status(400).json({ message: `Only ${property.rooms} rooms available` });
     }
+    if (req.body.adults + req.body.children > property.guestCapacity) {
+      return res.status(400).json({ 
+        message: `Exceeds maximum occupancy of ${property.guestCapacity} people`
+      });
+    }
 
     // Date conflict check
     const existingBookings = await Booking.find({
@@ -250,16 +256,27 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
 
     // Handle invoice creation for confirmed bookings
     if (req.body.status === "confirmed" && !booking.invoice) {
-      // Generate a unique invoice number
+      // Generate a unique invoice number using Counter model
       const date = new Date();
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, "0");
+      
+      // Use findOneAndUpdate with upsert to atomically increment the counter
+      const counter = await Counter.findOneAndUpdate(
+        { _id: "invoiceNumber" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      
+      const invoiceNumber = `INV-${year}${month}-${String(counter.seq).padStart(4, "0")}`;
 
-      // Get the count of existing invoices to create a sequential number
-      const invoiceCount = (await Invoice.countDocuments()) + 1;
-      const invoiceNumber = `INV-${year}${month}-${String(
-        invoiceCount
-      ).padStart(4, "0")}`;
+      // Check if invoice with this number already exists (double safety)
+      const existingInvoice = await Invoice.findOne({ invoiceNumber });
+      if (existingInvoice) {
+        return res.status(400).json({ 
+          message: "Invoice number generation conflict. Please try again." 
+        });
+      }
 
       const invoice = new Invoice({
         invoiceNumber,

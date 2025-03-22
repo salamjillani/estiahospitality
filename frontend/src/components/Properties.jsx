@@ -1,40 +1,18 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
-import {
-  Loader2,
-  Trash2,
-  Plus,
-  Eye,
-  Building2,
-  MapPin,
-  Bath,
-  Bed,
-  Edit,
-  Droplet,
-  Wifi,
-  Car,
-  Home,
-  Grid,
-  List,
-  Filter,
-} from "lucide-react";
+import { Loader2, Trash2, Plus, Eye, Building2, MapPin, Bath, Bed, Edit, Droplet, Wifi, Car, Home, Grid, List, Filter } from "lucide-react";
 import Navbar from "./Navbar";
 import { useAuth } from "../context/AuthContext";
 import PropTypes from "prop-types";
+import CategoriesTable from "./CategoriesTable";
 
 const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Dialog */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
       <div className="relative bg-white rounded-3xl p-4 sm:p-8 w-full max-w-md mx-4 shadow-2xl transform transition-all animate-in slide-in-from-bottom duration-300">
         <div className="flex flex-col gap-4 sm:gap-6">
           <div className="flex items-start gap-3 sm:gap-5">
@@ -82,18 +60,18 @@ const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
 
 const Properties = () => {
   const [properties, setProperties] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [viewMode, setViewMode] = useState("properties");
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
-
-  const [deleteDialog, setDeleteDialog] = useState({
-    isOpen: false,
-    propertyId: null,
-    propertyTitle: null,
-  });
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, propertyId: null, propertyTitle: null });
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [categoryForm, setCategoryForm] = useState({ lowSeason: "", highSeason: "", currency: "EUR", description: "" });
+  const [categoryUpdateLoading, setCategoryUpdateLoading] = useState(false);
+  
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -105,49 +83,10 @@ const Properties = () => {
     JPY: "¥",
   };
 
-  // Updated categories with exact pricing and descriptions as requested
-  const categories = [
-    {
-      type: "Short Term Rental",
-      description: "Short Term Rental (≤80 sq.m)",
-      lowSeason: 8, // Nov-Mar: less than 10 euros
-      highSeason: 12, // Apr-Oct: more than 10, less than 20 euros
-      sqm: 80,
-    },
-    {
-      type: "Short Term Rental >80 sq.m",
-      description: "Short Term Rental (>80 sq.m)",
-      lowSeason: 9,
-      highSeason: 15,
-      sqm: 81,
-    },
-    {
-      type: "Self Sustained Villa",
-      description: "Self Sustained Villa",
-      lowSeason: 9,
-      highSeason: 18,
-      sqm: null,
-    },
-    {
-      type: "Self Sustained Residency <=80sq.m",
-      description: "Self Sustained Residency (≤80sq.m)",
-      lowSeason: 8,
-      highSeason: 14,
-      sqm: 80,
-    },
-    {
-      type: "Self Sustained Residency >80sq.m",
-      description: "Self Sustained Residency (>80sq.m)",
-      lowSeason: 9,
-      highSeason: 19,
-      sqm: 81,
-    },
-  ];
-
   const fetchProperties = async () => {
     try {
       const data = await api.get("/api/properties");
-      setProperties(data || []); // Ensure data is an array
+      setProperties(data || []);
     } catch (err) {
       if (err.message.includes("401")) {
         navigate("/auth");
@@ -159,8 +98,23 @@ const Properties = () => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const data = await api.get("/api/category-prices");
+      if (data && data.length > 0) {
+        setCategories(data);
+      } else {
+        const initialData = await api.post("/api/category-prices/initialize");
+        setCategories(initialData || []);
+      }
+    } catch (err) {
+      setError("Failed to load categories: " + err.message);
+    }
+  };
+
   useEffect(() => {
     fetchProperties();
+    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -185,7 +139,7 @@ const Properties = () => {
     if (!category) return "N/A";
 
     const price = isHighSeason ? category.highSeason : category.lowSeason;
-    return `${currencySymbols[currency] || currencySymbols.EUR}${price}`;
+    return `${currencySymbols[category.currency || currency] || currencySymbols.EUR}${price}`;
   };
 
   const handleDeleteConfirm = async () => {
@@ -214,6 +168,52 @@ const Properties = () => {
   const clearCategoryFilter = () => {
     setSelectedCategory(null);
   };
+  
+  const handleStartEdit = (category) => {
+    setEditingCategory(category.type);
+    setCategoryForm({
+      lowSeason: category.lowSeason,
+      highSeason: category.highSeason,
+      currency: category.currency,
+      description: category.description
+    });
+  };
+  
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setCategoryForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  const handleUpdateCategory = async (type) => {
+    try {
+      setCategoryUpdateLoading(true);
+      const category = categories.find(c => c.type === type);
+      if (!category) return;
+      
+      const updatedCategory = {
+        ...category,
+        lowSeason: parseFloat(categoryForm.lowSeason),
+        highSeason: parseFloat(categoryForm.highSeason),
+        currency: categoryForm.currency,
+        description: categoryForm.description
+      };
+      
+      await api.put(`/api/category-prices/${type}`, updatedCategory);
+      
+      setCategories(prev => 
+        prev.map(c => c.type === type ? updatedCategory : c)
+      );
+      
+      setEditingCategory(null);
+    } catch (err) {
+      setError("Failed to update category: " + err.message);
+    } finally {
+      setCategoryUpdateLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -233,86 +233,6 @@ const Properties = () => {
       </div>
     );
   }
-
-  // Revised CategoriesTable component to match your requested format
-  const CategoriesTable = () => (
-    <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8 animate-fadeIn border border-blue-50">
-      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-gray-800 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-        Pricing Categories
-      </h2>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b-2 border-gray-100">
-              <th className="text-left py-3 sm:py-4 px-2 sm:px-4 text-indigo-700 text-xs sm:text-sm">
-                Category
-              </th>
-              <th className="text-center py-3 sm:py-4 px-2 sm:px-4 text-indigo-700 text-xs sm:text-sm">
-                Low Season (Nov-Mar)
-              </th>
-              <th className="text-center py-3 sm:py-4 px-2 sm:px-4 text-indigo-700 text-xs sm:text-sm">
-                High Season (Apr-Oct)
-              </th>
-              <th className="text-left py-3 sm:py-4 px-2 sm:px-4 text-indigo-700 text-xs sm:text-sm">
-                Description
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((category, index) => (
-              <tr
-                key={category.type}
-                className="border-b border-gray-50 hover:bg-blue-50/50 transition-colors"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <td className="py-3 sm:py-4 px-2 sm:px-4 font-medium text-xs sm:text-sm">
-                  {category.type}
-                </td>
-                <td className="text-center py-3 sm:py-4 px-2 sm:px-4 text-blue-600 font-medium text-xs sm:text-sm">
-                  €{category.lowSeason}/night
-                </td>
-                <td className="text-center py-3 sm:py-4 px-2 sm:px-4 text-blue-600 font-medium text-xs sm:text-sm">
-                  €{category.highSeason}/night
-                </td>
-                <td className="py-3 sm:py-4 px-2 sm:px-4 text-xs sm:text-sm">
-                  {category.description}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-6 sm:mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-xl border border-blue-100">
-        <h3 className="text-base sm:text-lg font-bold text-blue-700 mb-2">
-          Seasonal Pricing Notes
-        </h3>
-        <ul className="space-y-2 text-blue-800 text-xs sm:text-sm">
-          <li className="flex items-start gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-blue-600 mt-2"></span>
-            <span>
-              Low Season (November to March): Prices range from €8 to €9 per
-              night
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-blue-600 mt-2"></span>
-            <span>
-              High Season (April to October): Prices range from €12 to €19 per
-              night
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-blue-600 mt-2"></span>
-            <span>
-              Property cards display exact current seasonal price based on
-              today&apos;s date
-            </span>
-          </li>
-        </ul>
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -381,7 +301,6 @@ const Properties = () => {
           </div>
         )}
 
-        {/* View mode switcher */}
         <div className="flex justify-center mb-6 sm:mb-8">
           <div className="bg-white p-1 rounded-xl flex shadow-md border border-blue-100">
             <button
@@ -410,10 +329,20 @@ const Properties = () => {
         </div>
 
         {viewMode === "categories" ? (
-          <CategoriesTable />
+          <CategoriesTable
+            categories={categories}
+            user={user}
+            editingCategory={editingCategory}
+            categoryForm={categoryForm}
+            categoryUpdateLoading={categoryUpdateLoading}
+            onStartEdit={handleStartEdit}
+            onCancelEdit={() => setEditingCategory(null)}
+            onUpdateCategory={handleUpdateCategory}
+            onInputChange={handleInputChange}
+            setCategories={setCategories}
+          />
         ) : (
           <>
-            {/* Add category filter */}
             <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-0">
               <div className="relative">
                 <button
@@ -650,7 +579,6 @@ const Properties = () => {
                 ))}
             </div>
 
-            {/* No properties or filtered message */}
             {properties.length === 0 && !loading && (
               <div className="text-center py-20">
                 <div className="bg-white rounded-3xl p-12 max-w-lg mx-auto shadow-xl border border-blue-100">

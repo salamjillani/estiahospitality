@@ -28,6 +28,11 @@ const propertySchema = new mongoose.Schema(
       required: true,
       min: 1,
     },
+    guestCapacity: {
+      type: Number,
+      required: true,
+      min: 1
+    },
     location: {
       address: String,
       city: String,

@@ -46,14 +46,16 @@ const AdminBookings = () => {
     websocketService.connect();
 
     const handleStatusUpdate = (updatedBooking) => {
-      setBookings(prev => prev.map(b => 
-        b._id === updatedBooking._id ? processBooking(updatedBooking) : b
-      ));
+      setBookings((prev) =>
+        prev.map((b) =>
+          b._id === updatedBooking._id ? processBooking(updatedBooking) : b
+        )
+      );
     };
 
     const handleNewBooking = (newBooking) => {
       if (newBooking.status === "pending") {
-        setBookings(prev => [processBooking(newBooking), ...prev]);
+        setBookings((prev) => [processBooking(newBooking), ...prev]);
       }
     };
 
@@ -78,7 +80,7 @@ const AdminBookings = () => {
       try {
         setLoading(true);
         const response = await api.get("/api/bookings/admin/bookings");
-        const pendingBookings = response.filter(b => b.status === "pending");
+        const pendingBookings = response.filter((b) => b.status === "pending");
         setBookings(pendingBookings.map(processBooking));
         setLoading(false);
       } catch (error) {
@@ -100,18 +102,47 @@ const AdminBookings = () => {
 
   const confirmStatusUpdate = async () => {
     try {
+      setError("");
       const response = await api.patch(`/api/bookings/${currentBookingId}`, {
-        status: currentAction
+        status: currentAction,
       });
 
       if (response) {
-        setBookings(prev => 
-          prev.filter(b => b._id !== currentBookingId)
-        );
+        setBookings((prev) => prev.filter((b) => b._id !== currentBookingId));
       }
+
+      if (currentAction === "confirmed") {
+        try {
+          // Check if invoice exists before creating
+          const invoiceCheck = await api.get(
+            `/api/invoices?booking=${currentBookingId}`
+          );
+          
+          // Check if invoiceCheck is an array and has length
+          if (!invoiceCheck || !invoiceCheck.length) {
+            await api.post(`/api/invoices/generate/${currentBookingId}`);
+          }
+        } catch (error) {
+          console.error("Invoice check error:", error);
+          // Generate invoice if check fails
+          await api.post(`/api/invoices/generate/${currentBookingId}`);
+        }
+      }
+
+      setBookings((prev) => prev.filter((b) => b._id !== currentBookingId));
       setShowConfirmation(false);
     } catch (err) {
       console.error("Update error:", err);
+      // Provide a more user-friendly error message
+      if (err.message && err.message.includes("duplicate key error")) {
+        setError(
+          "There was a problem generating the invoice. Please try again."
+        );
+      } else {
+        setError(err.message || "Failed to update booking status");
+      }
+
+      setShowConfirmation(false);
       setError(err.message || "Failed to update booking status");
       setShowConfirmation(false);
     }
@@ -157,7 +188,9 @@ const AdminBookings = () => {
           <div className="text-center w-full max-w-sm px-4">
             <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
               <Loader2 className="animate-spin h-12 w-12 sm:h-14 sm:w-14 text-indigo-600 mx-auto mb-4 sm:mb-5" />
-              <p className="text-gray-700 font-medium text-sm sm:text-base">Loading booking requests...</p>
+              <p className="text-gray-700 font-medium text-sm sm:text-base">
+                Loading booking requests...
+              </p>
             </div>
           </div>
         </div>
@@ -180,7 +213,7 @@ const AdminBookings = () => {
                 Manage and respond to pending reservation requests
               </p>
             </div>
-            <button 
+            <button
               onClick={() => window.location.reload()}
               className="bg-white border border-indigo-100 text-indigo-600 px-4 sm:px-6 py-2 sm:py-3 rounded-full hover:bg-indigo-50 transition-all shadow-md hover:shadow-lg flex items-center gap-2 font-medium text-sm sm:text-base"
             >
@@ -217,7 +250,8 @@ const AdminBookings = () => {
                   No pending bookings
                 </h3>
                 <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-                  There are currently no booking requests that require your attention.
+                  There are currently no booking requests that require your
+                  attention.
                 </p>
                 <button
                   onClick={() => window.location.reload()}
@@ -238,7 +272,7 @@ const AdminBookings = () => {
                   <div className="flex flex-col gap-4 sm:gap-6">
                     {/* Status indicator bar at top */}
                     <div className="h-1.5 rounded-full -mt-4 sm:-mt-6 -mx-4 sm:-mx-6 mb-1 sm:mb-2 bg-gradient-to-r from-yellow-400 to-amber-500"></div>
-                    
+
                     {/* Property title and booking code */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                       <div>
@@ -252,7 +286,7 @@ const AdminBookings = () => {
                           {getStatusBadge(booking.status)}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
                         <button
                           onClick={() => updateStatus(booking._id, "confirmed")}
@@ -270,7 +304,7 @@ const AdminBookings = () => {
                         </button>
                       </div>
                     </div>
-                    
+
                     {/* Guest Information */}
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-4 rounded-xl flex items-center gap-3 sm:gap-4">
                       <div className="bg-white p-2 sm:p-2.5 rounded-full shadow-sm">
@@ -285,11 +319,13 @@ const AdminBookings = () => {
                         </p>
                       </div>
                     </div>
-                    
+
                     {/* Booking details */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-5 rounded-xl bg-gradient-to-r from-gray-50 to-blue-50">
                       <div className="flex flex-col">
-                        <span className="text-xs text-gray-500 mb-1 font-medium">Stay Period</span>
+                        <span className="text-xs text-gray-500 mb-1 font-medium">
+                          Stay Period
+                        </span>
                         <div className="flex items-center gap-2 sm:gap-2.5 text-gray-700">
                           <div className="bg-indigo-100 p-1.5 rounded-full">
                             <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600" />
@@ -299,9 +335,11 @@ const AdminBookings = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="flex flex-col">
-                        <span className="text-xs text-gray-500 mb-1 font-medium">Property</span>
+                        <span className="text-xs text-gray-500 mb-1 font-medium">
+                          Property
+                        </span>
                         <div className="flex items-center gap-2 sm:gap-2.5 text-gray-700">
                           <div className="bg-indigo-100 p-1.5 rounded-full">
                             <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600" />
@@ -311,9 +349,11 @@ const AdminBookings = () => {
                           </span>
                         </div>
                       </div>
-                      
+
                       <div className="flex flex-col">
-                        <span className="text-xs text-gray-500 mb-1 font-medium">Total Price</span>
+                        <span className="text-xs text-gray-500 mb-1 font-medium">
+                          Total Price
+                        </span>
                         <div className="flex items-center gap-2 sm:gap-2.5 text-gray-700">
                           <div className="bg-indigo-100 p-1.5 rounded-full">
                             <Banknote className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-indigo-600" />
@@ -340,17 +380,31 @@ const AdminBookings = () => {
               Confirm Action
             </h3>
             <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-              Are you sure you want to <span className={`font-semibold ${currentAction === "confirmed" ? "text-green-600" : "text-red-600"}`}>{currentAction}</span> this reservation?
+              Are you sure you want to{" "}
+              <span
+                className={`font-semibold ${
+                  currentAction === "confirmed"
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {currentAction}
+              </span>{" "}
+              this reservation?
             </p>
             {currentBooking && (
               <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-xl text-sm">
                 <div className="mb-2">
                   <span className="font-semibold text-gray-700">Property:</span>{" "}
-                  <span className="text-gray-800">{currentBooking.property?.title || "Property Not Found"}</span>
+                  <span className="text-gray-800">
+                    {currentBooking.property?.title || "Property Not Found"}
+                  </span>
                 </div>
                 <div>
                   <span className="font-semibold text-gray-700">Guest:</span>{" "}
-                  <span className="text-gray-800">{currentBooking.user?.name || "Unknown Guest"}</span>
+                  <span className="text-gray-800">
+                    {currentBooking.user?.name || "Unknown Guest"}
+                  </span>
                 </div>
               </div>
             )}
@@ -363,8 +417,8 @@ const AdminBookings = () => {
               </button>
               <button
                 className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-white font-medium text-sm sm:text-base ${
-                  currentAction === "confirmed" 
-                    ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700" 
+                  currentAction === "confirmed"
+                    ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                     : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
                 } transition-all`}
                 onClick={confirmStatusUpdate}

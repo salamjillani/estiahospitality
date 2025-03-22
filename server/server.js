@@ -11,6 +11,7 @@ const { Server } = require("socket.io");
 const Booking = require("./models/Booking");
 const jwt = require("jsonwebtoken");
 const invoiceRoutes = require("./routes/invoices");
+const categoryPriceRoutes = require('./routes/categoryPrices');
 
 // Initialize Express and HTTP server
 const app = express();
@@ -116,6 +117,7 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/properties", require("./routes/properties"));
 app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/booking-agents", require("./routes/bookingAgents"));
+app.use('/api/category-prices', categoryPriceRoutes);
 app.use("/api/invoices", invoiceRoutes);
 
 if (process.env.NODE_ENV === "production") {
