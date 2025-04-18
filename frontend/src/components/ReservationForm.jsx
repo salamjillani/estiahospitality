@@ -19,9 +19,330 @@ import {
   Hotel,
   CheckCircle,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { websocketService } from "../services/websocketService";
+import PropTypes from "prop-types";
+
+// Helper function to get month name
+const getMonthName = (month) => {
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  return months[month];
+};
+
+const isPastDate = (date) => {
+  const today = new Date();
+  const todayDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  );
+  const compareDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  );
+  return compareDate < todayDate;
+};
+
+// Fixed AvailabilityCalendar Component
+const AvailabilityCalendar = ({
+  bookedDates,
+  onSelectCheckIn,
+  onSelectCheckOut,
+  checkInDate,
+  checkOutDate,
+}) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [calendar, setCalendar] = useState([]);
+  const [selectionMode, setSelectionMode] = useState(
+    checkInDate ? "checkout" : "checkin"
+  );
+
+  useEffect(() => {
+    generateCalendar();
+  }, [currentDate, bookedDates, checkInDate, checkOutDate]);
+
+  useEffect(() => {
+    // Update selection mode based on currently selected dates
+    if (!checkInDate) {
+      setSelectionMode("checkin");
+    } else if (!checkOutDate) {
+      setSelectionMode("checkout");
+    }
+  }, [checkInDate, checkOutDate]);
+
+  const generateCalendar = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    // Get first day of month and total days
+    const firstDayOfMonth = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const calendarDays = [];
+
+    // Add empty slots for days before the first day of month
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      calendarDays.push(null);
+    }
+
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      calendarDays.push(date);
+    }
+
+    setCalendar(calendarDays);
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+    );
+  };
+
+  const prevMonth = () => {
+    setCurrentDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+    );
+  };
+
+  // Fixed: Improved date checking with proper string formatting
+  const isDateBooked = (date) => {
+    if (!date || !bookedDates || bookedDates.length === 0) return false;
+
+    // Format the date as YYYY-MM-DD consistently
+    const formatDate = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const dateString = formatDate(date);
+    return bookedDates.includes(dateString);
+  };
+
+  // Helper function to check if a date is selected for check-in
+  const isCheckInDate = (date) => {
+    if (!checkInDate || !date) return false;
+    const checkIn = new Date(checkInDate);
+    return (
+      date.getDate() === checkIn.getDate() &&
+      date.getMonth() === checkIn.getMonth() &&
+      date.getFullYear() === checkIn.getFullYear()
+    );
+  };
+
+  // Helper function to check if a date is selected for check-out
+  const isCheckOutDate = (date) => {
+    if (!checkOutDate || !date) return false;
+    const checkOut = new Date(checkOutDate);
+    return (
+      date.getDate() === checkOut.getDate() &&
+      date.getMonth() === checkOut.getMonth() &&
+      date.getFullYear() === checkOut.getFullYear()
+    );
+  };
+
+  // Helper function to check if date is in between check-in and check-out
+  const isInRange = (date) => {
+    if (!checkInDate || !checkOutDate || !date) return false;
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    return date > checkIn && date < checkOut;
+  };
+
+  // Fixed: Handle date selection with better validation
+  const handleSelectDate = (date, e) => {
+    // Stop event propagation to prevent multiple clicks
+    e.stopPropagation();
+
+    if (!date || isPastDate(date) || isDateBooked(date)) {
+      if (selectionMode === "checkin") {
+        onSelectCheckIn("");
+      }
+      setSelectionMode("checkin");
+      return;
+    }
+
+    // Format the date as YYYY-MM-DD consistently
+    const formatDate = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const selectedDate = formatDate(date);
+
+    if (selectionMode === "checkin") {
+      onSelectCheckIn(selectedDate);
+      setSelectionMode("checkout");
+    } else if (selectionMode === "checkout") {
+      // Ensure check-out is after check-in
+      if (checkInDate && selectedDate <= checkInDate) return;
+
+      // Check if any date in the range is booked
+      if (checkInDate) {
+        const start = new Date(checkInDate);
+        const end = new Date(selectedDate);
+        let hasBookedDate = false;
+
+        // Check each date in the range
+        const currentDate = new Date(start);
+        while (currentDate <= end) {
+          if (isDateBooked(new Date(currentDate))) {
+            hasBookedDate = true;
+            break;
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        if (hasBookedDate) {
+          // Don't allow selection if any date in range is booked
+          return;
+        }
+      }
+
+      onSelectCheckOut(selectedDate);
+      setSelectionMode("checkin");
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+      <div className="flex justify-between items-center mb-3">
+        <button
+          onClick={prevMonth}
+          className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4 text-gray-600" />
+        </button>
+
+        <h3 className="font-medium text-sm sm:text-base">
+          {getMonthName(currentDate.getMonth())} {currentDate.getFullYear()}
+        </h3>
+
+        <button
+          onClick={nextMonth}
+          className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+        >
+          <ChevronRight className="h-4 w-4 text-gray-600" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-1">
+        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+          <div key={day}>{day}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {calendar.map((date, index) => {
+          if (!date) {
+            return <div key={`empty-${index}`} className="h-7 sm:h-8"></div>;
+          }
+
+          const isPast = isPastDate(date);
+          const isBooked = isDateBooked(date);
+          const isCheckIn = isCheckInDate(date);
+          const isCheckOut = isCheckOutDate(date);
+          const inRange = isInRange(date);
+          const dateString = date.getDate();
+
+          // Fixed: Added pointer-events-none to isBooked condition to prevent selection
+          return (
+            <div
+              key={`date-${date.getTime()}`}
+              onClick={
+                isBooked || isPast
+                  ? undefined
+                  : (e) => handleSelectDate(date, e)
+              }
+              className={` 
+              h-7 sm:h-8 flex items-center justify-center text-xs sm:text-sm rounded relative
+              ${isPast ? "text-gray-300 cursor-not-allowed bg-gray-50" : ""}
+              ${isBooked ? "text-gray-400 bg-red-50 pointer-events-none" : ""}
+              ${!isPast && !isBooked ? "cursor-pointer hover:bg-blue-50" : ""}
+              ${isCheckIn ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+              ${isCheckOut ? "bg-blue-600 text-white hover:bg-blue-700" : ""}
+              ${inRange ? "bg-blue-100 hover:bg-blue-200" : ""}
+              ${
+                !isPast && !isBooked && !isCheckIn && !isCheckOut && !inRange
+                  ? "bg-green-50 border border-green-100"
+                  : ""
+              }
+            `}
+            >
+              {dateString}
+
+              {/* Enhanced cross lines for booked dates */}
+              {isBooked && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="absolute h-[1.5px] w-full bg-red-600 rotate-45"></div>
+                  <div className="absolute h-[1.5px] w-full bg-red-600 -rotate-45"></div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-600 justify-center">
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-green-50 border border-green-100 mr-1"></div>
+          <span>Available</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-red-50 relative mr-1">
+            <div className="absolute inset-0">
+              <div className="absolute h-px w-full bg-red-500 rotate-45"></div>
+              <div className="absolute h-px w-full bg-red-500 -rotate-45"></div>
+            </div>
+          </div>
+          <span>Booked</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-3 h-3 bg-blue-600 mr-1"></div>
+          <span>Selected</span>
+        </div>
+      </div>
+
+      <div className="mt-2 text-center">
+        <p className="text-xs text-blue-600 font-medium">
+          {selectionMode === "checkin"
+            ? "Select check-in date"
+            : "Select check-out date"}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+AvailabilityCalendar.propTypes = {
+  bookedDates: PropTypes.arrayOf(PropTypes.string).isRequired,
+  onSelectCheckIn: PropTypes.func.isRequired,
+  onSelectCheckOut: PropTypes.func.isRequired,
+  checkInDate: PropTypes.string,
+  checkOutDate: PropTypes.string,
+};
 
 const ReservationForm = () => {
   const { propertyId } = useParams();
@@ -30,6 +351,8 @@ const ReservationForm = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [maxGuests, setMaxGuests] = useState(0);
   const { user, loading: authLoading } = useAuth();
+  const [bookedDates, setBookedDates] = useState([]);
+  const [fetchingBookings, setFetchingBookings] = useState(false);
 
   const [formData, setFormData] = useState({
     checkInDate: "",
@@ -103,6 +426,7 @@ const ReservationForm = () => {
     }
   }, [authLoading, user, navigate, isInitialized]);
 
+  // Fetch property details and bookings
   useEffect(() => {
     const loadProperty = async () => {
       try {
@@ -115,7 +439,44 @@ const ReservationForm = () => {
           rooms: data.bedrooms || 1,
         });
       } catch (err) {
-        setError("Failed to load property details", err);
+        setError("Failed to load property details");
+        console.error(err);
+      }
+    };
+
+    const fetchBookings = async () => {
+      if (!propertyId) return;
+
+      setFetchingBookings(true);
+      try {
+        const response = await api.get(`/api/bookings/property/${propertyId}`);
+
+        // Process booked dates
+        const dates = [];
+        response.forEach((booking) => {
+          if (booking.status !== "cancelled") {
+            const start = new Date(booking.checkInDate);
+            const end = new Date(booking.checkOutDate);
+
+            // Add all dates between check-in and check-out
+            for (
+              let date = new Date(start);
+              date < end;
+              date.setDate(date.getDate() + 1)
+            ) {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, "0");
+              const day = String(date.getDate()).padStart(2, "0");
+              dates.push(`${year}-${month}-${day}`);
+            }
+          }
+        });
+
+        setBookedDates(dates);
+      } catch (err) {
+        console.error("Failed to fetch bookings", err);
+      } finally {
+        setFetchingBookings(false);
       }
     };
 
@@ -130,6 +491,8 @@ const ReservationForm = () => {
     } else if (propertyId) {
       loadProperty();
     }
+
+    fetchBookings();
   }, [propertyId, location.state]);
 
   useEffect(() => {
@@ -150,6 +513,80 @@ const ReservationForm = () => {
     formData.checkOutDate,
     propertyDetails.pricePerNight,
   ]);
+
+  const handleSelectCheckInDate = (date) => {
+    setFormData((prev) => ({
+      ...prev,
+      checkInDate: date,
+      // Clear check-out date if it's now invalid
+      checkOutDate:
+        prev.checkOutDate && prev.checkOutDate <= date ? "" : prev.checkOutDate,
+    }));
+    setError("");
+  };
+
+  const handleSelectCheckOutDate = (date) => {
+    if (!formData.checkInDate) return;
+  
+    const start = new Date(formData.checkInDate);
+    const end = new Date(date);
+    
+    // Clear previous error immediately
+    setError("");
+  
+    // Check if end date is before or equal to start
+    if (end <= start) {
+      setError("Check-out date must be after check-in date");
+      return;
+    }
+  
+    // Format date for consistent checking
+    const formatDateString = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+  
+    // Check each date in the range including end date
+    let currentDate = new Date(start);
+    currentDate.setDate(currentDate.getDate() + 1); // Start from day after check-in
+    
+    // Changed condition to check up to and including end date
+    while (currentDate <= end) {
+      const dateStr = formatDateString(currentDate);
+      if (bookedDates.includes(dateStr)) {
+        setError("Selected range contains unavailable dates");
+        return;
+      }
+      
+      if (isPastDate(currentDate)) {
+        setError("Selected range contains past dates");
+        return;
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  
+    setFormData((prev) => ({ ...prev, checkOutDate: date }));
+  };
+
+  const isDateDisabled = (date) => {
+    // Ensure the date is in the YYYY-MM-DD format for comparison
+    let dateString;
+
+    if (date instanceof Date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      dateString = `${year}-${month}-${day}`;
+    } else {
+      // If it's already a string, ensure it's in the correct format
+      dateString = date;
+    }
+
+    return bookedDates.includes(dateString);
+  };
 
   if (authLoading || (!isInitialized && !user)) {
     return (
@@ -175,6 +612,39 @@ const ReservationForm = () => {
       setError("Authentication required. Redirecting...");
       navigate("/auth");
       return;
+    }
+
+    // Check if dates are selected
+    if (!formData.checkInDate || !formData.checkOutDate) {
+      setError("Please select both check-in and check-out dates");
+      return;
+    }
+
+    // Check if check-out date is after check-in date
+    const checkInDate = new Date(formData.checkInDate);
+    const checkOutDate = new Date(formData.checkOutDate);
+
+    if (checkOutDate <= checkInDate) {
+      setError("Check-out date must be after check-in date");
+      return;
+    }
+
+    // Check if any date in the selected range is already booked
+    const daysDifference = Math.ceil(
+      (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24)
+    );
+
+    for (let i = 0; i < daysDifference; i++) {
+      const currentDate = new Date(checkInDate);
+      currentDate.setDate(checkInDate.getDate() + i);
+      const dateStr = currentDate.toISOString().split("T")[0];
+
+      if (bookedDates.includes(dateStr)) {
+        setError(
+          `Your stay includes date ${dateStr} which is already booked. Please select different dates.`
+        );
+        return;
+      }
     }
 
     try {
@@ -260,19 +730,51 @@ const ReservationForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-  
-    if (name === "adults") {
+
+    if (name === "checkInDate" || name === "checkOutDate") {
+      // First update the form value
+      setFormData((prev) => ({ ...prev, [name]: value }));
+
+      // Check if date is booked
+      if (value && isDateDisabled(value)) {
+        setError(
+          `The selected date (${value}) is already booked. Please choose another date.`
+        );
+        return;
+      }
+
+      // If check-out date is earlier than check-in date, show error
+      if (
+        name === "checkOutDate" &&
+        formData.checkInDate &&
+        new Date(value) <= new Date(formData.checkInDate)
+      ) {
+        setError("Check-out date must be after check-in date");
+        return;
+      }
+
+      // If check-in date is selected and later than existing check-out date, reset check-out date
+      if (
+        name === "checkInDate" &&
+        formData.checkOutDate &&
+        new Date(value) >= new Date(formData.checkOutDate)
+      ) {
+        setFormData((prev) => ({ ...prev, checkOutDate: "" }));
+      }
+
+      setError(""); // Clear any previous errors
+    } else if (name === "adults") {
       // Allow empty input temporarily when user is typing
       if (value === "") {
         setFormData((prev) => ({ ...prev, [name]: value }));
         return;
       }
-      
+
       let newValue = parseInt(value, 10);
       // Only apply constraints if it's a valid number
       if (!isNaN(newValue)) {
         newValue = Math.max(1, newValue);
-        
+
         if (newValue > maxGuests) {
           setFormData((prev) => ({ ...prev, adults: maxGuests }));
           setError(`Maximum ${maxGuests} adults allowed`);
@@ -287,7 +789,7 @@ const ReservationForm = () => {
         setFormData((prev) => ({ ...prev, [name]: value }));
         return;
       }
-      
+
       let newValue = parseInt(value, 10);
       // Only apply constraints if it's a valid number
       if (!isNaN(newValue)) {
@@ -336,37 +838,69 @@ const ReservationForm = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
-          <input type="hidden" name="property" value={formData.property} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="md:col-span-2">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-lg sm:rounded-xl border border-blue-100 shadow-sm">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-gray-700 font-medium text-sm sm:text-base">
+                  Price per night
+                </span>
+                <span className="text-base sm:text-lg font-semibold">
+                  {propertyDetails.currency} {propertyDetails.pricePerNight}
+                </span>
+              </div>
 
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-lg sm:rounded-xl border border-blue-100 shadow-sm">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-gray-700 font-medium text-sm sm:text-base">
-                Price per night
-              </span>
-              <span className="text-base sm:text-lg font-semibold">
-                {propertyDetails.currency} {propertyDetails.pricePerNight}
-              </span>
-            </div>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-gray-700 font-medium text-sm sm:text-base">
+                  Nights
+                </span>
+                <span className="text-base sm:text-lg font-semibold">
+                  {formData.nights}
+                </span>
+              </div>
 
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-gray-700 font-medium text-sm sm:text-base">
-                Nights
-              </span>
-              <span className="text-base sm:text-lg font-semibold">
-                {formData.nights}
-              </span>
-            </div>
-
-            <div className="border-t border-blue-200 my-3 pt-3 flex justify-between items-center">
-              <span className="text-gray-900 font-semibold text-sm sm:text-base">
-                Total Price
-              </span>
-              <span className="text-xl sm:text-2xl font-bold text-blue-700">
-                {propertyDetails.currency} {calculatedPrice.toFixed(2)}
-              </span>
+              <div className="border-t border-blue-200 my-3 pt-3 flex justify-between items-center">
+                <span className="text-gray-900 font-semibold text-sm sm:text-base">
+                  Total Price
+                </span>
+                <span className="text-xl sm:text-2xl font-bold text-blue-700">
+                  {propertyDetails.currency} {calculatedPrice.toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
+
+          <div>
+            <h3 className="text-base font-semibold mb-2 text-gray-800 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-blue-600" />
+              Availability Calendar
+            </h3>
+            {fetchingBookings ? (
+              <div className="flex justify-center items-center h-48">
+                <Loader2 className="animate-spin h-6 w-6 text-blue-600" />
+                <span className="ml-2 text-sm text-gray-600">
+                  Loading availability...
+                </span>
+              </div>
+            ) : (
+              <AvailabilityCalendar
+                bookedDates={bookedDates}
+                onSelectCheckIn={handleSelectCheckInDate}
+                onSelectCheckOut={handleSelectCheckOutDate}
+                checkInDate={formData.checkInDate}
+                checkOutDate={formData.checkOutDate}
+              />
+            )}
+
+            <p className="text-xs text-gray-500 mt-2">
+              Dates with cross lines are already booked and not available for
+              reservation.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
+          <input type="hidden" name="property" value={formData.property} />
 
           <div>
             <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 text-gray-800 flex items-center gap-2">

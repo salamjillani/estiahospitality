@@ -142,6 +142,17 @@ router.get("/:id/pdf", auth, async (req, res) => {
   }
 });
 
+router.get('/property/:propertyId', auth, async (req, res) => {
+  try {
+    const bookings = await Booking.find({ property: req.params.propertyId })
+      .populate('user', 'name email')
+      .populate('property', 'title');
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Create booking
 router.post("/", auth, checkRole(["client"]), async (req, res) => {
   try {
