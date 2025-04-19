@@ -125,7 +125,7 @@ const Properties = () => {
     blockPrices: [{ startDay: 1, endDay: 1, price: 300 }],
     datePrices: [],
     applyToAllProperties: false,
-    property: ""
+    property: "",
   });
 
   const navigate = useNavigate();
@@ -168,11 +168,10 @@ const Properties = () => {
     }
   };
 
-  // In Properties component, modify fetchPricings
   const fetchPricings = async () => {
     try {
-      const data = await api.get("/api/pricings");
-      // Convert date strings to Date objects
+      const response = await api.get("/api/pricings");
+      const data = Array.isArray(response.data) ? response.data : [];
       const processed = data.map((p) => ({
         ...p,
         datePrices:
@@ -292,15 +291,57 @@ const Properties = () => {
       setCategoryUpdateLoading(false);
     }
   };
+  const handlePricingTypeChange = (e) => {
+    const newType = e.target.value;
+    setPricingForm({
+      ...pricingForm,
+      type: newType,
+      // Automatically set applyToAllProperties to true for date pricing
+      applyToAllProperties:
+        newType === "date" ? true : pricingForm.applyToAllProperties,
+      // Clear property selection when switching to date pricing
+      property: newType === "date" ? "" : pricingForm.property,
+    });
+  };
 
   const handleSavePricing = async () => {
     try {
-      // Validate inputs
-      if (!pricingForm.applyToAllProperties && !pricingForm.property) {
-        throw new Error("Please select a property or apply to all properties");
+      const isDatePricing = pricingForm.type === "date";
+
+      // For date pricing, force applyToAllProperties to be true
+      const applyToAll = isDatePricing
+        ? true
+        : pricingForm.applyToAllProperties;
+
+      // Validation
+      if (!applyToAll && !pricingForm.property && !isDatePricing) {
+        throw new Error("Please select a property for monthly pricing");
       }
-      
-      if (pricingForm.type === "monthly") {
+
+      if (isDatePricing) {
+        // Date pricing validations
+        if (pricingForm.datePrices.length === 0) {
+          throw new Error("Please add at least one date price");
+        }
+
+        for (const datePrice of pricingForm.datePrices) {
+          if (!datePrice.date) {
+            throw new Error("Please select a date for all date prices");
+          }
+
+          const date = new Date(datePrice.date);
+          if (isNaN(date.getTime())) {
+            throw new Error("Invalid date format detected");
+          }
+          if (datePrice.price < 1) {
+            throw new Error("Price must be at least 1");
+          }
+          if (date < new Date()) {
+            throw new Error("Cannot set pricing for past dates");
+          }
+        }
+      } else {
+        // Monthly pricing validations
         for (const block of pricingForm.blockPrices) {
           if (block.endDay < block.startDay) {
             throw new Error("End day cannot be before start day");
@@ -308,71 +349,41 @@ const Properties = () => {
           if (block.startDay < 1 || block.endDay > 31) {
             throw new Error("Days must be between 1-31");
           }
-        }
-      }
-  
-      if (pricingForm.type === "date") {
-        for (const datePrice of pricingForm.datePrices) {
-          const date = new Date(datePrice.date);
-          if (isNaN(date.getTime())) {
-            throw new Error("Invalid date format detected");
+          if (block.price < 1) {
+            throw new Error("Price must be at least 1");
           }
         }
       }
-  
-      if (pricingForm.applyToAllProperties) {
-        // Create pricing entries for all properties
-        const savedPricings = [];
-        for (const property of properties) {
-          const pricingData = {
-            ...pricingForm,
-            property: property._id,
-            applyToAllProperties: undefined // Remove this field before saving
-          };
-          
-          if (selectedPricing) {
-            // Update existing pricing
-            const updated = await api.put(
-              `/api/pricings/${selectedPricing._id}`,
-              pricingData
-            );
-            savedPricings.push(updated);
-          } else {
-            // Create new pricing
-            const newPricing = await api.post("/api/pricings", pricingData);
-            savedPricings.push(newPricing);
-          }
-        }
-        
-        // Update state with all saved pricings
-        setPricings((prev) => {
-          const filteredPricings = selectedPricing 
-            ? prev.filter(p => p._id !== selectedPricing._id) 
-            : prev;
-          return [...filteredPricings, ...savedPricings];
-        });
+
+      const payload = {
+        ...pricingForm,
+        isGlobalTemplate: applyToAll,
+        datePrices: isDatePricing
+          ? pricingForm.datePrices.map((dp) => ({
+              date: new Date(dp.date),
+              price: Number(dp.price),
+            }))
+          : [],
+      };
+
+      let response;
+
+      if (selectedPricing) {
+        // Update existing pricing
+        response = await api.put(
+          `/api/pricings/${selectedPricing._id}`,
+          payload
+        );
+        setPricings((prev) =>
+          prev.map((p) => (p._id === response._id ? response : p))
+        );
       } else {
-        // Save pricing for a single property
-        const pricingData = {
-          ...pricingForm,
-          applyToAllProperties: undefined // Remove this field before saving
-        };
-        
-        if (selectedPricing) {
-          const updated = await api.put(
-            `/api/pricings/${selectedPricing._id}`,
-            pricingData
-          );
-          setPricings((prev) =>
-            prev.map((p) => (p._id === updated._id ? updated : p))
-          );
-        } else {
-          const newPricing = await api.post("/api/pricings", pricingData);
-          setPricings((prev) => [...prev, newPricing]);
-        }
+        // Create new pricing
+        response = await api.post("/api/pricings", payload);
+        setPricings((prev) => [...prev, response]);
       }
-  
-      // Reset form state
+
+      // Reset form to initial state
       setSelectedPricing(null);
       setPricingForm({
         type: "monthly",
@@ -381,25 +392,273 @@ const Properties = () => {
         blockPrices: [{ startDay: 1, endDay: 1, price: 300 }],
         datePrices: [],
         applyToAllProperties: false,
-        property: ""
+        property: "",
       });
     } catch (err) {
-      setError("Failed to save pricing: " + err.message);
+      setError(
+        "Failed to save pricing: " +
+          (err.response?.data?.message || err.message)
+      );
+      setTimeout(() => setError(""), 5000);
     }
   };
+
+  const renderPricingForm = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-4">
+        <select
+          value={pricingForm.type}
+          onChange={handlePricingTypeChange}
+          className="w-full p-2 border rounded-lg"
+        >
+          <option value="monthly">Monthly Block Pricing</option>
+          <option value="date">Custom Date Pricing</option>
+        </select>
+
+        {/* Show property selector and "apply to all" checkbox only for monthly pricing */}
+        {pricingForm.type === "monthly" && (
+          <>
+            <div className="flex items-center mb-4">
+              <input
+                type="checkbox"
+                id="applyToAll"
+                checked={pricingForm.applyToAllProperties}
+                onChange={(e) => {
+                  setPricingForm({
+                    ...pricingForm,
+                    applyToAllProperties: e.target.checked,
+                    property: e.target.checked ? "" : pricingForm.property,
+                  });
+                }}
+                className="mr-2"
+              />
+              <label htmlFor="applyToAll" className="text-sm font-medium">
+                Apply to all properties
+              </label>
+            </div>
+
+            {!pricingForm.applyToAllProperties && (
+              <select
+                value={pricingForm.property}
+                onChange={(e) =>
+                  setPricingForm({
+                    ...pricingForm,
+                    property: e.target.value,
+                  })
+                }
+                className="w-full p-2 border rounded-lg"
+                required={!pricingForm.applyToAllProperties}
+              >
+                <option value="">Select a property</option>
+                {properties.map((property) => (
+                  <option key={property._id} value={property._id}>
+                    {property.title}
+                  </option>
+                ))}
+              </select>
+            )}
+          </>
+        )}
+
+        {/* For date pricing, add a notice that it applies to all properties */}
+        {pricingForm.type === "date" && (
+          <div className="p-3 bg-blue-50 text-blue-800 rounded-lg text-sm">
+            Note: Date pricing will automatically apply to all properties.
+          </div>
+        )}
+
+        {pricingForm.type === "monthly" ? (
+          <>
+            <input
+              type="month"
+              value={`${pricingForm.year}-${String(pricingForm.month).padStart(
+                2,
+                "0"
+              )}`}
+              onChange={(e) => {
+                const [year, month] = e.target.value.split("-");
+                setPricingForm({
+                  ...pricingForm,
+                  year: parseInt(year),
+                  month: parseInt(month),
+                });
+              }}
+              className="w-full p-2 border rounded-lg"
+            />
+            <div className="space-y-2">
+              {pricingForm.blockPrices.map((block, index) => (
+                <div key={index} className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    placeholder="Start day"
+                    value={block.startDay}
+                    min="1"
+                    max="31"
+                    onChange={(e) => {
+                      const newBlocks = [...pricingForm.blockPrices];
+                      newBlocks[index].startDay = Math.min(
+                        31,
+                        Math.max(1, parseInt(e.target.value))
+                      );
+                      setPricingForm({
+                        ...pricingForm,
+                        blockPrices: newBlocks,
+                      });
+                    }}
+                    className="p-2 border rounded-lg w-20"
+                  />
+                  <span>-</span>
+                  <input
+                    type="number"
+                    placeholder="End day"
+                    value={block.endDay}
+                    min="1"
+                    max="31"
+                    onChange={(e) => {
+                      const newBlocks = [...pricingForm.blockPrices];
+                      newBlocks[index].endDay = Math.min(
+                        31,
+                        Math.max(1, parseInt(e.target.value))
+                      );
+                      setPricingForm({
+                        ...pricingForm,
+                        blockPrices: newBlocks,
+                      });
+                    }}
+                    className="p-2 border rounded-lg w-20"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Price"
+                    value={block.price}
+                    min="1"
+                    onChange={(e) => {
+                      const newBlocks = [...pricingForm.blockPrices];
+                      newBlocks[index].price = parseInt(e.target.value);
+                      setPricingForm({
+                        ...pricingForm,
+                        blockPrices: newBlocks,
+                      });
+                    }}
+                    className="p-2 border rounded-lg w-28"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPricingForm({
+                        ...pricingForm,
+                        blockPrices: pricingForm.blockPrices.filter(
+                          (_, i) => i !== index
+                        ),
+                      })
+                    }
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() =>
+                  setPricingForm({
+                    ...pricingForm,
+                    blockPrices: [
+                      ...pricingForm.blockPrices,
+                      { startDay: 1, endDay: 1, price: 300 },
+                    ],
+                  })
+                }
+                className="bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
+              >
+                Add Block
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-2">
+            {pricingForm.datePrices.map((datePrice, index) => (
+              <div key={index} className="flex gap-2">
+                <input
+                  type="date"
+                  value={datePrice.date ? datePrice.date.split("T")[0] : ""}
+                  onChange={(e) => {
+                    const newDates = [...pricingForm.datePrices];
+                    newDates[index].date = e.target.value;
+                    setPricingForm({
+                      ...pricingForm,
+                      datePrices: newDates,
+                    });
+                  }}
+                  className="p-2 border rounded-lg flex-1"
+                />
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={datePrice.price}
+                  onChange={(e) => {
+                    const newDates = [...pricingForm.datePrices];
+                    newDates[index].price = e.target.value;
+                    setPricingForm({
+                      ...pricingForm,
+                      datePrices: newDates,
+                    });
+                  }}
+                  className="p-2 border rounded-lg flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPricingForm({
+                      ...pricingForm,
+                      datePrices: pricingForm.datePrices.filter(
+                        (_, i) => i !== index
+                      ),
+                    })
+                  }
+                  className="text-red-500 hover:text-red-700"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() =>
+                setPricingForm({
+                  ...pricingForm,
+                  datePrices: [
+                    ...pricingForm.datePrices,
+                    { date: "", price: "" },
+                  ],
+                })
+              }
+              className="bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
+            >
+              Add Date
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={handleSavePricing}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+        >
+          {selectedPricing ? "Update Pricing" : "Create Pricing"}
+        </button>
+      </div>
+    </div>
+  );
 
   const handleEditPricing = (pricing) => {
     setSelectedPricing(pricing);
     setPricingForm({
       ...pricing,
-      datePrices: pricing.datePrices.map(dp => ({
+      datePrices: pricing.datePrices.map((dp) => ({
         ...dp,
-        date: new Date(dp.date).toISOString().split("T")[0]
-      }))
+        date: new Date(dp.date).toISOString().split("T")[0],
+      })),
     });
   };
 
-  
   const handleDeletePricing = async (id) => {
     try {
       await api.delete(`/api/pricings/${id}`);
@@ -431,7 +690,7 @@ const Properties = () => {
   const PricingTable = ({ pricings, onEdit, onDelete }) => (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
-        {pricings.map((pricing) => (
+        {(Array.isArray(pricings) ? pricings : []).map((pricing) => (
           <div key={pricing._id} className="border rounded-lg p-4">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-semibold">
@@ -443,20 +702,23 @@ const Properties = () => {
                 <button
                   onClick={() => onEdit(pricing)}
                   className="text-blue-600"
+                  aria-label="Edit pricing"
                 >
                   <Edit className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => onDelete(pricing._id)}
                   className="text-red-600"
+                  aria-label="Delete pricing"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
+
             {pricing.type === "monthly" ? (
               <div className="grid grid-cols-3 gap-2">
-                {pricing.blockPrices.map((block, idx) => (
+                {(pricing.blockPrices || []).map((block, idx) => (
                   <div key={idx} className="p-2 bg-gray-50 rounded">
                     Days {block.startDay}-{block.endDay}: €{block.price}
                   </div>
@@ -464,9 +726,12 @@ const Properties = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                {pricing.datePrices.map((datePrice, idx) => (
+                {(pricing.datePrices || []).map((datePrice, idx) => (
                   <div key={idx} className="flex justify-between">
-                    <span>{new Date(datePrice.date).toLocaleDateString()}</span>
+                    <span>
+                      {datePrice.date &&
+                        new Date(datePrice.date).toLocaleDateString()}
+                    </span>
                     <span>€{datePrice.price}</span>
                   </div>
                 ))}
@@ -570,17 +835,17 @@ const Properties = () => {
               <span>Categories</span>
             </button>
             {user?.role === "admin" && (
-            <button
-              onClick={() => setViewMode("pricing")}
-              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-lg font-medium transition-all text-xs sm:text-sm ${
-                viewMode === "pricing"
-                  ? "bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <Currency className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Pricing</span>
-            </button>
+              <button
+                onClick={() => setViewMode("pricing")}
+                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-lg font-medium transition-all text-xs sm:text-sm ${
+                  viewMode === "pricing"
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <Currency className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Pricing</span>
+              </button>
             )}
           </div>
         </div>
@@ -600,238 +865,17 @@ const Properties = () => {
           />
         ) : viewMode === "pricing" ? (
           <div className="space-y-6">
-  <div className="bg-white p-6 rounded-xl shadow-sm">
-    <h2 className="text-xl font-bold mb-4">Manage Pricing</h2>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="space-y-4">
-        {/* Property selection - new section */}
-        <div className="flex items-center mb-4">
-          <input
-            type="checkbox"
-            id="applyToAll"
-            checked={pricingForm.applyToAllProperties}
-            onChange={(e) =>
-              setPricingForm({
-                ...pricingForm,
-                applyToAllProperties: e.target.checked,
-                property: e.target.checked ? "" : pricingForm.property
-              })
-            }
-            className="mr-2"
-          />
-          <label htmlFor="applyToAll" className="text-sm font-medium">
-            Apply to all properties
-          </label>
-        </div>
-        
-        {!pricingForm.applyToAllProperties && (
-          <select
-            value={pricingForm.property}
-            onChange={(e) =>
-              setPricingForm({ ...pricingForm, property: e.target.value })
-            }
-            className="w-full p-2 border rounded-lg"
-            required
-          >
-            <option value="">Select a property</option>
-            {properties.map((property) => (
-              <option key={property._id} value={property._id}>
-                {property.title}
-              </option>
-            ))}
-          </select>
-        )}
-        
-        {/* Original pricing type selection */}
-        <select
-          value={pricingForm.type}
-          onChange={(e) =>
-            setPricingForm({ ...pricingForm, type: e.target.value })
-          }
-          className="w-full p-2 border rounded-lg"
-        >
-          <option value="monthly">Monthly Block Pricing</option>
-          <option value="date">Custom Date Pricing</option>
-        </select>
-
-        {pricingForm.type === "monthly" ? (
-          <>
-            <input
-              type="month"
-              value={`${pricingForm.year}-${String(
-                pricingForm.month
-              ).padStart(2, "0")}`}
-              onChange={(e) => {
-                const [year, month] = e.target.value.split("-");
-                setPricingForm({
-                  ...pricingForm,
-                  year: parseInt(year),
-                  month: parseInt(month),
-                });
-              }}
-              className="w-full p-2 border rounded-lg"
-            />
-            <div className="space-y-2">
-              {pricingForm.blockPrices.map((block, index) => (
-                <div key={index} className="flex gap-2 items-center">
-                  <input
-                    type="number"
-                    placeholder="Start day"
-                    value={block.startDay}
-                    min="1"
-                    max="31"
-                    onChange={(e) => {
-                      const newBlocks = [...pricingForm.blockPrices];
-                      newBlocks[index].startDay = Math.min(
-                        31,
-                        Math.max(1, parseInt(e.target.value))
-                      );
-                      setPricingForm({
-                        ...pricingForm,
-                        blockPrices: newBlocks,
-                      });
-                    }}
-                    className="p-2 border rounded-lg w-20"
-                  />
-                  <span>-</span>
-                  <input
-                    type="number"
-                    placeholder="End day"
-                    value={block.endDay}
-                    min="1"
-                    max="31"
-                    onChange={(e) => {
-                      const newBlocks = [...pricingForm.blockPrices];
-                      newBlocks[index].endDay = Math.min(
-                        31,
-                        Math.max(1, parseInt(e.target.value))
-                      );
-                      setPricingForm({
-                        ...pricingForm,
-                        blockPrices: newBlocks,
-                      });
-                    }}
-                    className="p-2 border rounded-lg w-20"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Price"
-                    value={block.price}
-                    min="1"
-                    onChange={(e) => {
-                      const newBlocks = [...pricingForm.blockPrices];
-                      newBlocks[index].price = parseInt(
-                        e.target.value
-                      );
-                      setPricingForm({
-                        ...pricingForm,
-                        blockPrices: newBlocks,
-                      });
-                    }}
-                    className="p-2 border rounded-lg w-28"
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPricingForm({
-                        ...pricingForm,
-                        blockPrices: pricingForm.blockPrices.filter(
-                          (_, i) => i !== index
-                        ),
-                      })
-                    }
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              <button
-                onClick={() =>
-                  setPricingForm({
-                    ...pricingForm,
-                    blockPrices: [
-                      ...pricingForm.blockPrices,
-                      { startDay: 1, endDay: 1, price: 300 },
-                    ],
-                  })
-                }
-                className="bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
-              >
-                Add Block
-              </button>
+            <div className="bg-white p-6 rounded-xl shadow-sm">
+              <h2 className="text-xl font-bold mb-4">Manage Pricing</h2>
+              {renderPricingForm()}
             </div>
-          </>
-        ) : (
-          <div className="space-y-2">
-            {pricingForm.datePrices.map((datePrice, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="date"
-                  value={
-                    datePrice.date ? datePrice.date.split("T")[0] : ""
-                  }
-                  onChange={(e) => {
-                    const newDates = [...pricingForm.datePrices];
-                    newDates[index].date = new Date(
-                      e.target.value
-                    ).toISOString();
-                    setPricingForm({
-                      ...pricingForm,
-                      datePrices: newDates,
-                    });
-                  }}
-                  className="p-2 border rounded-lg flex-1"
-                />
-                <input
-                  type="number"
-                  placeholder="Price"
-                  value={datePrice.price}
-                  onChange={(e) => {
-                    const newDates = [...pricingForm.datePrices];
-                    newDates[index].price = e.target.value;
-                    setPricingForm({
-                      ...pricingForm,
-                      datePrices: newDates,
-                    });
-                  }}
-                  className="p-2 border rounded-lg flex-1"
-                />
-              </div>
-            ))}
-            <button
-              onClick={() =>
-                setPricingForm({
-                  ...pricingForm,
-                  datePrices: [
-                    ...pricingForm.datePrices,
-                    { date: "", price: "" },
-                  ],
-                })
-              }
-              className="bg-gray-100 px-4 py-2 rounded-lg"
-            >
-              Add Date
-            </button>
-          </div>
-        )}
 
-        <button
-          onClick={handleSavePricing}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg"
-        >
-          {selectedPricing ? "Update Pricing" : "Create Pricing"}
-        </button>
-      </div>
-    </div>
-  </div>
-            
-  <PricingTable
-    pricings={pricings}
-    onEdit={handleEditPricing}
-    onDelete={handleDeletePricing}
-  />
-</div>
+            <PricingTable
+              pricings={pricings}
+              onEdit={handleEditPricing}
+              onDelete={handleDeletePricing}
+            />
+          </div>
         ) : (
           <>
             <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-0">

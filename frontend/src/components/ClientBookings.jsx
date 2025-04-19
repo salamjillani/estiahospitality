@@ -450,7 +450,7 @@ const ClientBookings = () => {
                               </div>
                               <span>
                                 {currencySymbols[booking.currency] || "$"}
-                                {booking.totalPrice}
+                                {booking.totalPrice?.toFixed(2) || "0.00"}
                               </span>
                             </div>
                           </div>

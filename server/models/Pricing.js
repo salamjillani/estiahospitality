@@ -10,7 +10,13 @@ const pricingSchema = new mongoose.Schema({
     property: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Property',
-      required: true
+      required: function() {
+        return !this.isGlobalTemplate;
+      }
+    },
+    isGlobalTemplate: {
+      type: Boolean,
+      default: false
     },
     month: {
       type: Number,

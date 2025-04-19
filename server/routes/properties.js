@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const Property = require('../models/Property');
-const { auth, checkRole, adminOnly} = require('../middleware/auth');
+const Pricing = require('../models/Pricing');
+const { auth, checkRole, adminOnly } = require('../middleware/auth');
 
 router.get('/', auth, async (req, res) => {
   try {
-    // Return all properties for both admins and owners
     const properties = await Property.find();
     res.json(properties);
   } catch (err) {
@@ -32,7 +32,6 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// server/routes/properties.js
 router.get('/owned', auth, checkRole(['owner']), async (req, res) => {
   try {
     const properties = await Property.find({ owner: req.user._id });
@@ -42,9 +41,6 @@ router.get('/owned', auth, checkRole(['owner']), async (req, res) => {
   }
 });
 
-
-
-// properties.js
 router.get('/owner/:ownerId', auth, async (req, res) => {
   try {
     const properties = await Property.find({ owner: req.params.ownerId });
@@ -54,7 +50,6 @@ router.get('/owner/:ownerId', auth, async (req, res) => {
   }
 });
 
-// In your properties route (server)
 router.post('/', auth, checkRole(['admin']), async (req, res) => {
   try {
     if (!req.body.bankDetails?.currency) {
@@ -68,18 +63,28 @@ router.post('/', auth, checkRole(['admin']), async (req, res) => {
     
     await newProperty.save();
 
-  
-    res.status(201).json(newProperty);
+    // Apply global pricing templates to new property
+    const templates = await Pricing.find({ isGlobalTemplate: true });
+    const pricingPromises = templates.map(template => 
+      Pricing.create({
+        ...template.toObject(),
+        _id: undefined,
+        isGlobalTemplate: false,
+        property: newProperty._id
+      })
+    );
 
- 
+    await Promise.all(pricingPromises);
+
     try {
       req.app.locals.broadcast('property_created', newProperty);
     } catch (broadcastError) {
       console.error('Broadcast failed:', broadcastError);
     }
 
+    res.status(201).json(newProperty);
+
   } catch (err) {
-  
     console.error('Property creation error:', err);
     res.status(500).json({ 
       message: err.message || 'Property creation failed' 
@@ -89,10 +94,8 @@ router.post('/', auth, checkRole(['admin']), async (req, res) => {
 
 router.put('/:id', auth, adminOnly, async (req, res) => {
   try {
-   
     const property = await Property.findByIdAndUpdate(
       req.params.id,
-     
       req.body,
       { new: true }
     );
@@ -113,7 +116,6 @@ router.delete('/:id', auth, checkRole(['admin']), adminOnly, async (req, res) =>
   }
 });
 
-// server/routes/properties.js - Add admin routes
 router.get('/admin', auth, checkRole(['admin']), async (req, res) => {
   try {
     const properties = await Property.find().populate('owner');
@@ -135,7 +137,5 @@ router.patch('/admin/:id', auth, checkRole(['admin']), async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
-
-
 
 module.exports = router;

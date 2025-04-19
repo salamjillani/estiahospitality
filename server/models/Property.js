@@ -39,6 +39,15 @@ const propertySchema = new mongoose.Schema(
       country: String,
       postalCode: String,
     },
+  
+pricePerNight: {
+  type: Number,
+  required: true,
+  min: 0,
+  default: function() {
+    return this.rates?.nightly || 0; // Fallback to rates.nightly
+  }
+},
     bankDetails: {
       accountHolder: String,
       accountNumber: String,

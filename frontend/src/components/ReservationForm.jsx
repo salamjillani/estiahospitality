@@ -445,11 +445,15 @@ const ReservationForm = () => {
     const fetchPricingData = async () => {
       if (propertyId) {
         try {
-          // Get pricings
-          const pricingRes = await api.get(
-            `/api/pricings/property/${propertyId}`
-          );
-          setPricings(pricingRes);
+          const response = await api.get(`/api/pricings/property/${propertyId}`);
+      const processed = response.map(p => ({
+        ...p,
+        datePrices: p.datePrices?.map(dp => ({
+          ...dp,
+          date: new Date(dp.date) 
+        })) || []
+      }));
+      setPricings(processed);
 
           // Get seasonal fee
           const categoriesRes = await api.get("/api/category-prices");
@@ -461,7 +465,9 @@ const ReservationForm = () => {
             const currentMonth = new Date().getMonth() + 1;
             const isHighSeason = currentMonth >= 4 && currentMonth <= 10;
             setSeasonalFee(
-              isHighSeason ? category.highSeason : category.lowSeason
+              isHighSeason
+                ? Number(category.highSeason)
+                : Number(category.lowSeason)
             );
             setPropertyDetails((prev) => ({
               ...prev,
@@ -482,90 +488,81 @@ const ReservationForm = () => {
   useEffect(() => {
     const calculatePrice = () => {
       if (!formData.checkInDate || !formData.checkOutDate) return;
-
+    
       let total = 0;
       const startDate = new Date(formData.checkInDate);
       const endDate = new Date(formData.checkOutDate);
       const breakdown = [];
-
-      // Calculate daily prices
       const currentDate = new Date(startDate);
-
-      // Loop through each date in the range (excluding the checkout date)
+    
+      // Convert all pricing dates to UTC for accurate comparison
+      const processedPricings = pricings.map(pricing => ({
+        ...pricing,
+        datePrices: pricing.datePrices?.map(dp => ({
+          date: new Date(dp.date).toISOString().split('T')[0],
+          price: dp.price
+        })) || []
+      }));
+    
       while (currentDate < endDate) {
-        const dateStr = currentDate.toISOString().split("T")[0];
+        const dateStr = currentDate.toISOString().split('T')[0];
         let dayPrice = propertyDetails.pricePerNight;
         let priceSource = "base";
-
-        // 1. Check custom date pricing first
-        const datePricings = pricings.filter((p) => p.type === "date");
-
-        if (datePricings.length > 0) {
-          for (const pricing of datePricings) {
-            if (pricing.datePrices && Array.isArray(pricing.datePrices)) {
-              const matchingDatePrice = pricing.datePrices.find((dp) => {
-                const dpDate = new Date(dp.date);
-                return dpDate.toISOString().split("T")[0] === dateStr;
-              });
-
-              if (matchingDatePrice) {
-                dayPrice = matchingDatePrice.price;
-                priceSource = "date-specific";
-                break;
-              }
-            }
-          }
+    
+        // 1. Check date-specific pricing (both property-specific and global)
+        const dateMatches = processedPricings
+          .filter(p => p.type === "date")
+          .flatMap(p => p.datePrices)
+          .filter(dp => dp.date === dateStr);
+    
+        if (dateMatches.length > 0) {
+          // Use the highest priority pricing (latest or highest price)
+          dayPrice = Math.max(...dateMatches.map(dp => dp.price));
+          priceSource = "date-specific";
         }
-
-        // 2. If no date-specific price found, check monthly pricing
+    
+        // 2. Check monthly pricing if no date-specific price found
         if (priceSource === "base") {
-          const monthlyPricing = pricings.find(
-            (p) =>
-              p.type === "monthly" &&
-              p.month === currentDate.getMonth() + 1 &&
-              p.year === currentDate.getFullYear()
+          const monthlyMatch = processedPricings.find(p => 
+            p.type === "monthly" &&
+            p.month === currentDate.getUTCMonth() + 1 &&
+            p.year === currentDate.getUTCFullYear()
           );
-
-          if (
-            monthlyPricing &&
-            monthlyPricing.blockPrices &&
-            Array.isArray(monthlyPricing.blockPrices)
-          ) {
-            const dayOfMonth = currentDate.getDate();
-            const block = monthlyPricing.blockPrices.find(
-              (b) => dayOfMonth >= b.startDay && dayOfMonth <= b.endDay
+    
+          if (monthlyMatch) {
+            const dayOfMonth = currentDate.getUTCDate();
+            const block = monthlyMatch.blockPrices.find(b => 
+              dayOfMonth >= b.startDay && dayOfMonth <= b.endDay
             );
-
+            
             if (block) {
               dayPrice = block.price;
               priceSource = "monthly-block";
             }
           }
         }
-
+    
         // Add to total and breakdown
         total += dayPrice;
         breakdown.push({
           date: dateStr,
           price: dayPrice,
-          source: priceSource,
+          source: priceSource
         });
-
-        // Move to next day
+    
         currentDate.setDate(currentDate.getDate() + 1);
       }
-
-      // Add seasonal fee once (not per night)
+    
+      // Add seasonal fee once
       if (seasonalFee > 0) {
         total += seasonalFee;
         breakdown.push({
           date: "seasonal-fee",
           price: seasonalFee,
-          source: "seasonal",
+          source: "seasonal"
         });
       }
-
-      // Update state with the calculated values
+    
       setDailyRateBreakdown(breakdown);
       setCalculatedPrice(total);
     };
@@ -583,13 +580,21 @@ const ReservationForm = () => {
     const loadProperty = async () => {
       try {
         const data = await api.get(`/api/properties/${propertyId}`);
+        const price = Number(data.pricePerNight || data.rates?.nightly || 0);
+        
+    if (!price || isNaN(price)) {
+      throw new Error("Property pricing not configured");
+    }
+        if (!data.pricePerNight && !data.rates?.nightly) {
+          throw new Error("Property pricing not configured");
+        }
         setMaxGuests(data.guestCapacity || 1);
         setPropertyDetails({
-          pricePerNight: data.pricePerNight || 0,
-          currency: data.bankDetails?.currency || "EUR",
+          pricePerNight: price,
+          currency: data.bankDetails?.currency || "USD",
           title: data.title || "Property",
           rooms: data.bedrooms || 1,
-          type: data.type || "", // Added property type
+          type: data.type || "",
         });
       } catch (err) {
         setError("Failed to load property details");
@@ -845,32 +850,42 @@ const ReservationForm = () => {
   const submitBooking = async () => {
     setLoading(true);
     setError("");
-
+  
+    if (isNaN(calculatedPrice)) {
+      setError("Invalid price calculation");
+      setLoading(false);
+      return;
+    }
+  
+    if (calculatedPrice <= 0) {
+      setError("Total price must be greater than 0");
+      setLoading(false);
+      return;
+    }
+  
+    const bookingData = {
+      ...formData,
+      totalPrice: calculatedPrice,
+      pricePerNight: propertyDetails.pricePerNight,
+      currency: propertyDetails.currency,
+      user: user._id,
+      status: "pending",
+      checkInDate: new Date(formData.checkInDate).toISOString(),
+      checkOutDate: new Date(formData.checkOutDate).toISOString(),
+      property: propertyId || location.state?.propertyId
+    };
+  
     try {
-      const bookingData = {
-        ...formData,
-        totalPrice: calculatedPrice,
-        currency: propertyDetails.currency,
-        user: user._id,
-        status: "pending",
-        source: "direct",
-      };
-
       const response = await api.post("/api/bookings", bookingData);
       websocketService.emit("newBooking", response.data);
-
       navigate("/my-bookings", {
         state: { success: "Booking request submitted successfully!" },
       });
     } catch (err) {
-      setError(
-        err.response?.data?.message || err.message || "Failed to submit booking"
-      );
-
+      setError(err.response?.data?.message || err.message || "Failed to submit booking");
       if (err.response?.status === 401) {
         navigate("/auth?session=expired");
       }
-
       setShowConfirmation(false);
     } finally {
       setLoading(false);

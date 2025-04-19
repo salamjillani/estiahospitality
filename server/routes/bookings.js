@@ -5,7 +5,7 @@ const Booking = require("../models/Booking");
 const Property = require("../models/Property");
 const Invoice = require("../models/Invoice");
 const Counter = require("../models/Counter");
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 // Original admin route (keep for compatibility)
 router.get("/", auth, adminOnly, async (req, res) => {
@@ -76,12 +76,15 @@ router.get("/client/:userId", auth, async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.userId)) {
       return res.status(400).json({ message: "Invalid user ID format" });
     }
-    
+
     // Allow clients to access only their own bookings, but admins can access any client's bookings
-    if (req.user.role === 'client' && req.user._id.toString() !== req.params.userId) {
+    if (
+      req.user.role === "client" &&
+      req.user._id.toString() !== req.params.userId
+    ) {
       return res.status(403).json({ message: "Unauthorized access" });
     }
-    
+
     const bookings = await Booking.find({ user: req.params.userId })
       .populate("property", "title location pricePerNight")
       .populate({
@@ -95,7 +98,7 @@ router.get("/client/:userId", auth, async (req, res) => {
           },
         ],
       });
-      
+
     res.json(bookings);
   } catch (err) {
     console.error("Error fetching client bookings:", err);
@@ -142,11 +145,11 @@ router.get("/:id/pdf", auth, async (req, res) => {
   }
 });
 
-router.get('/property/:propertyId', auth, async (req, res) => {
+router.get("/property/:propertyId", auth, async (req, res) => {
   try {
     const bookings = await Booking.find({ property: req.params.propertyId })
-      .populate('user', 'name email')
-      .populate('property', 'title');
+      .populate("user", "name email")
+      .populate("property", "title");
     res.json(bookings);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -156,12 +159,26 @@ router.get('/property/:propertyId', auth, async (req, res) => {
 // Create booking
 router.post("/", auth, checkRole(["client"]), async (req, res) => {
   try {
+    
     const property = await Property.findById(req.body.property)
       .select("pricePerNight bankDetails.currency")
       .lean();
-
-    if (!property)
-      return res.status(404).json({ message: "Property not found" });
+      if (!property) {
+        return res.status(404).json({ message: "Property not found" });
+      }
+      if (!req.body.totalPrice || typeof req.body.totalPrice !== "number") {
+        return res.status(400).json({ message: "Invalid price calculation" });
+      }
+      if (typeof property.pricePerNight !== "number" || isNaN(property.pricePerNight)) {
+        return res.status(400).json({ 
+          message: "Property pricing configuration error: Invalid pricePerNight" 
+        });
+      }
+      if (!property || typeof property.pricePerNight !== "number" || isNaN(property.pricePerNight)) {
+        return res.status(400).json({ 
+          message: "Property pricing not configured properly" 
+        });
+      }
     if (!property.bankDetails?.currency) {
       return res
         .status(400)
@@ -170,11 +187,13 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
 
     // Room availability check
     if (req.body.rooms > property.rooms) {
-      return res.status(400).json({ message: `Only ${property.rooms} rooms available` });
+      return res
+        .status(400)
+        .json({ message: `Only ${property.rooms} rooms available` });
     }
     if (req.body.adults + req.body.children > property.guestCapacity) {
-      return res.status(400).json({ 
-        message: `Exceeds maximum occupancy of ${property.guestCapacity} people`
+      return res.status(400).json({
+        message: `Exceeds maximum occupancy of ${property.guestCapacity} people`,
       });
     }
 
@@ -183,12 +202,17 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
       property: req.body.property,
       status: { $ne: "cancelled" },
       $or: [
-        { checkInDate: { $lt: req.body.checkOutDate }, checkOutDate: { $gt: req.body.checkInDate } }
-      ]
+        {
+          checkInDate: { $lt: req.body.checkOutDate },
+          checkOutDate: { $gt: req.body.checkInDate },
+        },
+      ],
     });
 
     if (existingBookings.length > 0) {
-      return res.status(400).json({ message: "Property already booked for these dates" });
+      return res
+        .status(400)
+        .json({ message: "Property already booked for these dates" });
     }
 
     const requiredFields = [
@@ -209,11 +233,30 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
 
     const startDate = new Date(req.body.checkInDate);
     const endDate = new Date(req.body.checkOutDate);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ message: "Invalid dates provided" });
+    }
+
+    // Calculate nights and validate
     const nights = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+    if (isNaN(nights) || nights <= 0) {
+      return res.status(400).json({ message: "Invalid date range" });
+    }
+
+    // Ensure pricePerNight is a number
+    if (
+      typeof property.pricePerNight !== "number" ||
+      isNaN(property.pricePerNight)
+    ) {
+      return res
+        .status(500)
+        .json({ message: "Invalid property pricing configuration" });
+    }
 
     const booking = new Booking({
       ...req.body,
-      totalPrice: nights * property.pricePerNight,
+      totalPrice: req.body.totalPrice,
       currency: property.bankDetails.currency,
       pricePerNight: property.pricePerNight,
       paymentMethod: req.body.paymentMethod,
@@ -235,7 +278,6 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
 
 router.patch("/:id", auth, adminOnly, async (req, res) => {
   try {
-  
     const booking = await Booking.findById(req.params.id)
       .populate("user", "name email")
       .populate("property", "title pricePerNight");
@@ -245,9 +287,11 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
     }
 
     const property = await Property.findById(booking.property);
-    
+
     if (req.body.rooms && req.body.rooms > property.rooms) {
-      return res.status(400).json({ message: `Exceeds available rooms (${property.rooms})` });
+      return res
+        .status(400)
+        .json({ message: `Exceeds available rooms (${property.rooms})` });
     }
 
     // Validate status transition
@@ -271,21 +315,24 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
       const date = new Date();
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, "0");
-      
+
       // Use findOneAndUpdate with upsert to atomically increment the counter
       const counter = await Counter.findOneAndUpdate(
         { _id: "invoiceNumber" },
         { $inc: { seq: 1 } },
         { new: true, upsert: true }
       );
-      
-      const invoiceNumber = `INV-${year}${month}-${String(counter.seq).padStart(4, "0")}`;
+
+      const invoiceNumber = `INV-${year}${month}-${String(counter.seq).padStart(
+        4,
+        "0"
+      )}`;
 
       // Check if invoice with this number already exists (double safety)
       const existingInvoice = await Invoice.findOne({ invoiceNumber });
       if (existingInvoice) {
-        return res.status(400).json({ 
-          message: "Invoice number generation conflict. Please try again." 
+        return res.status(400).json({
+          message: "Invoice number generation conflict. Please try again.",
         });
       }
 
@@ -348,7 +395,6 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
       });
     }
 
-
     res.json(updatedBooking);
   } catch (err) {
     console.error("Booking update error:", err);
@@ -368,10 +414,10 @@ router.patch("/client/:id", auth, checkRole(["client"]), async (req, res) => {
       return res.status(403).json({ message: "Unauthorized access" });
     }
     const property = await Property.findById(req.body.property);
-    
+
     if (req.body.rooms > property.bedrooms) {
       return res.status(400).json({
-        message: `Only ${property.bedrooms} rooms available`
+        message: `Only ${property.bedrooms} rooms available`,
       });
     }
     const updatedBooking = await Booking.findByIdAndUpdate(

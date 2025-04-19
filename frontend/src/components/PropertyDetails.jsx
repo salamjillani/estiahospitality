@@ -147,6 +147,7 @@ const PropertyDetails = () => {
           property: {
             _id: property._id,
             pricePerNight: property.pricePerNight,
+            pricings: property.pricings,
             currency: property.currency,
             ...property,
           },
