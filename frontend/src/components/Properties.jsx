@@ -1,18 +1,54 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
-import { Loader2, Trash2, Plus, Eye, Building2, MapPin, Bath, Bed, Edit, Droplet, Wifi, Car, Home, Grid, List, Filter } from "lucide-react";
+import {
+  Loader2,
+  Trash2,
+  Plus,
+  Eye,
+  Building2,
+  MapPin,
+  Bath,
+  Bed,
+  Edit,
+  Droplet,
+  Wifi,
+  Car,
+  Home,
+  Grid,
+  List,
+  Filter,
+  Currency,
+} from "lucide-react";
 import Navbar from "./Navbar";
 import { useAuth } from "../context/AuthContext";
 import PropTypes from "prop-types";
 import CategoriesTable from "./CategoriesTable";
+
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
       <div className="relative bg-white rounded-3xl p-4 sm:p-8 w-full max-w-md mx-4 shadow-2xl transform transition-all animate-in slide-in-from-bottom duration-300">
         <div className="flex flex-col gap-4 sm:gap-6">
           <div className="flex items-start gap-3 sm:gap-5">
@@ -61,17 +97,37 @@ const DeleteDialog = ({ isOpen, onClose, onConfirm, propertyTitle }) => {
 const Properties = () => {
   const [properties, setProperties] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [pricings, setPricings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [viewMode, setViewMode] = useState("properties");
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, propertyId: null, propertyTitle: null });
+  const [deleteDialog, setDeleteDialog] = useState({
+    isOpen: false,
+    propertyId: null,
+    propertyTitle: null,
+  });
   const [editingCategory, setEditingCategory] = useState(null);
-  const [categoryForm, setCategoryForm] = useState({ lowSeason: "", highSeason: "", currency: "EUR", description: "" });
+  const [categoryForm, setCategoryForm] = useState({
+    lowSeason: "",
+    highSeason: "",
+    currency: "EUR",
+    description: "",
+  });
   const [categoryUpdateLoading, setCategoryUpdateLoading] = useState(false);
-  
+  const [selectedPricing, setSelectedPricing] = useState(null);
+  const [pricingForm, setPricingForm] = useState({
+    type: "monthly",
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    blockPrices: [{ startDay: 1, endDay: 1, price: 300 }],
+    datePrices: [],
+    applyToAllProperties: false,
+    property: ""
+  });
+
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -112,9 +168,29 @@ const Properties = () => {
     }
   };
 
+  // In Properties component, modify fetchPricings
+  const fetchPricings = async () => {
+    try {
+      const data = await api.get("/api/pricings");
+      // Convert date strings to Date objects
+      const processed = data.map((p) => ({
+        ...p,
+        datePrices:
+          p.datePrices?.map((dp) => ({
+            ...dp,
+            date: new Date(dp.date),
+          })) || [],
+      }));
+      setPricings(processed);
+    } catch (err) {
+      setError("Failed to load pricings: " + err.message);
+    }
+  };
+
   useEffect(() => {
     fetchProperties();
     fetchCategories();
+    fetchPricings();
   }, []);
 
   useEffect(() => {
@@ -139,7 +215,9 @@ const Properties = () => {
     if (!category) return "N/A";
 
     const price = isHighSeason ? category.highSeason : category.lowSeason;
-    return `${currencySymbols[category.currency || currency] || currencySymbols.EUR}${price}`;
+    return `${
+      currencySymbols[category.currency || currency] || currencySymbols.EUR
+    }${price}`;
   };
 
   const handleDeleteConfirm = async () => {
@@ -168,50 +246,166 @@ const Properties = () => {
   const clearCategoryFilter = () => {
     setSelectedCategory(null);
   };
-  
+
   const handleStartEdit = (category) => {
     setEditingCategory(category.type);
     setCategoryForm({
       lowSeason: category.lowSeason,
       highSeason: category.highSeason,
       currency: category.currency,
-      description: category.description
+      description: category.description,
     });
   };
-  
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setCategoryForm(prev => ({
+    setCategoryForm((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
-  
+
   const handleUpdateCategory = async (type) => {
     try {
       setCategoryUpdateLoading(true);
-      const category = categories.find(c => c.type === type);
+      const category = categories.find((c) => c.type === type);
       if (!category) return;
-      
+
       const updatedCategory = {
         ...category,
         lowSeason: parseFloat(categoryForm.lowSeason),
         highSeason: parseFloat(categoryForm.highSeason),
         currency: categoryForm.currency,
-        description: categoryForm.description
+        description: categoryForm.description,
       };
-      
+
       await api.put(`/api/category-prices/${type}`, updatedCategory);
-      
-      setCategories(prev => 
-        prev.map(c => c.type === type ? updatedCategory : c)
+
+      setCategories((prev) =>
+        prev.map((c) => (c.type === type ? updatedCategory : c))
       );
-      
+
       setEditingCategory(null);
     } catch (err) {
       setError("Failed to update category: " + err.message);
     } finally {
       setCategoryUpdateLoading(false);
+    }
+  };
+
+  const handleSavePricing = async () => {
+    try {
+      // Validate inputs
+      if (!pricingForm.applyToAllProperties && !pricingForm.property) {
+        throw new Error("Please select a property or apply to all properties");
+      }
+      
+      if (pricingForm.type === "monthly") {
+        for (const block of pricingForm.blockPrices) {
+          if (block.endDay < block.startDay) {
+            throw new Error("End day cannot be before start day");
+          }
+          if (block.startDay < 1 || block.endDay > 31) {
+            throw new Error("Days must be between 1-31");
+          }
+        }
+      }
+  
+      if (pricingForm.type === "date") {
+        for (const datePrice of pricingForm.datePrices) {
+          const date = new Date(datePrice.date);
+          if (isNaN(date.getTime())) {
+            throw new Error("Invalid date format detected");
+          }
+        }
+      }
+  
+      if (pricingForm.applyToAllProperties) {
+        // Create pricing entries for all properties
+        const savedPricings = [];
+        for (const property of properties) {
+          const pricingData = {
+            ...pricingForm,
+            property: property._id,
+            applyToAllProperties: undefined // Remove this field before saving
+          };
+          
+          if (selectedPricing) {
+            // Update existing pricing
+            const updated = await api.put(
+              `/api/pricings/${selectedPricing._id}`,
+              pricingData
+            );
+            savedPricings.push(updated);
+          } else {
+            // Create new pricing
+            const newPricing = await api.post("/api/pricings", pricingData);
+            savedPricings.push(newPricing);
+          }
+        }
+        
+        // Update state with all saved pricings
+        setPricings((prev) => {
+          const filteredPricings = selectedPricing 
+            ? prev.filter(p => p._id !== selectedPricing._id) 
+            : prev;
+          return [...filteredPricings, ...savedPricings];
+        });
+      } else {
+        // Save pricing for a single property
+        const pricingData = {
+          ...pricingForm,
+          applyToAllProperties: undefined // Remove this field before saving
+        };
+        
+        if (selectedPricing) {
+          const updated = await api.put(
+            `/api/pricings/${selectedPricing._id}`,
+            pricingData
+          );
+          setPricings((prev) =>
+            prev.map((p) => (p._id === updated._id ? updated : p))
+          );
+        } else {
+          const newPricing = await api.post("/api/pricings", pricingData);
+          setPricings((prev) => [...prev, newPricing]);
+        }
+      }
+  
+      // Reset form state
+      setSelectedPricing(null);
+      setPricingForm({
+        type: "monthly",
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+        blockPrices: [{ startDay: 1, endDay: 1, price: 300 }],
+        datePrices: [],
+        applyToAllProperties: false,
+        property: ""
+      });
+    } catch (err) {
+      setError("Failed to save pricing: " + err.message);
+    }
+  };
+
+  const handleEditPricing = (pricing) => {
+    setSelectedPricing(pricing);
+    setPricingForm({
+      ...pricing,
+      datePrices: pricing.datePrices.map(dp => ({
+        ...dp,
+        date: new Date(dp.date).toISOString().split("T")[0]
+      }))
+    });
+  };
+
+  
+  const handleDeletePricing = async (id) => {
+    try {
+      await api.delete(`/api/pricings/${id}`);
+      setPricings((prev) => prev.filter((p) => p._id !== id));
+    } catch (err) {
+      setError("Failed to delete pricing: " + err.message);
     }
   };
 
@@ -233,6 +427,56 @@ const Properties = () => {
       </div>
     );
   }
+
+  const PricingTable = ({ pricings, onEdit, onDelete }) => (
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+        {pricings.map((pricing) => (
+          <div key={pricing._id} className="border rounded-lg p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold">
+                {pricing.type === "monthly"
+                  ? `${monthNames[pricing.month - 1]} ${pricing.year}`
+                  : "Custom Date Pricing"}
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onEdit(pricing)}
+                  className="text-blue-600"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDelete(pricing._id)}
+                  className="text-red-600"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            {pricing.type === "monthly" ? (
+              <div className="grid grid-cols-3 gap-2">
+                {pricing.blockPrices.map((block, idx) => (
+                  <div key={idx} className="p-2 bg-gray-50 rounded">
+                    Days {block.startDay}-{block.endDay}: €{block.price}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pricing.datePrices.map((datePrice, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span>{new Date(datePrice.date).toLocaleDateString()}</span>
+                    <span>€{datePrice.price}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -325,6 +569,19 @@ const Properties = () => {
               <List className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Categories</span>
             </button>
+            {user?.role === "admin" && (
+            <button
+              onClick={() => setViewMode("pricing")}
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-lg font-medium transition-all text-xs sm:text-sm ${
+                viewMode === "pricing"
+                  ? "bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <Currency className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>Pricing</span>
+            </button>
+            )}
           </div>
         </div>
 
@@ -341,6 +598,240 @@ const Properties = () => {
             onInputChange={handleInputChange}
             setCategories={setCategories}
           />
+        ) : viewMode === "pricing" ? (
+          <div className="space-y-6">
+  <div className="bg-white p-6 rounded-xl shadow-sm">
+    <h2 className="text-xl font-bold mb-4">Manage Pricing</h2>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-4">
+        {/* Property selection - new section */}
+        <div className="flex items-center mb-4">
+          <input
+            type="checkbox"
+            id="applyToAll"
+            checked={pricingForm.applyToAllProperties}
+            onChange={(e) =>
+              setPricingForm({
+                ...pricingForm,
+                applyToAllProperties: e.target.checked,
+                property: e.target.checked ? "" : pricingForm.property
+              })
+            }
+            className="mr-2"
+          />
+          <label htmlFor="applyToAll" className="text-sm font-medium">
+            Apply to all properties
+          </label>
+        </div>
+        
+        {!pricingForm.applyToAllProperties && (
+          <select
+            value={pricingForm.property}
+            onChange={(e) =>
+              setPricingForm({ ...pricingForm, property: e.target.value })
+            }
+            className="w-full p-2 border rounded-lg"
+            required
+          >
+            <option value="">Select a property</option>
+            {properties.map((property) => (
+              <option key={property._id} value={property._id}>
+                {property.title}
+              </option>
+            ))}
+          </select>
+        )}
+        
+        {/* Original pricing type selection */}
+        <select
+          value={pricingForm.type}
+          onChange={(e) =>
+            setPricingForm({ ...pricingForm, type: e.target.value })
+          }
+          className="w-full p-2 border rounded-lg"
+        >
+          <option value="monthly">Monthly Block Pricing</option>
+          <option value="date">Custom Date Pricing</option>
+        </select>
+
+        {pricingForm.type === "monthly" ? (
+          <>
+            <input
+              type="month"
+              value={`${pricingForm.year}-${String(
+                pricingForm.month
+              ).padStart(2, "0")}`}
+              onChange={(e) => {
+                const [year, month] = e.target.value.split("-");
+                setPricingForm({
+                  ...pricingForm,
+                  year: parseInt(year),
+                  month: parseInt(month),
+                });
+              }}
+              className="w-full p-2 border rounded-lg"
+            />
+            <div className="space-y-2">
+              {pricingForm.blockPrices.map((block, index) => (
+                <div key={index} className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    placeholder="Start day"
+                    value={block.startDay}
+                    min="1"
+                    max="31"
+                    onChange={(e) => {
+                      const newBlocks = [...pricingForm.blockPrices];
+                      newBlocks[index].startDay = Math.min(
+                        31,
+                        Math.max(1, parseInt(e.target.value))
+                      );
+                      setPricingForm({
+                        ...pricingForm,
+                        blockPrices: newBlocks,
+                      });
+                    }}
+                    className="p-2 border rounded-lg w-20"
+                  />
+                  <span>-</span>
+                  <input
+                    type="number"
+                    placeholder="End day"
+                    value={block.endDay}
+                    min="1"
+                    max="31"
+                    onChange={(e) => {
+                      const newBlocks = [...pricingForm.blockPrices];
+                      newBlocks[index].endDay = Math.min(
+                        31,
+                        Math.max(1, parseInt(e.target.value))
+                      );
+                      setPricingForm({
+                        ...pricingForm,
+                        blockPrices: newBlocks,
+                      });
+                    }}
+                    className="p-2 border rounded-lg w-20"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Price"
+                    value={block.price}
+                    min="1"
+                    onChange={(e) => {
+                      const newBlocks = [...pricingForm.blockPrices];
+                      newBlocks[index].price = parseInt(
+                        e.target.value
+                      );
+                      setPricingForm({
+                        ...pricingForm,
+                        blockPrices: newBlocks,
+                      });
+                    }}
+                    className="p-2 border rounded-lg w-28"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPricingForm({
+                        ...pricingForm,
+                        blockPrices: pricingForm.blockPrices.filter(
+                          (_, i) => i !== index
+                        ),
+                      })
+                    }
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() =>
+                  setPricingForm({
+                    ...pricingForm,
+                    blockPrices: [
+                      ...pricingForm.blockPrices,
+                      { startDay: 1, endDay: 1, price: 300 },
+                    ],
+                  })
+                }
+                className="bg-gray-100 px-4 py-2 rounded-lg hover:bg-gray-200"
+              >
+                Add Block
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-2">
+            {pricingForm.datePrices.map((datePrice, index) => (
+              <div key={index} className="flex gap-2">
+                <input
+                  type="date"
+                  value={
+                    datePrice.date ? datePrice.date.split("T")[0] : ""
+                  }
+                  onChange={(e) => {
+                    const newDates = [...pricingForm.datePrices];
+                    newDates[index].date = new Date(
+                      e.target.value
+                    ).toISOString();
+                    setPricingForm({
+                      ...pricingForm,
+                      datePrices: newDates,
+                    });
+                  }}
+                  className="p-2 border rounded-lg flex-1"
+                />
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={datePrice.price}
+                  onChange={(e) => {
+                    const newDates = [...pricingForm.datePrices];
+                    newDates[index].price = e.target.value;
+                    setPricingForm({
+                      ...pricingForm,
+                      datePrices: newDates,
+                    });
+                  }}
+                  className="p-2 border rounded-lg flex-1"
+                />
+              </div>
+            ))}
+            <button
+              onClick={() =>
+                setPricingForm({
+                  ...pricingForm,
+                  datePrices: [
+                    ...pricingForm.datePrices,
+                    { date: "", price: "" },
+                  ],
+                })
+              }
+              className="bg-gray-100 px-4 py-2 rounded-lg"
+            >
+              Add Date
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={handleSavePricing}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+        >
+          {selectedPricing ? "Update Pricing" : "Create Pricing"}
+        </button>
+      </div>
+    </div>
+  </div>
+            
+  <PricingTable
+    pricings={pricings}
+    onEdit={handleEditPricing}
+    onDelete={handleDeletePricing}
+  />
+</div>
         ) : (
           <>
             <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-0">
@@ -459,22 +950,6 @@ const Properties = () => {
                               {amenity === "parking" && (
                                 <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
                               )}
-                              {amenity === "airConditioning" && (
-                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
-                              )}
-                              {amenity === "kitchen" && (
-                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
-                              )}
-                              {amenity === "tv" && (
-                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
-                              )}
-                              {amenity === "washer" && (
-                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
-                              )}
-                              {amenity === "balcony" && (
-                                <Car className="w-3 h-3 sm:w-4 sm:h-4 text-purple-500" />
-                              )}
-
                               <span className="capitalize text-gray-700 hidden sm:inline">
                                 {amenity.replace(/([A-Z])/g, " $1").trim()}
                               </span>

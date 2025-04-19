@@ -4,9 +4,14 @@ export const calculateNights = (checkIn, checkOut) => {
   
   if (isNaN(start) || isNaN(end)) return 0;
   
-  const diffTime = Math.abs(end - start);
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // Get date parts only (no time) to ensure accurate calculation
+  const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  
+  const diffTime = Math.abs(endDate - startDate);
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 };
+
 export const formatDate = (dateString, format = 'medium') => {
   if (!dateString) return '';
   

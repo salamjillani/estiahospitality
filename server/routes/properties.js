@@ -89,10 +89,10 @@ router.post('/', auth, checkRole(['admin']), async (req, res) => {
 
 router.put('/:id', auth, adminOnly, async (req, res) => {
   try {
-    const { pricePerNight, ...updateData } = req.body;
+   
     const property = await Property.findByIdAndUpdate(
       req.params.id,
-      { ...updateData, pricePerNight },
+     
       req.body,
       { new: true }
     );

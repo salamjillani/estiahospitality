@@ -12,6 +12,8 @@ const Booking = require("./models/Booking");
 const jwt = require("jsonwebtoken");
 const invoiceRoutes = require("./routes/invoices");
 const categoryPriceRoutes = require('./routes/categoryPrices');
+const pricingRoutes = require('./routes/pricing');
+
 
 // Initialize Express and HTTP server
 const app = express();
@@ -119,6 +121,7 @@ app.use("/api/bookings", require("./routes/bookings"));
 app.use("/api/booking-agents", require("./routes/bookingAgents"));
 app.use('/api/category-prices', categoryPriceRoutes);
 app.use("/api/invoices", invoiceRoutes);
+app.use('/api/pricings', pricingRoutes);
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));

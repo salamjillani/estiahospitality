@@ -69,11 +69,7 @@ const propertySchema = new mongoose.Schema(
       weekly: Number,
       monthly: Number,
     },
-    pricePerNight: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
+
     photos: [
       {
         url: String,

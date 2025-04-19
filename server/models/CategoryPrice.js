@@ -15,6 +15,10 @@ const categoryPriceSchema = new mongoose.Schema({
     required: true,
     min: 1
   },
+  seasonalFee: {
+    type: Number,
+    default: 0
+  },
   highSeason: {
     type: Number,
     required: true,

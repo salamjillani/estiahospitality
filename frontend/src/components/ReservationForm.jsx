@@ -45,6 +45,17 @@ const getMonthName = (month) => {
   return months[month];
 };
 
+const currencySymbols = {
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  INR: "₹",
+  JPY: "¥",
+  CAD: "CA$",
+  AUD: "A$",
+  SGD: "S$",
+};
+
 const isPastDate = (date) => {
   const today = new Date();
   const todayDate = new Date(
@@ -350,9 +361,12 @@ const ReservationForm = () => {
   const navigate = useNavigate();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [maxGuests, setMaxGuests] = useState(0);
+  const [pricings, setPricings] = useState([]);
+  const [seasonalFee, setSeasonalFee] = useState(0);
   const { user, loading: authLoading } = useAuth();
   const [bookedDates, setBookedDates] = useState([]);
   const [fetchingBookings, setFetchingBookings] = useState(false);
+  const [dailyRateBreakdown, setDailyRateBreakdown] = useState([]);
 
   const [formData, setFormData] = useState({
     checkInDate: "",
@@ -380,6 +394,7 @@ const ReservationForm = () => {
     currency: "USD",
     title: "",
     rooms: 1,
+    type: "", // Added property type for seasonal fee calculation
   });
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -426,7 +441,144 @@ const ReservationForm = () => {
     }
   }, [authLoading, user, navigate, isInitialized]);
 
-  // Fetch property details and bookings
+  useEffect(() => {
+    const fetchPricingData = async () => {
+      if (propertyId) {
+        try {
+          // Get pricings
+          const pricingRes = await api.get(
+            `/api/pricings/property/${propertyId}`
+          );
+          setPricings(pricingRes);
+
+          // Get seasonal fee
+          const categoriesRes = await api.get("/api/category-prices");
+          const category = categoriesRes.find(
+            (cat) => cat.type === propertyDetails.type
+          );
+
+          if (category) {
+            const currentMonth = new Date().getMonth() + 1;
+            const isHighSeason = currentMonth >= 4 && currentMonth <= 10;
+            setSeasonalFee(
+              isHighSeason ? category.highSeason : category.lowSeason
+            );
+            setPropertyDetails((prev) => ({
+              ...prev,
+              currency: category.currency || prev.currency,
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching pricing data:", error);
+        }
+      }
+    };
+
+    if (propertyDetails.type) {
+      fetchPricingData();
+    }
+  }, [propertyId, propertyDetails.type]);
+
+  useEffect(() => {
+    const calculatePrice = () => {
+      if (!formData.checkInDate || !formData.checkOutDate) return;
+
+      let total = 0;
+      const startDate = new Date(formData.checkInDate);
+      const endDate = new Date(formData.checkOutDate);
+      const breakdown = [];
+
+      // Calculate daily prices
+      const currentDate = new Date(startDate);
+
+      // Loop through each date in the range (excluding the checkout date)
+      while (currentDate < endDate) {
+        const dateStr = currentDate.toISOString().split("T")[0];
+        let dayPrice = propertyDetails.pricePerNight;
+        let priceSource = "base";
+
+        // 1. Check custom date pricing first
+        const datePricings = pricings.filter((p) => p.type === "date");
+
+        if (datePricings.length > 0) {
+          for (const pricing of datePricings) {
+            if (pricing.datePrices && Array.isArray(pricing.datePrices)) {
+              const matchingDatePrice = pricing.datePrices.find((dp) => {
+                const dpDate = new Date(dp.date);
+                return dpDate.toISOString().split("T")[0] === dateStr;
+              });
+
+              if (matchingDatePrice) {
+                dayPrice = matchingDatePrice.price;
+                priceSource = "date-specific";
+                break;
+              }
+            }
+          }
+        }
+
+        // 2. If no date-specific price found, check monthly pricing
+        if (priceSource === "base") {
+          const monthlyPricing = pricings.find(
+            (p) =>
+              p.type === "monthly" &&
+              p.month === currentDate.getMonth() + 1 &&
+              p.year === currentDate.getFullYear()
+          );
+
+          if (
+            monthlyPricing &&
+            monthlyPricing.blockPrices &&
+            Array.isArray(monthlyPricing.blockPrices)
+          ) {
+            const dayOfMonth = currentDate.getDate();
+            const block = monthlyPricing.blockPrices.find(
+              (b) => dayOfMonth >= b.startDay && dayOfMonth <= b.endDay
+            );
+
+            if (block) {
+              dayPrice = block.price;
+              priceSource = "monthly-block";
+            }
+          }
+        }
+
+        // Add to total and breakdown
+        total += dayPrice;
+        breakdown.push({
+          date: dateStr,
+          price: dayPrice,
+          source: priceSource,
+        });
+
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      // Add seasonal fee once (not per night)
+      if (seasonalFee > 0) {
+        total += seasonalFee;
+        breakdown.push({
+          date: "seasonal-fee",
+          price: seasonalFee,
+          source: "seasonal",
+        });
+      }
+
+      // Update state with the calculated values
+      setDailyRateBreakdown(breakdown);
+      setCalculatedPrice(total);
+    };
+
+    calculatePrice();
+  }, [
+    formData.checkInDate,
+    formData.checkOutDate,
+    pricings,
+    seasonalFee,
+    propertyDetails.pricePerNight,
+  ]);
+
   useEffect(() => {
     const loadProperty = async () => {
       try {
@@ -434,9 +586,10 @@ const ReservationForm = () => {
         setMaxGuests(data.guestCapacity || 1);
         setPropertyDetails({
           pricePerNight: data.pricePerNight || 0,
-          currency: data.currency || data.bankDetails?.currency || "USD",
+          currency: data.bankDetails?.currency || "EUR",
           title: data.title || "Property",
           rooms: data.bedrooms || 1,
+          type: data.type || "", // Added property type
         });
       } catch (err) {
         setError("Failed to load property details");
@@ -487,6 +640,7 @@ const ReservationForm = () => {
         currency: location.state.property.currency || "USD",
         title: location.state.property.title || "Property",
         rooms: location.state.property.bedrooms || 1,
+        type: location.state.property.type || "", // Added property type
       });
     } else if (propertyId) {
       loadProperty();
@@ -502,17 +656,12 @@ const ReservationForm = () => {
         formData.checkOutDate
       );
 
-      if (nights > 0) {
-        const total = nights * propertyDetails.pricePerNight;
+      if (nights >= 0) {
+        // Allow 0 as a valid result during calculation
         setFormData((prev) => ({ ...prev, nights }));
-        setCalculatedPrice(total);
       }
     }
-  }, [
-    formData.checkInDate,
-    formData.checkOutDate,
-    propertyDetails.pricePerNight,
-  ]);
+  }, [formData.checkInDate, formData.checkOutDate]);
 
   const handleSelectCheckInDate = (date) => {
     setFormData((prev) => ({
@@ -527,19 +676,19 @@ const ReservationForm = () => {
 
   const handleSelectCheckOutDate = (date) => {
     if (!formData.checkInDate) return;
-  
+
     const start = new Date(formData.checkInDate);
     const end = new Date(date);
-    
+
     // Clear previous error immediately
     setError("");
-  
+
     // Check if end date is before or equal to start
     if (end <= start) {
       setError("Check-out date must be after check-in date");
       return;
     }
-  
+
     // Format date for consistent checking
     const formatDateString = (d) => {
       const year = d.getFullYear();
@@ -547,27 +696,27 @@ const ReservationForm = () => {
       const day = String(d.getDate()).padStart(2, "0");
       return `${year}-${month}-${day}`;
     };
-  
-    // Check each date in the range including end date
+
+    // Check each date in the range excluding end date
     let currentDate = new Date(start);
     currentDate.setDate(currentDate.getDate() + 1); // Start from day after check-in
-    
-    // Changed condition to check up to and including end date
-    while (currentDate <= end) {
+
+    // Changed condition to check up to end date (not including)
+    while (currentDate < end) {
       const dateStr = formatDateString(currentDate);
       if (bookedDates.includes(dateStr)) {
         setError("Selected range contains unavailable dates");
         return;
       }
-      
+
       if (isPastDate(currentDate)) {
         setError("Selected range contains past dates");
         return;
       }
-      
+
       currentDate.setDate(currentDate.getDate() + 1);
     }
-  
+
     setFormData((prev) => ({ ...prev, checkOutDate: date }));
   };
 
@@ -843,28 +992,62 @@ const ReservationForm = () => {
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-lg sm:rounded-xl border border-blue-100 shadow-sm">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-gray-700 font-medium text-sm sm:text-base">
-                  Price per night
-                </span>
-                <span className="text-base sm:text-lg font-semibold">
-                  {propertyDetails.currency} {propertyDetails.pricePerNight}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-gray-700 font-medium text-sm sm:text-base">
                   Nights
                 </span>
                 <span className="text-base sm:text-lg font-semibold">
                   {formData.nights}
                 </span>
               </div>
-
+              {dailyRateBreakdown.length > 0 && (
+                <div className="mb-3">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    Price Breakdown
+                  </h4>
+                  <div className="max-h-48 overflow-y-auto bg-white rounded-lg p-3 border border-blue-100">
+                    {dailyRateBreakdown.map((item, index) =>
+                      item.source === "seasonal" ? (
+                        <div
+                          key={`price-${index}`}
+                          className="flex justify-between items-center text-sm py-1 border-b border-blue-50 last:border-0"
+                        >
+                          <span className="text-gray-600 flex items-center">
+                            <span className="w-2 h-2 inline-block bg-purple-500 rounded-full mr-2"></span>
+                            Seasonal Fee
+                          </span>
+                          <span className="font-medium">
+                            {currencySymbols[propertyDetails.currency]}{" "}
+                            {item.price.toFixed(2)}
+                          </span>
+                        </div>
+                      ) : (
+                        <div
+                          key={`price-${index}`}
+                          className="flex justify-between items-center text-sm py-1 border-b border-blue-50 last:border-0"
+                        >
+                          <span className="text-gray-600 flex items-center">
+                            <span className="w-2 h-2 inline-block bg-blue-500 rounded-full mr-2"></span>
+                            {new Date(item.date).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                          <span className="font-medium">
+                            {currencySymbols[propertyDetails.currency]}{" "}
+                            {item.price.toFixed(2)}
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="border-t border-blue-200 my-3 pt-3 flex justify-between items-center">
                 <span className="text-gray-900 font-semibold text-sm sm:text-base">
                   Total Price
                 </span>
                 <span className="text-xl sm:text-2xl font-bold text-blue-700">
-                  {propertyDetails.currency} {calculatedPrice.toFixed(2)}
+                  {currencySymbols[propertyDetails.currency]}{" "}
+                  {calculatedPrice.toFixed(2)}
                 </span>
               </div>
             </div>

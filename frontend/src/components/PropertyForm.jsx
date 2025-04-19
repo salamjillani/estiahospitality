@@ -15,7 +15,6 @@ import {
   Home,
   BedDouble,
   Bath,
-  DollarSign,
   FileText,
   Cloud,
   Star,
@@ -123,7 +122,6 @@ const PropertyForm = () => {
       washer: false,
       balcony: false,
     },
-    pricePerNight: "",
     photos: [],
   });
 
@@ -234,8 +232,6 @@ const PropertyForm = () => {
   }, []);
 
   useEffect(() => {
-    const currentMonth = new Date().getMonth() + 1;
-    const isHighSeason = currentMonth >= 4 && currentMonth <= 10;
     const selectedCategory = categories.find(
       (cat) => cat.type === property.type
     );
@@ -243,9 +239,6 @@ const PropertyForm = () => {
     if (selectedCategory) {
       setProperty((prev) => ({
         ...prev,
-        pricePerNight: isHighSeason
-          ? selectedCategory.highSeason
-          : selectedCategory.lowSeason,
         bankDetails: {
           ...prev.bankDetails,
           currency: selectedCategory.currency || "EUR",
@@ -254,7 +247,6 @@ const PropertyForm = () => {
     } else {
       setProperty((prev) => ({
         ...prev,
-        pricePerNight: "",
         bankDetails: {
           ...prev.bankDetails,
           currency: "EUR",
@@ -639,25 +631,6 @@ const PropertyForm = () => {
                       handleInputChange("guestCapacity", e.target.value)
                     }
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-300 bg-white shadow-sm hover:border-indigo-400"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="relative">
-                <label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                  Price Per Night <span className="text-red-500 ml-1">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500">
-                    <DollarSign className="w-5 h-5" />
-                  </div>
-                  <input
-                    type="number"
-                    min="1"
-                    value={property.pricePerNight}
-                    readOnly
-                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 cursor-not-allowed shadow-sm"
                     required
                   />
                 </div>
