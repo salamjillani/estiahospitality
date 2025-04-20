@@ -36,6 +36,13 @@ export const api = {
         throw new Error("Session expired. Please login again.");
       }
 
+      if (response.status === 401) {
+        throw new Error("Session expired. Please login again.");
+      }
+      if (response.status === 403) {
+        throw new Error("Forbidden: Insufficient permissions");
+      }
+
       const contentType = response.headers.get("content-type");
       if (!contentType?.includes("application/json")) {
         const text = await response.text();

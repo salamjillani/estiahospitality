@@ -13,6 +13,15 @@ router.get('/',  auth, checkRole(['admin']), async (req, res) => {
   }
 });
 
+router.get('/public', async (req, res) => {
+  try {
+    const agents = await BookingAgent.find().sort({ name: 1 });
+    res.json(agents);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.post('/', auth, checkRole(['admin']), async (req, res) => {
   try {
     const { name, commissionPercentage } = req.body;

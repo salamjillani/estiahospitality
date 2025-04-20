@@ -31,6 +31,7 @@ router.get("/admin", auth, adminOnly, async (req, res) => {
           select: "name email title checkInDate checkOutDate",
         },
       })
+      .populate("bookingAgent", "name commissionPercentage")
       .populate("property", "title")
       .populate("user", "name email")
       .populate({
@@ -259,6 +260,8 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
       totalPrice: req.body.totalPrice,
       currency: property.bankDetails.currency,
       pricePerNight: property.pricePerNight,
+      bookingAgent: req.body.bookingAgent || undefined,
+      commissionPercentage: req.body.commissionPercentage || 0,
       paymentMethod: req.body.paymentMethod,
       user: req.user.id,
       status: "pending",
@@ -356,6 +359,11 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
           rooms: booking.rooms,
           adults: booking.adults,
           children: booking.children,
+        },
+        commission: {
+          agent: booking.bookingAgent,
+          percentage: booking.commissionPercentage,
+          amount: booking.totalPrice * (booking.commissionPercentage / 100)
         },
         propertyDetails: {
           title: booking.property.title,

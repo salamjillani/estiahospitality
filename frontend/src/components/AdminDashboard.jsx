@@ -8,13 +8,18 @@ import {
   Calendar,
   Shield,
   Download,
-  Banknote,
   ChevronRight,
   AlertTriangle,
   User,
   ClipboardList,
   ArrowUpRight,
-  Clock
+  Clock,
+  Plus,
+  Trash2,
+  PencilLine,
+  Save,
+  X,
+  UserPlus
 } from "lucide-react";
 
 const AdminDashboard = () => {
@@ -24,6 +29,12 @@ const AdminDashboard = () => {
   const [error, setError] = useState("");
   const [downloadingInvoice, setDownloadingInvoice] = useState(null);
   const { user } = useAuth();
+
+  // Agents management state
+  const [agents, setAgents] = useState([]);
+  const [newAgent, setNewAgent] = useState({ name: "", commission: "" });
+  const [editingAgentId, setEditingAgentId] = useState(null);
+  const [agentsError, setAgentsError] = useState("");
 
   const BASE_URL = import.meta.env.VITE_API_URL || "";
 
@@ -78,11 +89,60 @@ const AdminDashboard = () => {
     }
   };
 
+  // Agent management functions
+  const handleCreateAgent = async () => {
+    if (!newAgent.name || !newAgent.commission) {
+      setAgentsError("Agent name and commission percentage are required");
+      return;
+    }
+    
+    try {
+      setAgentsError("");
+      const agent = await api.post('/api/booking-agents', {
+        name: newAgent.name.trim(),
+        commissionPercentage: parseFloat(newAgent.commission)
+      });
+      setAgents([...agents, agent]);
+      setNewAgent({ name: '', commission: '' });
+    } catch (err) {
+      console.error("Failed to create agent:", err);
+      setAgentsError(err.message || "Failed to create agent");
+    }
+  };
+
+  const handleUpdateAgent = async (id) => {
+    const agent = agents.find(a => a._id === id);
+    try {
+      setAgentsError("");
+      const updated = await api.put(`/api/booking-agents/${id}`, {
+        name: agent.name,
+        commissionPercentage: parseFloat(agent.commissionPercentage)
+      });
+      setAgents(agents.map(a => a._id === id ? updated : a));
+      setEditingAgentId(null);
+    } catch (err) {
+      console.error("Failed to update agent:", err);
+      setAgentsError(err.message || "Failed to update agent");
+    }
+  };
+
+  const handleDeleteAgent = async (id) => {
+    try {
+      setAgentsError("");
+      await api.delete(`/api/booking-agents/${id}`);
+      setAgents(agents.filter(a => a._id !== id));
+    } catch (err) {
+      console.error("Failed to delete agent:", err);
+      setAgentsError(err.message || "Failed to delete agent");
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError("");
+        setAgentsError("");
 
         // Fetch users
         const usersRes = await api.get("/api/auth/users");
@@ -91,6 +151,9 @@ const AdminDashboard = () => {
         const bookingsRes = await api.get(
           "/api/bookings/admin/bookings?populate=invoice"
         );
+
+        // Fetch booking agents
+        const agentsRes = await api.get("/api/booking-agents");
 
         // Process bookings data with safer access to possibly undefined properties
         const processedBookings = Array.isArray(bookingsRes.data || bookingsRes)
@@ -127,6 +190,7 @@ const AdminDashboard = () => {
         );
         setUsers(usersRes.data || usersRes);
         setBookings(processedBookings);
+        setAgents(Array.isArray(agentsRes) ? agentsRes : (agentsRes.data || []));
       } catch (err) {
         console.error("Fetch error:", err);
         setError(err.message || "Failed to fetch data");
@@ -224,18 +288,174 @@ const AdminDashboard = () => {
             <div className="bg-white p-4 sm:p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 sm:col-span-2 md:col-span-1">
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="p-2 sm:p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md">
-                  <Banknote className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                  <UserPlus className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-gray-500 text-xs sm:text-sm font-medium">Active Reservations</h3>
+                  <h3 className="text-gray-500 text-xs sm:text-sm font-medium">Booking Agents</h3>
                   <p className="text-xl sm:text-2xl font-bold text-gray-800">
-                    {bookings.filter((b) => b.status === "confirmed").length}
+                    {agents.length}
                   </p>
                 </div>
               </div>
               <div className="mt-2 sm:mt-3 text-xs text-green-600 flex items-center">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
-                <span>Current confirmed bookings</span>
+                <span>Registered agents</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Agents Management Section */}
+          <div className="mb-8 sm:mb-12">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-2 text-gray-800">
+                <UserPlus className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" /> Booking Agents
+              </h2>
+              <span className="bg-indigo-100 text-indigo-800 text-xs sm:text-sm px-2 sm:px-3 py-1 rounded-full font-medium shadow-sm">
+                {agents.length} agents
+              </span>
+            </div>
+            
+            {/* New Agent Form */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-6 transition-all duration-200 hover:shadow-md">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <input
+                  type="text"
+                  placeholder="Agent Name"
+                  className="md:col-span-2 w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                  value={newAgent.name}
+                  onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
+                />
+                <input
+                  type="number"
+                  placeholder="Commission %"
+                  className="md:col-span-2 w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                  value={newAgent.commission}
+                  onChange={(e) => setNewAgent({ ...newAgent, commission: e.target.value })}
+                />
+                <button 
+                  onClick={handleCreateAgent}
+                  className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 active:bg-indigo-800 transition-colors duration-200 flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Agent</span>
+                </button>
+              </div>
+              
+              {agentsError && (
+                <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                  {agentsError}
+                </div>
+              )}
+            </div>
+
+            {/* Agents Table */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                    <tr>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                        Agent Name
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                        Commission %
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {agents.length > 0 ? (
+                      agents.map((agent) => (
+                        <tr
+                          key={agent._id}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-3 sm:px-6 py-3 sm:py-4">
+                            {editingAgentId === agent._id ? (
+                              <input
+                                value={agent.name}
+                                onChange={(e) => setAgents(agents.map(a => 
+                                  a._id === agent._id ? {...a, name: e.target.value} : a
+                                ))}
+                                className="w-full px-3 py-1 rounded border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="h-7 w-7 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold shadow-sm">
+                                  {agent.name.charAt(0).toUpperCase()}
+                                </div>
+                                <span className="font-medium text-gray-800">{agent.name}</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4">
+                            {editingAgentId === agent._id ? (
+                              <input
+                                type="number"
+                                value={agent.commissionPercentage}
+                                onChange={(e) => setAgents(agents.map(a => 
+                                  a._id === agent._id ? {...a, commissionPercentage: e.target.value} : a
+                                ))}
+                                className="w-24 px-3 py-1 rounded border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              />
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                {agent.commissionPercentage}%
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4">
+                            <div className="flex gap-2">
+                              {editingAgentId === agent._id ? (
+                                <>
+                                  <button
+                                    onClick={() => handleUpdateAgent(agent._id)}
+                                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                    title="Save"
+                                  >
+                                    <Save className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingAgentId(null)}
+                                    className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                                    title="Cancel"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => setEditingAgentId(agent._id)}
+                                    className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                    title="Edit"
+                                  >
+                                    <PencilLine className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteAgent(agent._id)}
+                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="3" className="px-6 py-4 text-center text-gray-500 italic">
+                          No agents found. Add your first booking agent above.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

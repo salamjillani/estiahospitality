@@ -384,11 +384,14 @@ const ReservationForm = () => {
     arrivalTime: "",
     paymentMethod: "cash",
     property: propertyId || location.state?.propertyId || "",
+    bookingAgent: "",
+    commissionPercentage: 0,
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [calculatedPrice, setCalculatedPrice] = useState(0);
+  const [agents, setAgents] = useState([]);
   const [propertyDetails, setPropertyDetails] = useState({
     pricePerNight: 0,
     currency: "USD",
@@ -423,6 +426,21 @@ const ReservationForm = () => {
   }, [propertyId, location.state?.propertyId]);
 
   useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const response = await api.get("/api/booking-agents/public");
+        setAgents(response);
+      } catch (err) {
+        console.error("Failed to fetch agents:", err);
+        if (err.message.includes("401")) {
+          navigate("/auth?session=expired");
+        }
+      }
+    };
+    fetchAgents();
+  }, [navigate]);
+
+  useEffect(() => {
     if (!propertyId && !location.state?.propertyId) {
       navigate("/properties");
     }
@@ -445,15 +463,18 @@ const ReservationForm = () => {
     const fetchPricingData = async () => {
       if (propertyId) {
         try {
-          const response = await api.get(`/api/pricings/property/${propertyId}`);
-      const processed = response.map(p => ({
-        ...p,
-        datePrices: p.datePrices?.map(dp => ({
-          ...dp,
-          date: new Date(dp.date) 
-        })) || []
-      }));
-      setPricings(processed);
+          const response = await api.get(
+            `/api/pricings/property/${propertyId}`
+          );
+          const processed = response.map((p) => ({
+            ...p,
+            datePrices:
+              p.datePrices?.map((dp) => ({
+                ...dp,
+                date: new Date(dp.date),
+              })) || [],
+          }));
+          setPricings(processed);
 
           // Get seasonal fee
           const categoriesRes = await api.get("/api/category-prices");
@@ -488,81 +509,83 @@ const ReservationForm = () => {
   useEffect(() => {
     const calculatePrice = () => {
       if (!formData.checkInDate || !formData.checkOutDate) return;
-    
+
       let total = 0;
       const startDate = new Date(formData.checkInDate);
       const endDate = new Date(formData.checkOutDate);
       const breakdown = [];
       const currentDate = new Date(startDate);
-    
+
       // Convert all pricing dates to UTC for accurate comparison
-      const processedPricings = pricings.map(pricing => ({
+      const processedPricings = pricings.map((pricing) => ({
         ...pricing,
-        datePrices: pricing.datePrices?.map(dp => ({
-          date: new Date(dp.date).toISOString().split('T')[0],
-          price: dp.price
-        })) || []
+        datePrices:
+          pricing.datePrices?.map((dp) => ({
+            date: new Date(dp.date).toISOString().split("T")[0],
+            price: dp.price,
+          })) || [],
       }));
-    
+
       while (currentDate < endDate) {
-        const dateStr = currentDate.toISOString().split('T')[0];
+        const dateStr = currentDate.toISOString().split("T")[0];
         let dayPrice = propertyDetails.pricePerNight;
         let priceSource = "base";
-    
+
         // 1. Check date-specific pricing (both property-specific and global)
         const dateMatches = processedPricings
-          .filter(p => p.type === "date")
-          .flatMap(p => p.datePrices)
-          .filter(dp => dp.date === dateStr);
-    
+          .filter((p) => p.type === "date")
+          .flatMap((p) => p.datePrices)
+          .filter((dp) => dp.date === dateStr);
+
         if (dateMatches.length > 0) {
           // Use the highest priority pricing (latest or highest price)
-          dayPrice = Math.max(...dateMatches.map(dp => dp.price));
+          dayPrice = Math.max(...dateMatches.map((dp) => dp.price));
           priceSource = "date-specific";
         }
-    
+
         // 2. Check monthly pricing if no date-specific price found
         if (priceSource === "base") {
-          const monthlyMatch = processedPricings.find(p => 
-            p.type === "monthly" &&
-            p.month === currentDate.getUTCMonth() + 1 &&
-            p.year === currentDate.getUTCFullYear()
+          const monthlyMatch = processedPricings.find(
+            (p) =>
+              p.type === "monthly" &&
+              p.month === currentDate.getUTCMonth() + 1 &&
+              p.year === currentDate.getUTCFullYear()
           );
-    
+
           if (monthlyMatch) {
             const dayOfMonth = currentDate.getUTCDate();
-            const block = monthlyMatch.blockPrices.find(b => 
-              dayOfMonth >= b.startDay && dayOfMonth <= b.endDay
+            const block = monthlyMatch.blockPrices.find(
+              (b) => dayOfMonth >= b.startDay && dayOfMonth <= b.endDay
             );
-            
+
             if (block) {
               dayPrice = block.price;
               priceSource = "monthly-block";
             }
           }
         }
-    
+
         // Add to total and breakdown
         total += dayPrice;
         breakdown.push({
           date: dateStr,
           price: dayPrice,
-          source: priceSource
+          source: priceSource,
         });
-    
+
         currentDate.setDate(currentDate.getDate() + 1);
       }
-    
+
       // Add seasonal fee once
       if (seasonalFee > 0) {
         total += seasonalFee;
         breakdown.push({
           date: "seasonal-fee",
           price: seasonalFee,
-          source: "seasonal"
+          source: "seasonal",
         });
       }
-    
+
       setDailyRateBreakdown(breakdown);
       setCalculatedPrice(total);
     };
@@ -581,10 +604,10 @@ const ReservationForm = () => {
       try {
         const data = await api.get(`/api/properties/${propertyId}`);
         const price = Number(data.pricePerNight || data.rates?.nightly || 0);
-        
-    if (!price || isNaN(price)) {
-      throw new Error("Property pricing not configured");
-    }
+
+        if (!price || isNaN(price)) {
+          throw new Error("Property pricing not configured");
+        }
         if (!data.pricePerNight && !data.rates?.nightly) {
           throw new Error("Property pricing not configured");
         }
@@ -850,19 +873,19 @@ const ReservationForm = () => {
   const submitBooking = async () => {
     setLoading(true);
     setError("");
-  
+
     if (isNaN(calculatedPrice)) {
       setError("Invalid price calculation");
       setLoading(false);
       return;
     }
-  
+
     if (calculatedPrice <= 0) {
       setError("Total price must be greater than 0");
       setLoading(false);
       return;
     }
-  
+
     const bookingData = {
       ...formData,
       totalPrice: calculatedPrice,
@@ -872,9 +895,12 @@ const ReservationForm = () => {
       status: "pending",
       checkInDate: new Date(formData.checkInDate).toISOString(),
       checkOutDate: new Date(formData.checkOutDate).toISOString(),
-      property: propertyId || location.state?.propertyId
+      bookingAgent: formData.bookingAgent || undefined,
+      bookingSource: formData.bookingAgent ? "agent" : "direct",
+      commissionPercentage: formData.commissionPercentage || 0,
+      property: propertyId || location.state?.propertyId,
     };
-  
+
     try {
       const response = await api.post("/api/bookings", bookingData);
       websocketService.emit("newBooking", response.data);
@@ -882,7 +908,9 @@ const ReservationForm = () => {
         state: { success: "Booking request submitted successfully!" },
       });
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Failed to submit booking");
+      setError(
+        err.response?.data?.message || err.message || "Failed to submit booking"
+      );
       if (err.response?.status === 401) {
         navigate("/auth?session=expired");
       }
@@ -1302,7 +1330,59 @@ const ReservationForm = () => {
                   </p>
                 )}
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                  Booking Channel
+                </label>
+                <div className="relative">
+                  <Users className="absolute left-2 sm:left-3 top-2 sm:top-3 h-4 sm:h-5 w-4 sm:w-5 text-gray-400" />
+                  <select
+                    name="bookingAgent"
+                    value={formData.bookingAgent}
+                    onChange={(e) => {
+                      const selectedAgent = agents.find(
+                        (a) => a._id === e.target.value
+                      );
+                      setFormData((prev) => ({
+                        ...prev,
+                        bookingAgent: e.target.value,
+                        commissionPercentage:
+                          selectedAgent?.commissionPercentage || 0,
+                      }));
+                    }}
+                    className="w-full pl-8 sm:pl-10 p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white text-sm sm:text-base"
+                  >
+                    <option value="">Select Booking Channel</option>
+                    {agents.map((agent) => (
+                      <option key={agent._id} value={agent._id}>
+                        {agent.name} ({agent.commissionPercentage}% commission)
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                    <svg
+                      className="fill-current h-4 w-4"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                  Commission Percentage
+                </label>
+                <input
+                  type="number"
+                  name="commissionPercentage"
+                  value={formData.commissionPercentage}
+                  readOnly
+                  className="w-full p-2 border rounded-md bg-gray-100 cursor-not-allowed"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Adults * ({formData.adults}/{maxGuests} maximum)
@@ -1406,14 +1486,14 @@ const ReservationForm = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-              Special Requests
+              Remarks
             </label>
             <textarea
               name="specialRequests"
               value={formData.specialRequests}
               onChange={handleChange}
               className="w-full p-2 sm:p-3 border border-gray-300 rounded-md sm:rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all h-24 sm:h-32 text-sm sm:text-base"
-              placeholder="Let us know if you have any special requirements..."
+              placeholder="Remarks (Optional)..."
             />
           </div>
 

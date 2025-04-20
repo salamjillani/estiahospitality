@@ -60,6 +60,15 @@ const bookingSchema = new mongoose.Schema(
       default: "cash",
       required: true
     },
+    bookingAgent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "BookingAgent"
+    },
+    commissionPercentage: {
+      type: Number,
+      min: 0,
+      max: 100
+    },
     statusHistory: [{
       status: String,
       changedAt: Date,
