@@ -5,22 +5,29 @@ const Property = require('../models/Property');
 const { auth, adminOnly } = require('../middleware/auth');
 const mongoose = require('mongoose'); 
 
+
 router.get('/', async (req, res) => {
   try {
-    const pricings = await Pricing.find().populate('property', 'title type');
-    
-    // Map date objects to ISO strings for datePrices
+    const pricings = await Pricing.find()
+      .populate({
+        path: 'property',
+        select: 'title type',
+        options: { retainNullValues: true }
+      });
+
     const formattedPricings = pricings.map(pricing => {
-      const formattedPricing = pricing.toObject();
-      if (formattedPricing.datePrices && formattedPricing.datePrices.length > 0) {
-        formattedPricing.datePrices = formattedPricing.datePrices.map(dp => ({
+      const formatted = pricing.toObject();
+      
+      if (formatted.datePrices) {
+        formatted.datePrices = formatted.datePrices.map(dp => ({
           ...dp,
           date: dp.date instanceof Date ? dp.date.toISOString() : dp.date
         }));
       }
-      return formattedPricing;
+      
+      return formatted;
     });
-    
+
     res.json(formattedPricings);
   } catch (err) {
     res.status(500).json({ message: err.message });

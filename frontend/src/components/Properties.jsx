@@ -168,21 +168,29 @@ const Properties = () => {
     }
   };
 
+
   const fetchPricings = async () => {
     try {
       const response = await api.get("/api/pricings");
-      const data = Array.isArray(response.data) ? response.data : [];
-      const processed = data.map((p) => ({
-        ...p,
-        datePrices:
-          p.datePrices?.map((dp) => ({
+      
+ 
+      const data = Array.isArray(response) ? response : (response.data || []);
+      
+      const processed = data.map((pricing) => {
+        return {
+          ...pricing,
+          datePrices: pricing.datePrices?.map(dp => ({
             ...dp,
-            date: new Date(dp.date),
-          })) || [],
-      }));
+            date: dp.date ? new Date(dp.date).toISOString().split('T')[0] : ''
+          })) || []
+        };
+      });
+      
       setPricings(processed);
+      return processed;
     } catch (err) {
       setError("Failed to load pricings: " + err.message);
+      return [];
     }
   };
 
@@ -191,6 +199,13 @@ const Properties = () => {
     fetchCategories();
     fetchPricings();
   }, []);
+
+  useEffect(() => {
+    fetchPricings().then(() => {
+      console.log("Loaded pricings:", pricings);
+    });
+  }, []);
+
 
   useEffect(() => {
     if (!user && !loading) {
@@ -652,10 +667,33 @@ const Properties = () => {
     setSelectedPricing(pricing);
     setPricingForm({
       ...pricing,
-      datePrices: pricing.datePrices.map((dp) => ({
-        ...dp,
-        date: new Date(dp.date).toISOString().split("T")[0],
-      })),
+      datePrices: pricing.datePrices.map((dp) => {
+        let dateValue;
+   
+        if (dp.date) {
+          if (typeof dp.date === 'string') {
+      
+            dateValue = dp.date.split('T')[0];
+          } else if (dp.date instanceof Date) {
+        
+            dateValue = dp.date.toISOString().split('T')[0];
+          } else {
+          
+            try {
+              dateValue = new Date(dp.date).toISOString().split('T')[0];
+            } catch {
+              dateValue = '';
+            }
+          }
+        } else {
+          dateValue = '';
+        }
+        
+        return {
+          ...dp,
+          date: dateValue
+        };
+      }),
     });
   };
 
