@@ -88,6 +88,7 @@ router.get("/client/:userId", auth, async (req, res) => {
 
     const bookings = await Booking.find({ user: req.params.userId })
       .populate("property", "title location pricePerNight")
+      .populate("bookingAgent", "name")
       .populate({
         path: "invoice",
         populate: [
