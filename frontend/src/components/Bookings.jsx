@@ -1,12 +1,46 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { websocketService } from "../services/websocketService";
 import { api } from "../utils/api";
-import { Loader2, Search, ChevronLeft, ChevronRight, Home, MapPin, BedDouble, Bath, CalendarDays, X, Banknote, ClipboardList, Calendar, Users, AlertCircle, Bed, Globe, Coins, Clock, CreditCard, DollarSign, Send, Hotel, CheckCircle, Phone } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  MapPin,
+  BedDouble,
+  Bath,
+  CalendarDays,
+  X,
+  Banknote,
+  Calendar,
+  Users,
+  AlertCircle,
+  Bed,
+  Coins,
+  Clock,
+  CreditCard,
+  Send,
+  Hotel,
+  CheckCircle,
+  Phone,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getAuthToken } from "../utils/api";
 import Navbar from "./Navbar";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, addDays, isSameDay, differenceInDays, parseISO } from "date-fns";
+import {
+  format,
+  addMonths,
+  subMonths,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  addDays,
+  isSameDay,
+  differenceInDays,
+  parseISO,
+} from "date-fns";
 
 const DAY_CELL_WIDTH = 60;
 const ROW_HEIGHT = 140;
@@ -19,10 +53,10 @@ const currencySymbols = {
   JPY: "¥",
   CAD: "CA$",
   AUD: "A$",
-  SGD: "S$"
+  SGD: "S$",
 };
 
-const Dashboard = () => {
+const Bookings = () => {
   const [properties, setProperties] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [error, setError] = useState("");
@@ -40,7 +74,13 @@ const Dashboard = () => {
   const [dailyRateBreakdown, setDailyRateBreakdown] = useState([]);
   const [calculatedPrice, setCalculatedPrice] = useState(0);
   const [agents, setAgents] = useState([]);
-  const [propertyDetails, setPropertyDetails] = useState({ pricePerNight: 0, currency: "USD", title: "", rooms: 1, type: "" });
+  const [propertyDetails, setPropertyDetails] = useState({
+    pricePerNight: 0,
+    currency: "USD",
+    title: "",
+    rooms: 1,
+    type: "",
+  });
   const [bookedDates, setBookedDates] = useState([]);
   const [fetchingBookings, setFetchingBookings] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -62,7 +102,7 @@ const Dashboard = () => {
     paymentMethod: "cash",
     property: "",
     bookingAgent: "",
-    commissionPercentage: 0
+    commissionPercentage: 0,
   });
 
   const calendarRef = useRef(null);
@@ -70,25 +110,47 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
-  const daysToShow = [...days];
-  let nextDate = addDays(days[days.length - 1], 1);
-  for (let i = 0; i < 7; i++) {
-    daysToShow.push(nextDate);
-    nextDate = addDays(nextDate, 1);
-  }
+  const daysToShow = useMemo(() => {
+    const days = eachDayOfInterval({
+      start: startOfMonth(currentMonth),
+      end: endOfMonth(currentMonth),
+    });
+    let nextDate = addDays(days[days.length - 1], 1);
+    const additionalDays = [];
+    for (let i = 0; i < 7; i++) {
+      additionalDays.push(nextDate);
+      nextDate = addDays(nextDate, 1);
+    }
+    return [...days, ...additionalDays];
+  }, [currentMonth]);
+
+  useEffect(() => {
+    if (calendarRef.current) {
+      const today = new Date();
+      const todayIndex = daysToShow.findIndex((day) => isSameDay(day, today));
+      if (todayIndex !== -1) {
+        calendarRef.current.scrollLeft = todayIndex * DAY_CELL_WIDTH;
+      }
+    }
+  }, [daysToShow]);
 
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/properties`, {
-        headers: { Authorization: `Bearer ${getAuthToken()}`, "Content-Type": "application/json" },
-        credentials: "include"
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/properties`,
+        {
+          headers: {
+            Authorization: `Bearer ${getAuthToken()}`,
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        }
+      );
       const data = await response.json();
       setProperties(data || []);
       setFilteredProperties(data || []);
-      
+
       try {
         const pricingRes = await api.get("/api/pricings");
         setPricings(pricingRes);
@@ -109,20 +171,32 @@ const Dashboard = () => {
     try {
       setLoading(true);
       setError("");
-      let endpoint = user.role === "admin" ? "/api/bookings/admin" : `/api/bookings/client/${user._id}`;
+      let endpoint =
+        user.role === "admin"
+          ? "/api/bookings/admin"
+          : `/api/bookings/client/${user._id}`;
       const data = await api.get(endpoint);
       setBookings(data || []);
     } catch (err) {
-      setError(err.message.includes("401") ? "Session expired" : "Failed to load bookings");
+      setError(
+        err.message.includes("401")
+          ? "Session expired"
+          : "Failed to load bookings"
+      );
     } finally {
       setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    const unsubscribe = websocketService.subscribe("bookingUpdate", updatedBooking => {
-      setBookings(prev => prev.map(b => b._id === updatedBooking._id ? updatedBooking : b));
-    });
+    const unsubscribe = websocketService.subscribe(
+      "bookingUpdate",
+      (updatedBooking) => {
+        setBookings((prev) =>
+          prev.map((b) => (b._id === updatedBooking._id ? updatedBooking : b))
+        );
+      }
+    );
     return () => unsubscribe();
   }, []);
 
@@ -134,79 +208,110 @@ const Dashboard = () => {
   }, [user, fetchProperties, fetchBookings]);
 
   useEffect(() => {
-    const filtered = properties.filter(property => 
-      property.title.toLowerCase().includes(propertySearchQuery.toLowerCase()) ||
-      property.location?.city?.toLowerCase().includes(propertySearchQuery.toLowerCase())
+    const filtered = properties.filter(
+      (property) =>
+        property.title
+          .toLowerCase()
+          .includes(propertySearchQuery.toLowerCase()) ||
+        property.location?.city
+          ?.toLowerCase()
+          .includes(propertySearchQuery.toLowerCase())
     );
     setFilteredProperties(filtered);
   }, [propertySearchQuery, properties]);
 
-  const getPriceForDate = useCallback((propertyId, date) => {
-    const propertyPricings = pricings.filter(p => p.property === propertyId || p.isGlobalTemplate);
-    const dateStr = format(date, 'yyyy-MM-dd');
-    
-    const specificDatePricing = propertyPricings
-      .flatMap(p => p.datePrices || [])
-      .find(dp => format(new Date(dp.date), 'yyyy-MM-dd') === dateStr);
-
-    if (specificDatePricing) return specificDatePricing.price;
-
-    const currentMonth = date.getMonth() + 1;
-    const currentYear = date.getFullYear();
-    const dayOfMonth = date.getDate();
-    
-    const monthlyPricing = propertyPricings.find(p => 
-      p.type === 'monthly' && 
-      p.month === currentMonth &&
-      p.year === currentYear
-    );
-
-    if (monthlyPricing?.blockPrices) {
-      const block = monthlyPricing.blockPrices.find(b => 
-        dayOfMonth >= b.startDay && dayOfMonth <= b.endDay
+  const getPriceForDate = useCallback(
+    (propertyId, date) => {
+      const propertyPricings = pricings.filter(
+        (p) => p.property === propertyId || p.isGlobalTemplate
       );
-      if (block) return block.price;
-    }
+      const dateStr = format(date, "yyyy-MM-dd");
 
-    const property = properties.find(p => p._id === propertyId);
-    return property?.pricePerNight || 0;
-  }, [pricings, properties]);
+      const specificDatePricing = propertyPricings
+        .flatMap((p) => p.datePrices || [])
+        .find((dp) => format(new Date(dp.date), "yyyy-MM-dd") === dateStr);
+
+      if (specificDatePricing) return specificDatePricing.price;
+
+      const currentMonth = date.getMonth() + 1;
+      const currentYear = date.getFullYear();
+      const dayOfMonth = date.getDate();
+
+      const monthlyPricing = propertyPricings.find(
+        (p) =>
+          p.type === "monthly" &&
+          p.month === currentMonth &&
+          p.year === currentYear
+      );
+
+      if (monthlyPricing?.blockPrices) {
+        const block = monthlyPricing.blockPrices.find(
+          (b) => dayOfMonth >= b.startDay && dayOfMonth <= b.endDay
+        );
+        if (block) return block.price;
+      }
+
+      const property = properties.find((p) => p._id === propertyId);
+      return property?.pricePerNight || 0;
+    },
+    [pricings, properties]
+  );
 
   useEffect(() => {
     if (formData.checkInDate && formData.checkOutDate) {
       const startDate = new Date(formData.checkInDate);
       const endDate = new Date(formData.checkOutDate);
-      
+
       if (startDate && endDate && endDate > startDate) {
         const nights = differenceInDays(endDate, startDate);
-        setFormData(prev => ({ ...prev, nights: nights }));
-        
+        setFormData((prev) => ({ ...prev, nights: nights }));
+
         const dailyRates = [];
         let totalPrice = 0;
-        
+
         if (selectedProperty) {
           for (let i = 0; i < nights; i++) {
             const currentDate = addDays(startDate, i);
-            const dailyRate = getPriceForDate(selectedProperty._id, currentDate);
-            dailyRates.push({ date: format(currentDate, 'yyyy-MM-dd'), rate: dailyRate });
+            const dailyRate = getPriceForDate(
+              selectedProperty._id,
+              currentDate
+            );
+            dailyRates.push({
+              date: format(currentDate, "yyyy-MM-dd"),
+              rate: dailyRate,
+            });
             totalPrice += dailyRate;
           }
 
-          const category = categories.find(cat => cat.type === selectedProperty.type);
+          const category = categories.find(
+            (cat) => cat.type === selectedProperty.type
+          );
           if (category) {
             const currentMonth = new Date().getMonth() + 1;
             const isHighSeason = currentMonth >= 4 && currentMonth <= 10;
-            const seasonalFee = isHighSeason ? category.highSeason : category.lowSeason;
+            const seasonalFee = isHighSeason
+              ? category.highSeason
+              : category.lowSeason;
             totalPrice += seasonalFee;
-            dailyRates.push({ date: 'seasonal-fee', rate: seasonalFee, source: 'seasonal' });
+            dailyRates.push({
+              date: "seasonal-fee",
+              rate: seasonalFee,
+              source: "seasonal",
+            });
           }
         }
-        
+
         setDailyRateBreakdown(dailyRates);
         setCalculatedPrice(totalPrice);
       }
     }
-  }, [formData.checkInDate, formData.checkOutDate, selectedProperty, categories, getPriceForDate]);
+  }, [
+    formData.checkInDate,
+    formData.checkOutDate,
+    selectedProperty,
+    categories,
+    getPriceForDate,
+  ]);
 
   const handleCalendarScroll = (e) => {
     if (propertyListRef.current && !isScrollingSidebar) {
@@ -223,28 +328,40 @@ const Dashboard = () => {
   const previousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-  const isDateBooked = useCallback((propertyId, date) => {
-    if (selectedProperty && selectedProperty._id === propertyId) {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      return bookedDates.includes(dateStr);
-    }
-    
-    const propertyBookings = bookings.filter(b => 
-      (b.property?._id === propertyId || b.property === propertyId) &&
-      b.status !== "cancelled"
-    );
-    
-    return propertyBookings.some(b => {
-      const start = new Date(b.checkInDate);
-      const end = new Date(b.checkOutDate);
-      return date >= start && date < end;
-    });
-  }, [bookings, bookedDates, selectedProperty]);
+  const isDateBooked = useCallback(
+    (propertyId, date) => {
+      if (selectedProperty && selectedProperty._id === propertyId) {
+        const dateStr = format(date, "yyyy-MM-dd");
+        return bookedDates.includes(dateStr);
+      }
+
+      const propertyBookings = bookings.filter(
+        (b) =>
+          (b.property?._id === propertyId || b.property === propertyId) &&
+          b.status !== "cancelled"
+      );
+
+      return propertyBookings.some((b) => {
+        const start = new Date(b.checkInDate);
+        const end = new Date(b.checkOutDate);
+        return date >= start && date < end;
+      });
+    },
+    [bookings, bookedDates, selectedProperty]
+  );
 
   const isPastDate = (date) => {
     const today = new Date();
-    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const todayDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    const compareDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
     return compareDate < todayDate;
   };
 
@@ -253,20 +370,20 @@ const Dashboard = () => {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     if (isDateBooked(property._id, date) || isPastDate(date)) return;
-    
+
     setSelectedProperty(property);
     setSelectedDate(date);
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      checkInDate: format(date, 'yyyy-MM-dd'),
-      checkOutDate: format(addDays(date, 1), 'yyyy-MM-dd'),
+      checkInDate: format(date, "yyyy-MM-dd"),
+      checkOutDate: format(addDays(date, 1), "yyyy-MM-dd"),
       property: property._id,
       currency: property.currency || "USD",
       rooms: property.bedrooms || 1,
     }));
-    
+
     loadPropertyDetails(property._id);
     fetchAgents();
     fetchPropertyBookings(property._id);
@@ -290,15 +407,17 @@ const Dashboard = () => {
         rooms: data.bedrooms || 1,
         type: data.type || "",
       });
-      
-      setFormData(prev => ({
+
+      setFormData((prev) => ({
         ...prev,
         currency: data.bankDetails?.currency || "USD",
         rooms: data.bedrooms || 1,
-        pricePerNight: data.pricePerNight || 0
+        pricePerNight: data.pricePerNight || 0,
       }));
     } catch (err) {
-      setError("Failed to load property details: " + (err.message || "Unknown error"));
+      setError(
+        "Failed to load property details: " + (err.message || "Unknown error")
+      );
     }
   };
 
@@ -315,7 +434,7 @@ const Dashboard = () => {
   const fetchPropertyBookings = async (propertyId) => {
     setFetchingBookings(true);
     setBookedDates([]);
-    
+
     try {
       const response = await api.get(`/api/bookings/property/${propertyId}`);
       const dates = [];
@@ -323,8 +442,12 @@ const Dashboard = () => {
         if (booking.status !== "cancelled") {
           const start = new Date(booking.checkInDate);
           const end = new Date(booking.checkOutDate);
-          for (let date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
-            dates.push(format(date, 'yyyy-MM-dd'));
+          for (
+            let date = new Date(start);
+            date < end;
+            date.setDate(date.getDate() + 1)
+          ) {
+            dates.push(format(date, "yyyy-MM-dd"));
           }
         }
       });
@@ -339,16 +462,16 @@ const Dashboard = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === "bookingAgent") {
-      const selectedAgent = agents.find(agent => agent._id === value);
-      setFormData(prev => ({
+      const selectedAgent = agents.find((agent) => agent._id === value);
+      setFormData((prev) => ({
         ...prev,
         [name]: value,
-        commissionPercentage: selectedAgent?.commissionPercentage || 0
+        commissionPercentage: selectedAgent?.commissionPercentage || 0,
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
@@ -357,14 +480,21 @@ const Dashboard = () => {
     setError("");
 
     try {
-      if (!formData.checkInDate || !formData.checkOutDate) throw new Error("Please select check-in and check-out dates");
-      if (new Date(formData.checkOutDate) <= new Date(formData.checkInDate)) throw new Error("Check-out date must be after check-in date");
-      if (formData.adults > maxGuests) throw new Error(`Maximum ${maxGuests} adults allowed`);
-      if ((formData.adults + formData.children) > maxGuests) throw new Error(`Total guests exceed property capacity of ${maxGuests}`);
-      
-      const requiredFields = ['guestName', 'email', 'phone', 'nationality'];
-      const missing = requiredFields.filter(field => !formData[field]);
-      if (missing.length > 0) throw new Error(`Missing required fields: ${missing.join(', ')}`);
+      if (!formData.checkInDate || !formData.checkOutDate)
+        throw new Error("Please select check-in and check-out dates");
+      if (new Date(formData.checkOutDate) <= new Date(formData.checkInDate))
+        throw new Error("Check-out date must be after check-in date");
+      if (formData.adults > maxGuests)
+        throw new Error(`Maximum ${maxGuests} adults allowed`);
+      if (formData.adults + formData.children > maxGuests)
+        throw new Error(
+          `Total guests exceed property capacity of ${maxGuests}`
+        );
+
+      const requiredFields = ["guestName", "email", "phone", "nationality"];
+      const missing = requiredFields.filter((field) => !formData[field]);
+      if (missing.length > 0)
+        throw new Error(`Missing required fields: ${missing.join(", ")}`);
 
       setShowConfirmation(true);
     } catch (err) {
@@ -400,43 +530,98 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+      <Navbar
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
       <div className="pt-16 h-screen overflow-hidden flex flex-col">
         <div className="px-4 py-3 bg-white/90 backdrop-blur-xl shadow-md z-10 border-b border-gray-100">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-800">{format(currentMonth, "MMMM yyyy")}</h2>
+              <h2 className="text-lg font-semibold text-gray-800">
+                {format(currentMonth, "MMMM yyyy")}
+              </h2>
             </div>
             <div className="flex gap-1">
-              <button onClick={previousMonth} className="p-2 rounded-lg hover:bg-blue-50 text-blue-600"><ChevronLeft className="w-5 h-5" /></button>
-              <button onClick={() => setCurrentMonth(new Date())} className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">Today</button>
-              <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-blue-50 text-blue-600"><ChevronRight className="w-5 h-5" /></button>
+              <button
+                onClick={previousMonth}
+                className="p-2 rounded-lg hover:bg-blue-50 text-blue-600"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setCurrentMonth(new Date())}
+                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+              >
+                Today
+              </button>
+              <button
+                onClick={nextMonth}
+                className="p-2 rounded-lg hover:bg-blue-50 text-blue-600"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>
 
         <div className="flex flex-grow overflow-hidden">
-          <div ref={propertyListRef} onScroll={handlePropertyListScroll} className="w-72 bg-white shadow-md border-r border-gray-200 overflow-y-auto">
+          <div
+            ref={propertyListRef}
+            onScroll={handlePropertyListScroll}
+            className="w-72 bg-white shadow-md border-r border-gray-200 overflow-y-auto"
+          >
             <div className="sticky top-0 z-20 p-3 bg-white/95 border-b border-gray-200">
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center"><Search className="h-4 w-4 text-gray-500" /></div>
-                <input type="text" placeholder="Search properties..." value={propertySearchQuery} onChange={(e) => setPropertySearchQuery(e.target.value)} className="block w-full pl-10 pr-3 py-2 bg-white/70 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/30" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center">
+                  <Search className="h-4 w-4 text-gray-500" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search properties..."
+                  value={propertySearchQuery}
+                  onChange={(e) => setPropertySearchQuery(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-2 bg-white/70 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/30"
+                />
               </div>
             </div>
             <div>
-              {filteredProperties.map(property => (
-                <div key={property._id} className="p-3 border-b border-gray-200 hover:bg-blue-50" style={{ height: `${ROW_HEIGHT}px` }}>
+              {filteredProperties.map((property) => (
+                <div
+                  key={property._id}
+                  className="p-3 border-b border-gray-200 hover:bg-blue-50"
+                  style={{ height: `${ROW_HEIGHT}px` }}
+                >
                   <div className="flex items-start gap-3 h-full">
                     <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100">
-                      {property.photos?.[0] ? <img src={property.photos[0].url} alt={property.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Home className="w-5 h-5 text-blue-400" /></div>}
+                      {property.photos?.[0] ? (
+                        <img
+                          src={property.photos[0].url}
+                          alt={property.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Home className="w-5 h-5 text-blue-400" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-sm text-gray-900 truncate">{property.title}</h3>
-                      <p className="flex items-center gap-1 mt-1 text-xs text-blue-500 truncate"><MapPin className="w-3 h-3" />{property.location?.city || "Location not specified"}</p>
+                      <h3 className="font-medium text-sm text-gray-900 truncate">
+                        {property.title}
+                      </h3>
+                      <p className="flex items-center gap-1 mt-1 text-xs text-blue-500 truncate">
+                        <MapPin className="w-3 h-3" />
+                        {property.location?.city || "Location not specified"}
+                      </p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded-md text-xs text-blue-600"><BedDouble className="w-3 h-3" /> {property.bedrooms}</span>
-                        <span className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 rounded-md text-xs text-purple-600"><Bath className="w-3 h-3" /> {property.bathrooms}</span>
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded-md text-xs text-blue-600">
+                          <BedDouble className="w-3 h-3" /> {property.bedrooms}
+                        </span>
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 rounded-md text-xs text-purple-600">
+                          <Bath className="w-3 h-3" /> {property.bathrooms}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -445,23 +630,51 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div ref={calendarRef} onScroll={handleCalendarScroll} className="flex-1 overflow-x-auto overflow-y-auto relative">
+          <div
+            ref={calendarRef}
+            onScroll={handleCalendarScroll}
+            className="flex-1 overflow-x-auto overflow-y-auto relative"
+          >
             {loading && (
               <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-20">
                 <div className="flex flex-col items-center">
                   <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-                  <p className="mt-2 text-blue-600 font-medium">Loading data...</p>
+                  <p className="mt-2 text-blue-600 font-medium">
+                    Loading data...
+                  </p>
                 </div>
               </div>
             )}
-            
+
             <div className="sticky top-0 z-20 bg-white/95 border-b border-gray-200 flex min-w-max">
               <div className="flex">
                 {daysToShow.map((day, index) => (
-                  <div key={index} className={`flex-shrink-0 text-center py-2 text-xs font-medium ${format(day, "MMM") !== format(currentMonth, "MMM") ? "text-gray-400 bg-gray-50" : "text-gray-700"} ${isSameDay(day, new Date()) ? "bg-blue-50 text-blue-700" : ""}`} style={{ width: `${DAY_CELL_WIDTH}px` }}>
+                  <div
+                    key={index}
+                    className={`flex-shrink-0 text-center py-2 text-xs font-medium ${
+                      format(day, "MMM") !== format(currentMonth, "MMM")
+                        ? "text-gray-400 bg-gray-50"
+                        : "text-gray-700"
+                    } ${
+                      isSameDay(day, new Date())
+                        ? "bg-blue-50 text-blue-700"
+                        : ""
+                    }`}
+                    style={{ width: `${DAY_CELL_WIDTH}px` }}
+                  >
                     <div className="flex flex-col items-center">
-                      <span className="text-xs uppercase">{format(day, "EEE")}</span>
-                      <span className={`w-6 h-6 flex items-center justify-center mt-1 rounded-full ${isSameDay(day, new Date()) ? "bg-blue-500 text-white" : ""}`}>{format(day, "d")}</span>
+                      <span className="text-xs uppercase">
+                        {format(day, "EEE")}
+                      </span>
+                      <span
+                        className={`w-6 h-6 flex items-center justify-center mt-1 rounded-full ${
+                          isSameDay(day, new Date())
+                            ? "bg-blue-500 text-white"
+                            : ""
+                        }`}
+                      >
+                        {format(day, "d")}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -469,17 +682,57 @@ const Dashboard = () => {
             </div>
 
             <div className="min-w-max">
-              {filteredProperties.map(property => (
-                <div key={property._id} className="flex border-b border-gray-200 relative" style={{ height: `${ROW_HEIGHT}px` }}>
+              {filteredProperties.map((property) => (
+                <div
+                  key={property._id}
+                  className="flex border-b border-gray-200 relative"
+                  style={{ height: `${ROW_HEIGHT}px` }}
+                >
                   <div className="flex h-full w-full">
                     {daysToShow.map((day, dayIndex) => {
                       const isBooked = isDateBooked(property._id, day);
                       const price = getPriceForDate(property._id, day);
-                      
+                      const isPast = isPastDate(day);
+
                       return (
-                        <div key={dayIndex} className={`h-full border-r border-gray-100 flex-shrink-0 relative ${format(day, "MMM") !== format(currentMonth, "MMM") ? "bg-gray-50/50" : ""} ${isSameDay(day, new Date()) ? "bg-blue-50/50" : ""} ${!isBooked ? "hover:bg-blue-100/50 cursor-pointer" : "bg-red-50/10 cursor-not-allowed"}`} style={{ width: `${DAY_CELL_WIDTH}px` }} onClick={(e) => { if (!isBooked) handleDateClick(property, day, e); }}>
-                          {isBooked && <div className="absolute inset-0 flex items-center justify-center pointer-events-none"><div className="absolute h-[1.5px] w-full bg-red-600 rotate-45"></div><div className="absolute h-[1.5px] w-full bg-red-600 -rotate-45"></div></div>}
-                          <div className={`absolute bottom-1 right-1 text-xs font-medium ${isBooked ? "text-red-500" : "text-green-700"}`}>{property.currency} {price}</div>
+                        <div
+                          key={dayIndex}
+                          className={`h-full border-r border-gray-100 flex-shrink-0 relative ${
+                            format(day, "MMM") !== format(currentMonth, "MMM")
+                              ? "bg-gray-50/50"
+                              : ""
+                          } ${
+                            isSameDay(day, new Date()) ? "bg-blue-50/50" : ""
+                          } ${
+                            !isBooked && !isPast
+                              ? "hover:bg-blue-100/50 cursor-pointer"
+                              : isPast
+                              ? "bg-gray-100/50 cursor-not-allowed"
+                              : "bg-red-50/10 cursor-not-allowed"
+                          }`}
+                          style={{ width: `${DAY_CELL_WIDTH}px` }}
+                          onClick={(e) => {
+                            if (!isBooked && !isPast)
+                              handleDateClick(property, day, e);
+                          }}
+                        >
+                          {isBooked && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="h-8 w-full flex items-center">
+                                <div className="h-[5px] rounded-full w-full bg-red-600/70 mx-2"></div>
+                              </div>
+                            </div>
+                          )}
+
+                          {!isBooked && !isPast && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="text-base font-medium text-blue-700">
+                                {currencySymbols[property.currency] ||
+                                  property.currency}
+                                €{price}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -489,100 +742,452 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-      </div>
 
-      {selectedProperty && selectedDate && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
-            <button onClick={closeReservationModal} className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-full"><X className="h-6 w-6 text-gray-600" /></button>
-            
-            {fetchingBookings && (
-              <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-xl">
-                <div className="flex flex-col items-center">
-                  <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                  <p className="mt-2 text-blue-600">Checking availability...</p>
-                </div>
-              </div>
-            )}
-            
-            <div className="space-y-6">
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white rounded-lg">
-                <div className="flex items-center space-x-3"><Hotel className="h-6 w-6" /><h2 className="text-xl font-bold">{propertyDetails.title}</h2></div>
-                <div className="mt-2 text-blue-100">
-                  <p className="flex items-center gap-2"><DollarSign className="h-4 w-4" />{currencySymbols[propertyDetails.currency] || propertyDetails.currency}{propertyDetails.pricePerNight} per night</p>
-                </div>
-              </div>
+        {selectedProperty && selectedDate && (
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={closeReservationModal}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div
+              className="bg-white rounded-xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()} // Prevent propagation to parent
+            >
+              <button
+                onClick={closeReservationModal}
+                className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-full"
+                aria-label="Close modal"
+              >
+                <X className="h-6 w-6 text-gray-600" />
+              </button>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium mb-2">Guest Name *</label><input type="text" name="guestName" value={formData.guestName} onChange={handleChange} className="w-full p-2 border rounded-md" required /></div>
-                  <div><label className="block text-sm font-medium mb-2">Email *</label><input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full p-2 border rounded-md" required /></div>
-                  <div><label className="block text-sm font-medium mb-2">Phone *</label><div className="flex items-center"><Phone className="h-4 w-4 mr-2 text-gray-500" /><input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full p-2 border rounded-md" required /></div></div>
-                  <div><label className="block text-sm font-medium mb-2">Nationality</label><select name="nationality" value={formData.nationality} onChange={handleChange} className="w-full p-2 border rounded-md"><option value="">Select country</option><option value="United States">United States</option><option value="United Kingdom">United Kingdom</option><option value="Germany">Germany</option><option value="France">France</option><option value="Spain">Spain</option><option value="Italy">Italy</option><option value="China">China</option><option value="Japan">Japan</option><option value="Australia">Australia</option><option value="Canada">Canada</option></select></div>
-                  <div><label className="block text-sm font-medium mb-2">Check-in Date *</label><div className="flex items-center"><Calendar className="h-4 w-4 mr-2 text-gray-500" /><input type="date" name="checkInDate" value={formData.checkInDate} onChange={handleChange} className="w-full p-2 border rounded-md" required /></div></div>
-                  <div><label className="block text-sm font-medium mb-2">Check-out Date *</label><div className="flex items-center"><Calendar className="h-4 w-4 mr-2 text-gray-500" /><input type="date" name="checkOutDate" value={formData.checkOutDate} onChange={handleChange} className="w-full p-2 border rounded-md" required /></div></div>
-                  <div><label className="block text-sm font-medium mb-2">Number of Rooms</label><div className="flex items-center"><Bed className="h-4 w-4 mr-2 text-gray-500" /><input type="number" name="rooms" min="1" max={propertyDetails.rooms || 1} value={formData.rooms} onChange={handleChange} className="w-full p-2 border rounded-md" /></div></div>
-                  <div><label className="block text-sm font-medium mb-2">Nights</label><input type="number" name="nights" min="1" value={formData.nights} readOnly className="w-full p-2 border rounded-md bg-gray-50" /></div>
-                  <div><label className="block text-sm font-medium mb-2">Adults</label><div className="flex items-center"><Users className="h-4 w-4 mr-2 text-gray-500" /><input type="number" name="adults" min="1" max={maxGuests} value={formData.adults} onChange={handleChange} className="w-full p-2 border rounded-md" /></div></div>
-                  <div><label className="block text-sm font-medium mb-2">Children</label><div className="flex items-center"><Users className="h-4 w-4 mr-2 text-gray-500" /><input type="number" name="children" min="0" max={maxGuests - formData.adults} value={formData.children} onChange={handleChange} className="w-full p-2 border rounded-md" /></div></div>
-                  <div><label className="block text-sm font-medium mb-2">Arrival Time</label><div className="flex items-center"><Clock className="h-4 w-4 mr-2 text-gray-500" /><input type="time" name="arrivalTime" value={formData.arrivalTime} onChange={handleChange} className="w-full p-2 border rounded-md" /></div></div>
-                  <div><label className="block text-sm font-medium mb-2">Payment Method</label><div className="flex items-center"><CreditCard className="h-4 w-4 mr-2 text-gray-500" /><select name="paymentMethod" value={formData.paymentMethod} onChange={handleChange} className="w-full p-2 border rounded-md"><option value="cash">Cash</option><option value="credit">Credit Card</option><option value="bank">Bank Transfer</option><option value="paypal">PayPal</option></select></div></div>
-                  <div><label className="block text-sm font-medium mb-2">Currency</label><div className="flex items-center"><Coins className="h-4 w-4 mr-2 text-gray-500" /><select name="currency" value={formData.currency} onChange={handleChange} className="w-full p-2 border rounded-md"><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option><option value="GBP">GBP (£)</option><option value="JPY">JPY (¥)</option><option value="CAD">CAD (CA$)</option><option value="AUD">AUD (A$)</option><option value="INR">INR (₹)</option></select></div></div>
-                  <div><label className="block text-sm font-medium mb-2">Booking Agent</label><select name="bookingAgent" value={formData.bookingAgent} onChange={handleChange} className="w-full p-2 border rounded-md"><option value="">None</option>{agents.map(agent => <option key={agent._id} value={agent._id}>{agent.name} ({agent.commissionPercentage}%)</option>)}</select></div>
-                  <div><label className="block text-sm font-medium mb-2">Commission (%)</label><div className="flex items-center"><Banknote className="h-4 w-4 mr-2 text-gray-500" /><input type="number" name="commissionPercentage" min="0" max="100" value={formData.commissionPercentage} onChange={handleChange} className="w-full p-2 border rounded-md" /></div></div>
-                  <div className="col-span-2"><label className="block text-sm font-medium mb-2">Special Requests</label><textarea name="specialRequests" value={formData.specialRequests} onChange={handleChange} rows="3" className="w-full p-2 border rounded-md" placeholder="Any special requirements or requests..."></textarea></div>
+              {fetchingBookings && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 rounded-xl">
+                  <div className="flex flex-col items-center">
+                    <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                    <p className="mt-2 text-blue-600">
+                      Checking availability...
+                    </p>
+                  </div>
                 </div>
-                
-                <div className="bg-blue-50 p-4 rounded-lg mt-4">
-                  <div className="flex justify-between items-center"><h3 className="font-semibold">Price Summary</h3><span className="text-lg font-bold text-blue-700">{currencySymbols[propertyDetails.currency] || propertyDetails.currency} {calculatedPrice}</span></div>
-                  {dailyRateBreakdown.length > 0 && (
-                    <div className="mt-2 text-sm text-gray-600">
-                      {dailyRateBreakdown.map((item, index) => (
-                        item.source === 'seasonal' ? <p key={index}>Seasonal Fee: {currencySymbols[propertyDetails.currency]} {item.rate}</p> : <p key={index}>{format(new Date(item.date), 'MMM d')}: {currencySymbols[propertyDetails.currency]} {item.rate}</p>
-                      ))}
-                      <p>Total: {currencySymbols[propertyDetails.currency]} {calculatedPrice}</p>
+              )}
+
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Hotel className="h-6 w-6" />
+                    <h2 className="text-xl font-bold">
+                      {propertyDetails.title}
+                    </h2>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Guest Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="guestName"
+                        value={formData.guestName}
+                        onChange={handleChange}
+                        className="w-full p-2 border rounded-md"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="w-full p-2 border rounded-md"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Phone *
+                      </label>
+                      <div className="flex items-center">
+                        <Phone className="h-4 w-4 mr-2 text-gray-500" />
+                        <input
+                          type="tel"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Nationality
+                      </label>
+                      <select
+                        name="nationality"
+                        value={formData.nationality}
+                        onChange={handleChange}
+                        className="w-full p-2 border rounded-md"
+                      >
+                        <option value="">Select country</option>
+                        <option value="United States">United States</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="Germany">Germany</option>
+                        <option value="France">France</option>
+                        <option value="Spain">Spain</option>
+                        <option value="Italy">Italy</option>
+                        <option value="China">China</option>
+                        <option value="Japan">Japan</option>
+                        <option value="Australia">Australia</option>
+                        <option value="Canada">Canada</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Check-in Date *
+                      </label>
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-2 text-gray-500" />
+                        <input
+                          type="date"
+                          name="checkInDate"
+                          value={formData.checkInDate}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Check-out Date *
+                      </label>
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-2 text-gray-500" />
+                        <input
+                          type="date"
+                          name="checkOutDate"
+                          value={formData.checkOutDate}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Number of Rooms
+                      </label>
+                      <div className="flex items-center">
+                        <Bed className="h-4 w-4 mr-2 text-gray-500" />
+                        <input
+                          type="number"
+                          name="rooms"
+                          min="1"
+                          max={propertyDetails.rooms || 1}
+                          value={formData.rooms}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Nights
+                      </label>
+                      <input
+                        type="number"
+                        name="nights"
+                        min="1"
+                        value={formData.nights}
+                        readOnly
+                        className="w-full p-2 border rounded-md bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Adults
+                      </label>
+                      <div className="flex items-center">
+                        <Users className="h-4 w-4 mr-2 text-gray-500" />
+                        <input
+                          type="number"
+                          name="adults"
+                          min="1"
+                          max={maxGuests}
+                          value={formData.adults}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Children
+                      </label>
+                      <div className="flex items-center">
+                        <Users className="h-4 w-4 mr-2 text-gray-500" />
+                        <input
+                          type="number"
+                          name="children"
+                          min="0"
+                          max={maxGuests - formData.adults}
+                          value={formData.children}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Arrival Time
+                      </label>
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 mr-2 text-gray-500" />
+                        <input
+                          type="time"
+                          name="arrivalTime"
+                          value={formData.arrivalTime}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Payment Method
+                      </label>
+                      <div className="flex items-center">
+                        <CreditCard className="h-4 w-4 mr-2 text-gray-500" />
+                        <select
+                          name="paymentMethod"
+                          value={formData.paymentMethod}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                        >
+                          <option value="cash">Cash</option>
+                          <option value="credit">Credit Card</option>
+                          <option value="bank">Bank Transfer</option>
+                          <option value="paypal">PayPal</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Currency
+                      </label>
+                      <div className="flex items-center">
+                        <Coins className="h-4 w-4 mr-2 text-gray-500" />
+                        <select
+                          name="currency"
+                          value={formData.currency}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                        >
+                          <option value="USD">USD ($)</option>
+                          <option value="EUR">EUR (€)</option>
+                          <option value="GBP">GBP (£)</option>
+                          <option value="JPY">JPY (¥)</option>
+                          <option value="CAD">CAD (CA$)</option>
+                          <option value="AUD">AUD (A$)</option>
+                          <option value="INR">INR (₹)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Booking Agent
+                      </label>
+                      <select
+                        name="bookingAgent"
+                        value={formData.bookingAgent}
+                        onChange={handleChange}
+                        className="w-full p-2 border rounded-md"
+                      >
+                        <option value="">None</option>
+                        {agents.map((agent) => (
+                          <option key={agent._id} value={agent._id}>
+                            {agent.name} ({agent.commissionPercentage}%)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        Commission (%)
+                      </label>
+                      <div className="flex items-center">
+                        <Banknote className="h-4 w-4 mr-2 text-gray-500" />
+                        <input
+                          type="number"
+                          name="commissionPercentage"
+                          min="0"
+                          max="100"
+                          value={formData.commissionPercentage}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium mb-2">
+                        Special Requests
+                      </label>
+                      <textarea
+                        name="specialRequests"
+                        value={formData.specialRequests}
+                        onChange={handleChange}
+                        rows="3"
+                        className="w-full p-2 border rounded-md"
+                        placeholder="Any special requirements or requests..."
+                      ></textarea>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 p-4 rounded-lg mt-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-semibold">Price Summary</h3>
+                      <span className="text-lg font-bold text-blue-700">
+                        {currencySymbols[propertyDetails.currency] ||
+                          propertyDetails.currency}{" "}
+                        {calculatedPrice}
+                      </span>
+                    </div>
+                    {dailyRateBreakdown.length > 0 && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        {dailyRateBreakdown.map((item, index) =>
+                          item.source === "seasonal" ? (
+                            <p key={index}>
+                              Seasonal Fee:{" "}
+                              {currencySymbols[propertyDetails.currency]}{" "}
+                              {item.rate}
+                            </p>
+                          ) : (
+                            <p key={index}>
+                              {format(new Date(item.date), "MMM d")}:{" "}
+                              {currencySymbols[propertyDetails.currency]}{" "}
+                              {item.rate}
+                            </p>
+                          )
+                        )}
+                        <p>
+                          Total: {currencySymbols[propertyDetails.currency]}{" "}
+                          {calculatedPrice}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-5 h-5" />
+                    )}
+                    {loading ? "Processing..." : "Book Now"}
+                  </button>
+
+                  {error && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5" />
+                      {error}
                     </div>
                   )}
-                </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
 
-                <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2" disabled={loading}>
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}{loading ? "Processing..." : "Book Now"}
+        {showConfirmation && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 max-w-md w-full">
+              <div className="flex justify-between mb-4">
+                <h3 className="text-lg font-bold">Confirm Booking</h3>
+                <button onClick={() => setShowConfirmation(false)}>
+                  <X className="h-6 w-6" />
                 </button>
-                
-                {error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2"><AlertCircle className="w-5 h-5" />{error}</div>}
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showConfirmation && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <div className="flex justify-between mb-4"><h3 className="text-lg font-bold">Confirm Booking</h3><button onClick={() => setShowConfirmation(false)}><X className="h-6 w-6" /></button></div>
-            <div className="space-y-4">
-              <div className="border-b pb-4">
-                <h4 className="font-medium mb-2">{propertyDetails.title}</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div><p className="text-gray-500">Check-in</p><p>{formData.checkInDate}</p></div>
-                  <div><p className="text-gray-500">Check-out</p><p>{formData.checkOutDate}</p></div>
-                  <div><p className="text-gray-500">Guests</p><p>{formData.adults} adult{formData.adults !== 1 ? 's' : ''}{formData.children > 0 ? `, ${formData.children} children` : ''}</p></div>
-                  <div><p className="text-gray-500">Rooms</p><p>{formData.rooms}</p></div>
+              </div>
+              <div className="space-y-4">
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-2">{propertyDetails.title}</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-gray-500">Check-in</p>
+                      <p>{formData.checkInDate}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Check-out</p>
+                      <p>{formData.checkOutDate}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Guests</p>
+                      <p>
+                        {formData.adults} adult
+                        {formData.adults !== 1 ? "s" : ""}
+                        {formData.children > 0
+                          ? `, ${formData.children} children`
+                          : ""}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Rooms</p>
+                      <p>{formData.rooms}</p>
+                    </div>
+                  </div>
                 </div>
+                <div className="border-b pb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span>
+                      Price for {formData.nights} night
+                      {formData.nights !== 1 ? "s" : ""}
+                    </span>
+                    <span>
+                      {currencySymbols[propertyDetails.currency] ||
+                        propertyDetails.currency}{" "}
+                      {calculatedPrice}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold">Total</span>
+                    <span className="font-bold">
+                      {currencySymbols[propertyDetails.currency] ||
+                        propertyDetails.currency}{" "}
+                      {calculatedPrice}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={submitBooking}
+                  className="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                  {loading ? "Processing..." : "Confirm Booking"}
+                </button>
               </div>
-              <div className="border-b pb-4">
-                <div className="flex justify-between items-center mb-2"><span>Price for {formData.nights} night{formData.nights !== 1 ? 's' : ''}</span><span>{currencySymbols[propertyDetails.currency] || propertyDetails.currency} {calculatedPrice}</span></div>
-                <div className="flex justify-between items-center"><span className="font-bold">Total</span><span className="font-bold">{currencySymbols[propertyDetails.currency] || propertyDetails.currency} {calculatedPrice}</span></div>
-              </div>
-              <button onClick={submitBooking} className="w-full bg-green-600 text-white p-3 rounded-lg hover:bg-green-700 flex items-center justify-center gap-2" disabled={loading}>
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}{loading ? "Processing..." : "Confirm Booking"}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default Bookings;

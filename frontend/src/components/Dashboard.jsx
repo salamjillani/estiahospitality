@@ -30,6 +30,7 @@ import {
   addDays,
   isSameDay,
   differenceInDays,
+  parseISO,
 } from "date-fns";
 
 const Dashboard = () => {
@@ -49,8 +50,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
 
-  const DAY_CELL_WIDTH = 60;
+  const DAY_CELL_WIDTH = 64;
   const ROW_HEIGHT = 140;
+  const BOOKING_HEIGHT = 32;
+  const BOOKING_GAP = 4;
 
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
@@ -87,6 +90,11 @@ const Dashboard = () => {
 
   const formatDate = (date) => {
     return format(new Date(date), "EEE, MMM d, yyyy");
+  };
+
+  const handleBookingClick = (booking) => {
+    // Explicitly set the selected booking to show modal
+    setSelectedBooking(booking);
   };
 
   const fetchProperties = useCallback(async () => {
@@ -226,9 +234,69 @@ const Dashboard = () => {
     return bookings.filter((booking) => booking.property?._id === propertyId);
   };
 
-  const getBookingStyle = (booking, index, totalBookings) => {
+  // Position bookings with smart layout algorithm to avoid overlaps
+  const getPositionedBookings = (propertyId) => {
+    const propertyBookings = getBookingsForProperty(propertyId);
+    
+    if (propertyBookings.length === 0) return [];
+    
+    // Sort bookings by start date
+    const sortedBookings = [...propertyBookings].sort((a, b) => 
+      new Date(a.checkInDate) - new Date(b.checkInDate)
+    );
+    
+    // Track positions
+    const rows = [];
+    const positionedBookings = [];
+    
+    sortedBookings.forEach(booking => {
+      const checkInDate = new Date(booking.checkInDate);
+      const checkOutDate = new Date(booking.checkOutDate);
+      
+      // Find available row
+      let rowIndex = 0;
+      let foundRow = false;
+      
+      while (!foundRow && rowIndex < 10) { // Limit to 10 rows max
+        if (!rows[rowIndex]) {
+          rows[rowIndex] = [];
+          foundRow = true;
+        } else {
+          // Check if this row has space
+          const hasOverlap = rows[rowIndex].some(existingBooking => {
+            const existingCheckIn = new Date(existingBooking.checkInDate);
+            const existingCheckOut = new Date(existingBooking.checkOutDate);
+            
+            return (
+              (checkInDate <= existingCheckOut && checkOutDate >= existingCheckIn)
+            );
+          });
+          
+          if (!hasOverlap) {
+            foundRow = true;
+          } else {
+            rowIndex++;
+          }
+        }
+      }
+      
+      // Add to row
+      rows[rowIndex] = rows[rowIndex] || [];
+      rows[rowIndex].push(booking);
+      
+      positionedBookings.push({
+        ...booking,
+        rowIndex
+      });
+    });
+    
+    return positionedBookings;
+  };
+
+  const getBookingStyle = (booking) => {
     const checkInDate = new Date(booking.checkInDate);
     const checkOutDate = new Date(booking.checkOutDate);
+    const { rowIndex } = booking;
 
     let startDayIndex = daysToShow.findIndex((day) =>
       isSameDay(day, checkInDate)
@@ -253,56 +321,35 @@ const Dashboard = () => {
     }
 
     const left = startDayIndex * DAY_CELL_WIDTH;
-    const width = (endDayIndex - startDayIndex + 1) * DAY_CELL_WIDTH;
+    const width = (endDayIndex - startDayIndex + 1) * DAY_CELL_WIDTH - 4;
+    const top = 10 + rowIndex * (BOOKING_HEIGHT + BOOKING_GAP);
 
-    const BOOKING_HEIGHT = 36;
-    const VERTICAL_GAP = 8;
-    const TOP_MARGIN = 10;
+    const statusColors = {
+      confirmed: {
+        bg: "bg-gradient-to-r from-blue-500 to-blue-600",
+        hover: "hover:from-blue-600 hover:to-blue-700",
+        border: "border-blue-600"
+      },
+      pending: {
+        bg: "bg-gradient-to-r from-amber-400 to-amber-500",
+        hover: "hover:from-amber-500 hover:to-amber-600",
+        border: "border-amber-500"
+      },
+      cancelled: {
+        bg: "bg-gradient-to-r from-red-400 to-red-500",
+        hover: "hover:from-red-500 hover:to-red-600",
+        border: "border-red-500"
+      }
+    };
 
-    const totalRequiredHeight =
-      BOOKING_HEIGHT * totalBookings + VERTICAL_GAP * (totalBookings - 1);
-    const availableHeight = ROW_HEIGHT - TOP_MARGIN * 2;
-
-    let actualBookingHeight, actualGap;
-
-    if (totalRequiredHeight > availableHeight && totalBookings > 1) {
-      const ratio = availableHeight / totalRequiredHeight;
-      actualBookingHeight = Math.max(28, Math.floor(BOOKING_HEIGHT * ratio));
-      actualGap = Math.max(4, Math.floor(VERTICAL_GAP * ratio));
-    } else {
-      actualBookingHeight = BOOKING_HEIGHT;
-      actualGap = VERTICAL_GAP;
-    }
-
-    const topPosition = TOP_MARGIN + index * (actualBookingHeight + actualGap);
+    const statusColor = statusColors[booking.status] || statusColors.pending;
 
     return {
       left: `${left}px`,
       width: `${width}px`,
-      position: "absolute",
-      height: `${actualBookingHeight}px`,
-      top: `${topPosition}px`,
-      zIndex: 10,
-      borderRadius: "0.375rem",
-      boxShadow: "0 4px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.2)",
-      backgroundColor:
-        booking.status === "confirmed"
-          ? "#3B82F6"
-          : booking.status === "cancelled"
-          ? "#EF4444"
-          : "#F59E0B",
-      color: "white",
-      overflow: "hidden",
-      whiteSpace: "nowrap",
-      textOverflow: "ellipsis",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "flex-start",
-      fontSize: "0.875rem",
-      fontWeight: "500",
-      padding: "0 0.75rem",
-      textShadow: "0 1px 1px rgba(0,0,0,0.2)",
-      clipPath: "inset(0 0 0 0)",
+      top: `${top}px`,
+      height: `${BOOKING_HEIGHT}px`,
+      className: `absolute transition-all duration-150 cursor-pointer rounded-md border shadow-md ${statusColor.bg} ${statusColor.hover} ${statusColor.border}`
     };
   };
 
@@ -347,7 +394,7 @@ const Dashboard = () => {
         setIsSidebarOpen={setIsSidebarOpen}
       />
       <div className="pt-16 h-screen overflow-hidden flex flex-col">
-        <div className="px-4 py-3 bg-white/90 backdrop-blur-xl shadow-md z-10 border-b border-gray-100">
+        <div className="px-4 py-3 bg-white shadow-md z-10 border-b border-gray-100">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-5 h-5 text-blue-600" />
@@ -355,22 +402,22 @@ const Dashboard = () => {
                 {format(currentMonth, "MMMM yyyy")}
               </h2>
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-2">
               <button
                 onClick={previousMonth}
-                className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+                className="p-1.5 rounded-md hover:bg-blue-50 text-blue-600 transition-colors border border-blue-100"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setCurrentMonth(new Date())}
-                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors font-medium border border-blue-200"
               >
                 Today
               </button>
               <button
                 onClick={nextMonth}
-                className="p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+                className="p-1.5 rounded-md hover:bg-blue-50 text-blue-600 transition-colors border border-blue-100"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -384,7 +431,7 @@ const Dashboard = () => {
             onScroll={handlePropertyListScroll}
             className="w-72 bg-white shadow-md backdrop-blur-xl border-r border-gray-200 overflow-y-auto"
           >
-            <div className="sticky top-0 z-20 p-3 bg-white/95 backdrop-blur-xl border-b border-gray-200">
+            <div className="sticky top-0 z-20 p-3 bg-white border-b border-gray-200">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-4 w-4 text-gray-500" />
@@ -394,7 +441,7 @@ const Dashboard = () => {
                   placeholder="Search properties..."
                   value={propertySearchQuery}
                   onChange={(e) => setPropertySearchQuery(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 bg-white/70 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-gray-500 shadow-sm text-sm"
+                  className="block w-full pl-10 pr-3 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all duration-200 placeholder-gray-500 shadow-sm text-sm"
                 />
               </div>
             </div>
@@ -403,11 +450,11 @@ const Dashboard = () => {
               {filteredProperties.map((property) => (
                 <div
                   key={property._id}
-                  className="p-3 border-b border-gray-200 hover:bg-blue-50 transition-colors cursor-pointer"
+                  className="p-3 border-b border-gray-200 hover:bg-blue-50 transition-colors"
                   style={{ height: `${ROW_HEIGHT}px` }}
                 >
                   <div className="flex items-start gap-3 h-full">
-                    <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100 shadow-sm">
+                    <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100 shadow-sm">
                       {property.photos?.[0] ? (
                         <img
                           src={property.photos[0].url}
@@ -416,7 +463,7 @@ const Dashboard = () => {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Home className="w-5 h-5 text-blue-400" />
+                          <Home className="w-6 h-6 text-blue-400" />
                         </div>
                       )}
                     </div>
@@ -424,17 +471,17 @@ const Dashboard = () => {
                       <h3 className="font-medium text-sm text-gray-900 truncate">
                         {property.title}
                       </h3>
-                      <p className="flex items-center gap-1 mt-1 text-xs text-blue-500 truncate">
+                      <p className="flex items-center gap-1 mt-1 text-xs text-blue-600 truncate">
                         <MapPin className="w-3 h-3 flex-shrink-0" />
                         <span className="truncate">
                           {property.location?.city || "Location not specified"}
                         </span>
                       </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 rounded-md text-xs text-blue-600">
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded-md text-xs text-blue-600 font-medium">
                           <BedDouble className="w-3 h-3" /> {property.bedrooms}
                         </span>
-                        <span className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-50 rounded-md text-xs text-purple-600">
+                        <span className="flex items-center gap-1 px-2 py-1 bg-purple-50 rounded-md text-xs text-purple-600 font-medium">
                           <Bath className="w-3 h-3" /> {property.bathrooms}
                         </span>
                       </div>
@@ -450,14 +497,14 @@ const Dashboard = () => {
             onScroll={handleCalendarScroll}
             className="flex-1 overflow-x-auto overflow-y-auto relative"
           >
-            <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-gray-200 flex min-w-max">
+            <div className="sticky top-0 z-20 bg-white border-b border-gray-200 flex min-w-max">
               <div className="flex">
                 {daysToShow.map((day, index) => (
                   <div
                     key={index}
                     className={`flex-shrink-0 text-center py-2 text-xs font-medium ${
                       format(day, "MMM") !== format(currentMonth, "MMM")
-                        ? "text-gray-400 bg-gray-50"
+                        ? "text-gray-400 bg-gray-50/80"
                         : "text-gray-700"
                     } ${
                       isSameDay(day, new Date())
@@ -467,11 +514,11 @@ const Dashboard = () => {
                     style={{ width: `${DAY_CELL_WIDTH}px` }}
                   >
                     <div className="flex flex-col items-center">
-                      <span className="text-xs uppercase">
+                      <span className="text-xs uppercase font-semibold">
                         {format(day, "EEE")}
                       </span>
                       <span
-                        className={`w-6 h-6 flex items-center justify-center mt-1 rounded-full ${
+                        className={`w-7 h-7 flex items-center justify-center mt-1 rounded-full ${
                           isSameDay(day, new Date())
                             ? "bg-blue-500 text-white"
                             : ""
@@ -487,8 +534,8 @@ const Dashboard = () => {
 
             <div className="min-w-max">
               {filteredProperties.map((property) => {
-                const propertyBookings = getBookingsForProperty(property._id);
-
+                const positionedBookings = getPositionedBookings(property._id);
+                
                 return (
                   <div
                     key={property._id}
@@ -504,44 +551,51 @@ const Dashboard = () => {
                               ? "bg-gray-50/50"
                               : ""
                           } ${
-                            isSameDay(day, new Date()) ? "bg-blue-50/50" : ""
+                            isSameDay(day, new Date()) ? "bg-blue-50/30" : ""
                           }`}
                           style={{ width: `${DAY_CELL_WIDTH}px` }}
                         ></div>
                       ))}
                     </div>
 
-                    <div className="absolute inset-0 pointer-events-none">
-                      {propertyBookings.map((booking, index) => {
+                    <div className="absolute inset-0">
+                      {positionedBookings.map((booking) => {
+                        const style = getBookingStyle(booking);
                         const nights = calculateNights(
                           booking.checkInDate,
                           booking.checkOutDate
                         );
+                        
+                        if (style.display === "none") return null;
+                        
                         return (
                           <div
-                          key={booking._id}
-                          className="group absolute pointer-events-auto cursor-pointer"
-                          style={getBookingStyle(
-                            booking,
-                            index,
-                            propertyBookings.length
-                          )}
-                          onClick={() => setSelectedBooking(booking)}
-                        >
-                          <div className="flex justify-between items-start w-full h-full px-1">
-                            <div className="flex flex-col max-w-[70%] overflow-hidden">
-                              <div className="text-xs font-medium truncate text-white">
-                                {booking.guestName}
+                            key={booking._id}
+                            style={{
+                              left: style.left,
+                              width: style.width,
+                              top: style.top,
+                              height: style.height,
+                              position: "absolute",
+                              zIndex: 10,
+                            }}
+                            className={`${style.className} pointer-events-auto`}
+                            onClick={() => handleBookingClick(booking)}
+                          >
+                            <div className="flex items-center justify-between w-full h-full px-2 text-white">
+                              <div className="flex flex-col overflow-hidden">
+                                <div className="text-xs font-semibold truncate">
+                                  {booking.guestName}
+                                </div>
+                                <div className="text-[0.65rem] truncate opacity-90">
+                                  {booking.bookingAgent?.name || "Direct"}
+                                </div>
                               </div>
-                              <div className="text-[0.65rem] truncate opacity-90">
-                                {booking.bookingAgent?.name || "Direct Booking"}
+                              <div className="text-xs font-bold whitespace-nowrap">
+                                {nights}N
                               </div>
-                            </div>
-                            <div className="text-[0.7rem] font-medium text-right">
-                              {nights} nights
                             </div>
                           </div>
-                        </div>
                         );
                       })}
                     </div>
@@ -554,44 +608,50 @@ const Dashboard = () => {
       </div>
 
       {selectedBooking && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl p-6 relative">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-2xl p-6 relative shadow-2xl">
             <button
               onClick={() => setSelectedBooking(null)}
-              className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-full"
+              className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-full transition-colors"
             >
-              <X className="h-6 w-6 text-gray-600" />
+              <X className="h-6 w-6 text-gray-500" />
             </button>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-blue-800">
                   <ClipboardList className="h-6 w-6 text-blue-600" />
                   Booking Details
                 </h3>
 
-                <div className="space-y-3">
+                <div className="space-y-3 bg-blue-50 p-4 rounded-lg">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Property:</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-blue-900">
                       {selectedBooking.property?.title}
                     </span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-gray-600">Guest:</span>
+                    <span className="font-medium text-blue-900">
+                      {selectedBooking.guestName}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-gray-600">Check-in:</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-blue-900">
                       {formatDate(selectedBooking.checkInDate)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Check-out:</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-blue-900">
                       {formatDate(selectedBooking.checkOutDate)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Nights:</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-blue-900">
                       {calculateNights(
                         selectedBooking.checkInDate,
                         selectedBooking.checkOutDate
@@ -600,28 +660,28 @@ const Dashboard = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Booking Channel:</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-blue-900">
                       {selectedBooking.bookingAgent?.name || "Direct"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Mobile:</span>
-                    <span className="font-medium">{selectedBooking.phone}</span>
+                    <span className="font-medium text-blue-900">{selectedBooking.phone}</span>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-800">
                   <Banknote className="h-6 w-6 text-green-600" />
                   Payment Details
                 </h3>
 
-                <div className="space-y-3">
+                <div className="space-y-3 bg-green-50 p-4 rounded-lg">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Status:</span>
                     <span
-                      className={`px-2 py-1 rounded-full text-sm ${
+                      className={`px-2 py-1 rounded-full text-sm font-medium ${
                         selectedBooking.status === "confirmed"
                           ? "bg-green-100 text-green-800"
                           : selectedBooking.status === "pending"
@@ -634,7 +694,7 @@ const Dashboard = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Price:</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-green-900">
                       {getCurrencySymbol(selectedBooking.currency)}
                       {selectedBooking.totalPrice?.toFixed(2)}
                     </span>
@@ -642,20 +702,20 @@ const Dashboard = () => {
                   {selectedBooking.commissionPercentage > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-600">Commission:</span>
-                      <span className="font-medium">
+                      <span className="font-medium text-green-900">
                         {selectedBooking.commissionPercentage}%
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between">
                     <span className="text-gray-600">Reservation Code:</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-green-900">
                       {selectedBooking.reservationCode}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Booked At:</span>
-                    <span className="font-medium">
+                    <span className="font-medium text-green-900">
                       {format(
                         new Date(selectedBooking.createdAt),
                         "MMM d, yyyy HH:mm"
