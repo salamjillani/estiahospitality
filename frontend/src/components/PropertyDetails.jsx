@@ -22,6 +22,7 @@ import {
   Maximize,
   FileText,
   Share2,
+  MapPin,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { MdBalcony, MdKitchen } from "react-icons/md";
@@ -211,9 +212,9 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="text-center bg-white p-4 sm:p-8 rounded-2xl shadow-lg w-full max-w-md">
-          <Loader2 className="animate-spin w-10 h-10 sm:w-14 sm:h-14 text-indigo-600 mx-auto mb-4 sm:mb-6" />
-          <p className="text-indigo-800 font-semibold text-base sm:text-lg">
+        <div className="text-center bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
+          <Loader2 className="animate-spin w-16 h-16 text-indigo-600 mx-auto mb-6" />
+          <p className="text-indigo-800 font-semibold text-lg">
             Loading property details...
           </p>
         </div>
@@ -224,9 +225,9 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
   if (bookingInProgress) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="text-center bg-white p-4 sm:p-8 rounded-2xl shadow-lg w-full max-w-md">
-          <Loader2 className="animate-spin w-10 h-10 sm:w-14 sm:h-14 text-indigo-600 mx-auto mb-4 sm:mb-6" />
-          <p className="text-indigo-800 font-semibold text-base sm:text-lg">
+        <div className="text-center bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
+          <Loader2 className="animate-spin w-16 h-16 text-indigo-600 mx-auto mb-6" />
+          <p className="text-indigo-800 font-semibold text-lg">
             Preparing reservation...
           </p>
         </div>
@@ -237,11 +238,11 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
   if (!property) {
     return (
       <div className="min-h-screen bg-gradient-to-tr from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4">
-        <div className="bg-white p-6 sm:p-10 rounded-3xl shadow-xl max-w-md w-full border border-indigo-100">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4 text-center">
+        <div className="bg-white p-10 rounded-3xl shadow-xl max-w-md w-full border border-indigo-100">
+          <h2 className="text-3xl font-bold text-gray-800 mb-4 text-center">
             Property Not Found
           </h2>
-          <p className="text-gray-600 mb-6 sm:mb-8 text-center">
+          <p className="text-gray-600 mb-8 text-center">
             The requested property doesn&apos;t exist.
           </p>
           <Link
@@ -257,15 +258,15 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-6 sm:py-8 md:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       {showConfirmation && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 sm:p-8 animate-fadeIn">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-xl max-w-md w-full p-8 animate-fadeIn">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Confirm Reservation</h3>
+              <h3 className="text-2xl font-bold text-gray-900">Confirm Reservation</h3>
               <button 
                 onClick={handleCancelBooking}
-                className="p-1 rounded-full hover:bg-gray-100"
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
@@ -300,10 +301,10 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
           onClick={closeImageViewer}
         >
           <button 
-            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 rounded-full p-2 sm:p-3 text-white transition-all duration-200 z-10"
+            className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 rounded-full p-3 text-white transition-all duration-200 z-10"
             onClick={closeImageViewer}
           >
-            <X className="w-4 h-4 sm:w-6 sm:h-6" />
+            <X className="w-6 h-6" />
           </button>
           
           <div className="relative w-full h-full flex items-center justify-center p-4">
@@ -318,15 +319,15 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
               <>
                 <button
                   onClick={prevViewerPhoto}
-                  className="absolute left-2 sm:left-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 rounded-full p-2 sm:p-4 text-white transition-all duration-200"
+                  className="absolute left-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 rounded-full p-4 text-white transition-all duration-200"
                 >
-                  <ChevronLeft className="w-5 h-5 sm:w-8 sm:h-8" />
+                  <ChevronLeft className="w-8 h-8" />
                 </button>
                 <button
                   onClick={nextViewerPhoto}
-                  className="absolute right-2 sm:right-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 rounded-full p-2 sm:p-4 text-white transition-all duration-200"
+                  className="absolute right-6 top-1/2 transform -translate-y-1/2 bg-white/10 hover:bg-white/20 rounded-full p-4 text-white transition-all duration-200"
                 >
-                  <ChevronRight className="w-5 h-5 sm:w-8 sm:h-8" />
+                  <ChevronRight className="w-8 h-8" />
                 </button>
               </>
             )}
@@ -339,35 +340,35 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
       )}
 
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6 sm:mb-8">
+        <div className="flex items-center justify-between mb-8">
           <Link
             to="/properties"
-            className="flex items-center gap-1 sm:gap-2 text-gray-700 hover:text-indigo-600 transition-colors bg-white py-1.5 sm:py-2 px-3 sm:px-5 rounded-full shadow-md hover:shadow-lg text-sm sm:text-base"
+            className="flex items-center gap-2 text-gray-700 hover:text-indigo-600 transition-colors bg-white py-2 px-5 rounded-full shadow-md hover:shadow-lg font-medium"
           >
-            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="font-medium">Back</span>
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to listings</span>
           </Link>
           {user?.role === "admin" && (
             <Link
               to={`/properties/${property._id}/edit`}
-              className="p-2 sm:p-3 text-indigo-600 bg-white hover:bg-indigo-50 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
+              className="p-3 text-indigo-600 bg-white hover:bg-indigo-50 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
             >
-              <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Edit className="w-5 h-5" />
             </Link>
           )}
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 sm:p-6 rounded-lg mb-6 sm:mb-8 shadow-md">
-            <p className="text-red-700 font-medium text-sm sm:text-base">{error}</p>
+          <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg mb-8 shadow-md">
+            <p className="text-red-700 font-medium">{error}</p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8">
             <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
               {property.photos && property.photos.length > 0 ? (
-                <div className="relative h-64 sm:h-80 md:h-96">
+                <div className="relative h-96 md:h-112">
                   <img
                     src={property.photos[currentPhotoIndex].url}
                     alt={`Property ${currentPhotoIndex + 1}`}
@@ -376,11 +377,11 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
                   />
 
                   <div 
-                    className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity duration-300"
+                    className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity duration-300 cursor-pointer"
                     onClick={() => openImageViewer(currentPhotoIndex)}
                   >
-                    <div className="bg-white/80 p-2 rounded-full">
-                      <Maximize className="w-6 h-6 text-gray-800" />
+                    <div className="bg-white/80 p-3 rounded-full">
+                      <Maximize className="w-8 h-8 text-gray-800" />
                     </div>
                   </div>
 
@@ -388,26 +389,26 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
                     <>
                       <button
                         onClick={prevPhoto}
-                        className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 sm:p-3 shadow-lg text-gray-800 hover:text-indigo-600 transition-all focus:outline-none"
+                        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg text-gray-800 hover:text-indigo-600 transition-all focus:outline-none"
                       >
-                        <ChevronLeft className="w-4 h-4 sm:w-6 sm:h-6" />
+                        <ChevronLeft className="w-6 h-6" />
                       </button>
                       <button
                         onClick={nextPhoto}
-                        className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 sm:p-3 shadow-lg text-gray-800 hover:text-indigo-600 transition-all focus:outline-none"
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg text-gray-800 hover:text-indigo-600 transition-all focus:outline-none"
                       >
-                        <ChevronRight className="w-4 h-4 sm:w-6 sm:h-6" />
+                        <ChevronRight className="w-6 h-6" />
                       </button>
                     </>
                   )}
 
                   {property.photos.length > 1 && (
-                    <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2 sm:space-x-3">
+                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3">
                       {property.photos.map((_, index) => (
                         <button
                           key={index}
                           onClick={() => setCurrentPhotoIndex(index)}
-                          className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full transition-all duration-200 ${
+                          className={`w-3 h-3 rounded-full transition-all duration-200 ${
                             currentPhotoIndex === index
                               ? "bg-indigo-600 scale-125"
                               : "bg-white/80 hover:bg-white"
@@ -418,69 +419,79 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
                   )}
                 </div>
               ) : (
-                <div className="h-64 sm:h-80 md:h-96 bg-gray-100 flex items-center justify-center">
-                  <Home className="w-16 h-16 sm:w-24 sm:h-24 text-gray-300" />
+                <div className="h-96 bg-gray-100 flex items-center justify-center">
+                  <Home className="w-24 h-24 text-gray-300" />
                 </div>
               )}
 
-              <div className="p-6 sm:p-8">
-                <div className="flex flex-wrap gap-4 items-center justify-between mb-6">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                    {property.title}
-                  </h1>
-                  <div className="flex items-center gap-2">
+              <div className="p-8">
+                <div className="flex flex-wrap gap-6 items-center justify-between mb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                      {property.title}
+                    </h1>
+                    <div className="flex items-center text-gray-600">
+                      <MapPin className="w-4 h-4 text-indigo-500 mr-1" />
+                      <span>
+                        {property.location.address && `${property.location.address}, `}
+                        {property.location.city && `${property.location.city}, `}
+                        {property.location.country}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-full">
                     <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
-                    <span className="font-semibold text-gray-700">
+                    <span className="font-semibold text-gray-800">
                       {property.rating || "New"}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-4 mb-6">
+                <div className="flex flex-wrap gap-6 mb-8">
                   {property.bedrooms && (
-                    <div className="flex items-center gap-2 text-gray-600">
+                    <div className="flex items-center gap-2 text-gray-700 bg-indigo-50 px-4 py-2 rounded-full">
                       <BedDouble className="w-5 h-5 text-indigo-600" />
-                      <span>{property.bedrooms} Beds</span>
+                      <span className="font-medium">{property.bedrooms} Beds</span>
                     </div>
                   )}
                   {property.bathrooms && (
-                    <div className="flex items-center gap-2 text-gray-600">
+                    <div className="flex items-center gap-2 text-gray-700 bg-indigo-50 px-4 py-2 rounded-full">
                       <Bath className="w-5 h-5 text-indigo-600" />
-                      <span>{property.bathrooms} Baths</span>
+                      <span className="font-medium">{property.bathrooms} Baths</span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-4 mt-6">
+                <div className="flex flex-wrap gap-4 mt-8">
                   <button
                     onClick={handleBookNowClick}
-                    className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-xl transition-colors"
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-4 px-8 rounded-xl transition-colors shadow-md hover:shadow-lg text-lg"
                   >
                     Book Now
                   </button>
                   <button
                     onClick={toggleMoreDetails}
-                    className="flex-1 sm:flex-none bg-white border border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-medium py-3 px-6 rounded-xl transition-colors"
+                    className="flex-1 bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-medium py-4 px-8 rounded-xl transition-colors text-lg"
                   >
                     {showMoreDetails ? "Hide Details" : "More Details"}
                   </button>
                 </div>
 
                 {showMoreDetails && (
-                  <div className="mt-8 space-y-6">
-                    <div className="bg-indigo-50 p-4 rounded-xl">
-                      <h3 className="text-lg font-semibold mb-4">Description</h3>
-                      <p className="text-gray-600">{property.description}</p>
+                  <div className="mt-10 space-y-8">
+                    <div className="bg-indigo-50 p-6 rounded-2xl">
+                      <h3 className="text-xl font-semibold mb-4 text-gray-800">Description</h3>
+                      <p className="text-gray-700 leading-relaxed">{property.description}</p>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl shadow">
-                      <h3 className="text-lg font-semibold mb-4">Amenities</h3>
-                      <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+                      <h3 className="text-xl font-semibold mb-6 text-gray-800">Amenities</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                         {Object.entries(property.amenities || {})
                           .filter(([_, value]) => value)
                           .map(([amenity]) => (
-                            <div key={amenity} className="flex items-center gap-2">
-                              <div className="p-1.5 bg-indigo-100 rounded-lg">
+                            <div key={amenity} className="flex items-center gap-3">
+                              <div className="p-2 bg-indigo-100 rounded-lg">
                                 {{
                                   swimmingPool: <Droplet className="w-5 h-5 text-blue-500" />,
                                   wifi: <Wifi className="w-5 h-5 text-green-500" />,
@@ -490,9 +501,9 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
                                   tv: <Tv className="w-5 h-5 text-red-500" />,
                                   washer: <WashingMachine className="w-5 h-5 text-emerald-500" />,
                                   balcony: <MdBalcony className="w-5 h-5 text-indigo-500" />,
-                                }[amenity] || <Car className="w-5 h-5 text-purple-500" />}
+                                }[amenity] || <Check className="w-5 h-5 text-indigo-500" />}
                               </div>
-                              <span className="capitalize">
+                              <span className="capitalize text-gray-700">
                                 {amenity.replace(/([A-Z])/g, " $1").trim()}
                               </span>
                             </div>
@@ -501,12 +512,12 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
                     </div>
 
                     {user?.role === "admin" && (
-                      <div className="bg-white p-4 rounded-xl shadow">
-                        <h3 className="text-lg font-semibold mb-4">Bank Details</h3>
-                        <div className="space-y-3">
+                      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
+                        <h3 className="text-xl font-semibold mb-6 text-gray-800">Bank Details</h3>
+                        <div className="space-y-4">
                           {Object.entries(property.bankDetails || {}).map(([key, value]) => (
                             value && (
-                              <div key={key} className="flex justify-between">
+                              <div key={key} className="flex justify-between border-b border-gray-100 pb-2">
                                 <span className="text-gray-600 capitalize">{key}:</span>
                                 <span className="text-gray-900 font-medium">{value}</span>
                               </div>
@@ -522,12 +533,12 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
           </div>
 
           <div className="lg:col-span-4">
-            <div className="bg-white p-6 rounded-2xl shadow-xl sticky top-6">
+            <div className="bg-white p-6 rounded-3xl shadow-xl sticky top-6">
               <div className="flex flex-col gap-4">
                 <button
                   onClick={generatePropertyPresentation}
                   disabled={generatingPresentation}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                 >
                   {generatingPresentation ? (
                     <Loader2 className="animate-spin w-5 h-5" />
@@ -538,17 +549,17 @@ ${property.location.postalCode ? `Postal Code: ${property.location.postalCode}` 
                 </button>
 
                 {presentationText && (
-                  <div className="mt-4 bg-gray-50 p-4 rounded-xl">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="font-semibold">Property Overview</h3>
+                  <div className="mt-4 bg-gray-50 p-6 rounded-xl">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-semibold text-lg text-gray-800">Property Overview</h3>
                       <button
                         onClick={copyPresentationToClipboard}
-                        className="text-indigo-600 hover:text-indigo-700"
+                        className="text-indigo-600 hover:text-indigo-700 bg-indigo-50 p-2 rounded-full hover:bg-indigo-100 transition-colors"
                       >
-                        <Share2 className="w-4 h-4" />
+                        <Share2 className="w-5 h-5" />
                       </button>
                     </div>
-                    <pre className="whitespace-pre-wrap text-sm">{presentationText}</pre>
+                    <pre className="whitespace-pre-wrap text-gray-700 bg-white p-4 rounded-lg border border-gray-100">{presentationText}</pre>
                   </div>
                 )}
               </div>
