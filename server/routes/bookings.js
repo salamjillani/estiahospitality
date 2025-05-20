@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { auth, adminOnly, checkRole } = require("../middleware/auth");
+const bookingController = require("../controllers/bookingController");
 const Booking = require("../models/Booking");
 const Property = require("../models/Property");
 const Invoice = require("../models/Invoice");
@@ -108,6 +109,7 @@ router.get("/client/:userId", auth, async (req, res) => {
   }
 });
 
+
 router.get("/:id/pdf", auth, async (req, res) => {
   try {
     console.log(`Generating PDF for invoice ID: ${req.params.id}`);
@@ -159,7 +161,7 @@ router.get("/property/:propertyId", auth, async (req, res) => {
 });
 
 // Create booking
-router.post("/", auth, checkRole(["client", "admin"]), async (req, res) => {
+router.post("/", auth, checkRole(["client", "admin"]),validateBooking, async (req, res) => {
   try {
     const initialStatus = req.user.role === "admin" ? "confirmed" : "pending";
     

@@ -1,3 +1,4 @@
+// frontend/src/components/Properties.jsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
@@ -6,7 +7,6 @@ import {
   Trash2,
   Plus,
   Eye,
-  Building2,
   MapPin,
   Bath,
   Bed,
@@ -16,6 +16,8 @@ import {
   List,
   Filter,
   Currency,
+  Search,
+  X,
 } from "lucide-react";
 import Navbar from "./Navbar";
 import { useAuth } from "../context/AuthContext";
@@ -124,10 +126,26 @@ const Properties = () => {
     applyToAllProperties: false,
     property: "",
   });
+  const [searchFilters, setSearchFilters] = useState({
+    propertyType: "",
+    occupancy: "",
+    location: "",
+    bedrooms: "",
+    amenities: {
+      swimmingPool: false,
+      wifi: false,
+      parking: false,
+      airConditioning: false,
+      kitchen: false,
+      tv: false,
+      washer: false,
+      balcony: false,
+    },
+  });
+  const [showSearchForm, setShowSearchForm] = useState(false);
 
   const navigate = useNavigate();
   const { user } = useAuth();
-
 
   const fetchProperties = async () => {
     try {
@@ -158,24 +176,18 @@ const Properties = () => {
     }
   };
 
-
   const fetchPricings = async () => {
     try {
       const response = await api.get("/api/pricings");
-      
- 
-      const data = Array.isArray(response) ? response : (response.data || []);
-      
-      const processed = data.map((pricing) => {
-        return {
-          ...pricing,
-          datePrices: pricing.datePrices?.map(dp => ({
+      const data = Array.isArray(response) ? response : response.data || [];
+      const processed = data.map((pricing) => ({
+        ...pricing,
+        datePrices:
+          pricing.datePrices?.map((dp) => ({
             ...dp,
-            date: dp.date ? new Date(dp.date).toISOString().split('T')[0] : ''
-          })) || []
-        };
-      });
-      
+            date: dp.date ? new Date(dp.date).toISOString().split("T")[0] : "",
+          })) || [],
+      }));
       setPricings(processed);
       return processed;
     } catch (err) {
@@ -196,7 +208,6 @@ const Properties = () => {
     });
   }, []);
 
-
   useEffect(() => {
     if (!user && !loading) {
       navigate("/auth", { state: { from: "/properties" } });
@@ -210,8 +221,6 @@ const Properties = () => {
       propertyTitle: title,
     });
   };
-
-  
 
   const handleDeleteConfirm = async () => {
     try {
@@ -273,11 +282,9 @@ const Properties = () => {
       };
 
       await api.put(`/api/category-prices/${type}`, updatedCategory);
-
       setCategories((prev) =>
         prev.map((c) => (c.type === type ? updatedCategory : c))
       );
-
       setEditingCategory(null);
     } catch (err) {
       setError("Failed to update category: " + err.message);
@@ -285,44 +292,139 @@ const Properties = () => {
       setCategoryUpdateLoading(false);
     }
   };
+
   const handlePricingTypeChange = (e) => {
     const newType = e.target.value;
     setPricingForm({
       ...pricingForm,
       type: newType,
-      // Automatically set applyToAllProperties to true for date pricing
       applyToAllProperties:
         newType === "date" ? true : pricingForm.applyToAllProperties,
-      // Clear property selection when switching to date pricing
       property: newType === "date" ? "" : pricingForm.property,
     });
   };
 
+  const handleSearchInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    if (name.startsWith("amenities.")) {
+      const amenity = name.split(".")[1];
+      setSearchFilters((prev) => ({
+        ...prev,
+        amenities: {
+          ...prev.amenities,
+          [amenity]: checked,
+        },
+      }));
+    } else if (type === "checkbox") {
+      // Handle any other checkbox inputs
+      setSearchFilters((prev) => ({
+        ...prev,
+        [name]: checked,
+      }));
+    } else {
+      // Handle text, number, select inputs
+      setSearchFilters((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  const clearSearchFilters = () => {
+    setSearchFilters({
+      propertyType: "",
+      occupancy: "",
+      location: "",
+      bedrooms: "",
+      amenities: {
+        swimmingPool: false,
+        wifi: false,
+        parking: false,
+        airConditioning: false,
+        kitchen: false,
+        tv: false,
+        washer: false,
+        balcony: false,
+      },
+    });
+  };
+
+  const toggleSearchForm = () => {
+    setShowSearchForm(!showSearchForm);
+  };
+
+  const filterProperties = (property) => {
+    const { propertyType, occupancy, location, bedrooms, amenities } =
+      searchFilters;
+
+    // Filter by property type
+    if (propertyType && property.type !== propertyType) {
+      return false;
+    }
+
+    // Filter by occupancy (guestCapacity)
+    if (occupancy && parseInt(property.guestCapacity) < parseInt(occupancy)) {
+      return false;
+    }
+
+    // Filter by location
+    if (location) {
+      const locationString = `${property.location?.address || ""} ${
+        property.location?.city || ""
+      } ${property.location?.country || ""}`.toLowerCase();
+      if (!locationString.includes(location.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // Filter by bedrooms
+    if (bedrooms && parseInt(property.bedrooms) !== parseInt(bedrooms)) {
+      return false;
+    }
+
+    // Filter by amenities
+    const selectedAmenities = Object.entries(amenities)
+      .filter(([_, value]) => value)
+      .map(([key]) => key);
+    if (selectedAmenities.length > 0) {
+      const hasAllAmenities = selectedAmenities.every(
+        (amenity) => property.amenities && property.amenities[amenity]
+      );
+      if (!hasAllAmenities) {
+        return false;
+      }
+    }
+
+    // Filter by category if selected
+    if (selectedCategory && property.type !== selectedCategory) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const filteredProperties = properties.filter(filterProperties);
+
   const handleSavePricing = async () => {
     try {
       const isDatePricing = pricingForm.type === "date";
-
-      // For date pricing, force applyToAllProperties to be true
       const applyToAll = isDatePricing
         ? true
         : pricingForm.applyToAllProperties;
 
-      // Validation
       if (!applyToAll && !pricingForm.property && !isDatePricing) {
         throw new Error("Please select a property for monthly pricing");
       }
 
       if (isDatePricing) {
-        // Date pricing validations
         if (pricingForm.datePrices.length === 0) {
           throw new Error("Please add at least one date price");
         }
-
         for (const datePrice of pricingForm.datePrices) {
           if (!datePrice.date) {
             throw new Error("Please select a date for all date prices");
           }
-
           const date = new Date(datePrice.date);
           if (isNaN(date.getTime())) {
             throw new Error("Invalid date format detected");
@@ -335,7 +437,6 @@ const Properties = () => {
           }
         }
       } else {
-        // Monthly pricing validations
         for (const block of pricingForm.blockPrices) {
           if (block.endDay < block.startDay) {
             throw new Error("End day cannot be before start day");
@@ -361,9 +462,7 @@ const Properties = () => {
       };
 
       let response;
-
       if (selectedPricing) {
-        // Update existing pricing
         response = await api.put(
           `/api/pricings/${selectedPricing._id}`,
           payload
@@ -372,12 +471,10 @@ const Properties = () => {
           prev.map((p) => (p._id === response._id ? response : p))
         );
       } else {
-        // Create new pricing
         response = await api.post("/api/pricings", payload);
         setPricings((prev) => [...prev, response]);
       }
 
-      // Reset form to initial state
       setSelectedPricing(null);
       setPricingForm({
         type: "monthly",
@@ -408,8 +505,6 @@ const Properties = () => {
           <option value="monthly">Monthly Block Pricing</option>
           <option value="date">Custom Date Pricing</option>
         </select>
-
-        {/* Show property selector and "apply to all" checkbox only for monthly pricing */}
         {pricingForm.type === "monthly" && (
           <>
             <div className="flex items-center mb-4">
@@ -430,15 +525,11 @@ const Properties = () => {
                 Apply to all properties
               </label>
             </div>
-
             {!pricingForm.applyToAllProperties && (
               <select
                 value={pricingForm.property}
                 onChange={(e) =>
-                  setPricingForm({
-                    ...pricingForm,
-                    property: e.target.value,
-                  })
+                  setPricingForm({ ...pricingForm, property: e.target.value })
                 }
                 className="w-full p-2 border rounded-lg"
                 required={!pricingForm.applyToAllProperties}
@@ -453,14 +544,11 @@ const Properties = () => {
             )}
           </>
         )}
-
-        {/* For date pricing, add a notice that it applies to all properties */}
         {pricingForm.type === "date" && (
           <div className="p-3 bg-blue-50 text-blue-800 rounded-lg text-sm">
             Note: Date pricing will automatically apply to all properties.
           </div>
         )}
-
         {pricingForm.type === "monthly" ? (
           <>
             <input
@@ -578,10 +666,7 @@ const Properties = () => {
                   onChange={(e) => {
                     const newDates = [...pricingForm.datePrices];
                     newDates[index].date = e.target.value;
-                    setPricingForm({
-                      ...pricingForm,
-                      datePrices: newDates,
-                    });
+                    setPricingForm({ ...pricingForm, datePrices: newDates });
                   }}
                   className="p-2 border rounded-lg flex-1"
                 />
@@ -592,10 +677,7 @@ const Properties = () => {
                   onChange={(e) => {
                     const newDates = [...pricingForm.datePrices];
                     newDates[index].price = e.target.value;
-                    setPricingForm({
-                      ...pricingForm,
-                      datePrices: newDates,
-                    });
+                    setPricingForm({ ...pricingForm, datePrices: newDates });
                   }}
                   className="p-2 border rounded-lg flex-1"
                 />
@@ -631,7 +713,6 @@ const Properties = () => {
             </button>
           </div>
         )}
-
         <button
           onClick={handleSavePricing}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg"
@@ -648,30 +729,22 @@ const Properties = () => {
       ...pricing,
       datePrices: pricing.datePrices.map((dp) => {
         let dateValue;
-   
         if (dp.date) {
-          if (typeof dp.date === 'string') {
-      
-            dateValue = dp.date.split('T')[0];
+          if (typeof dp.date === "string") {
+            dateValue = dp.date.split("T")[0];
           } else if (dp.date instanceof Date) {
-        
-            dateValue = dp.date.toISOString().split('T')[0];
+            dateValue = dp.date.toISOString().split("T")[0];
           } else {
-          
             try {
-              dateValue = new Date(dp.date).toISOString().split('T')[0];
+              dateValue = new Date(dp.date).toISOString().split("T")[0];
             } catch {
-              dateValue = '';
+              dateValue = "";
             }
           }
         } else {
-          dateValue = '';
+          dateValue = "";
         }
-        
-        return {
-          ...dp,
-          date: dateValue
-        };
+        return { ...dp, date: dateValue };
       }),
     });
   };
@@ -684,25 +757,6 @@ const Properties = () => {
       setError("Failed to delete pricing: " + err.message);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-        <Navbar
-          isSidebarOpen={isSidebarOpen}
-          setIsSidebarOpen={setIsSidebarOpen}
-        />
-        <div className="mt-16 flex items-center justify-center min-h-[calc(100vh-4rem)]">
-          <div className="flex flex-col items-center gap-6 p-8 bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-blue-100">
-            <Loader2 className="animate-spin w-16 h-16 text-blue-600" />
-            <p className="text-lg text-gray-600 font-medium animate-pulse">
-              Loading your properties...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   const PricingTable = ({ pricings, onEdit, onDelete }) => (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -732,7 +786,6 @@ const Properties = () => {
                 </button>
               </div>
             </div>
-
             {pricing.type === "monthly" ? (
               <div className="grid grid-cols-3 gap-2">
                 {(pricing.blockPrices || []).map((block, idx) => (
@@ -759,6 +812,31 @@ const Properties = () => {
       </div>
     </div>
   );
+
+  PricingTable.propTypes = {
+    pricings: PropTypes.array.isRequired,
+    onEdit: PropTypes.func.isRequired,
+    onDelete: PropTypes.func.isRequired,
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+        <Navbar
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
+        />
+        <div className="mt-16 flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <div className="flex flex-col items-center gap-6 p-8 bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-blue-100">
+            <Loader2 className="animate-spin w-16 h-16 text-blue-600" />
+            <p className="text-lg text-gray-600 font-medium animate-pulse">
+              Loading your properties...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -827,6 +905,139 @@ const Properties = () => {
           </div>
         )}
 
+        <div className="mb-6 sm:mb-8">
+          <div className="relative">
+            <button
+              onClick={toggleSearchForm}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-white shadow-md rounded-xl hover:bg-gray-50 transition-colors border border-blue-100 text-xs sm:text-sm w-full sm:w-auto"
+            >
+              <Search className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+              <span className="font-medium truncate">Search Properties</span>
+            </button>
+
+            {showSearchForm && (
+              <div className="absolute top-full left-0 mt-2 w-full sm:w-96 bg-white rounded-xl shadow-lg z-10 p-4 animate-in slide-in-from-top duration-200 border border-blue-100">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-sm font-medium text-indigo-700">
+                    Search Filters
+                  </h3>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearSearchFilters();
+                      setShowSearchForm(false);
+                    }}
+                    className="p-1 bg-gray-100 rounded-full hover:bg-gray-200"
+                  >
+                    <X className="w-4 h-4 text-gray-600" />
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Property Type
+                    </label>
+                    <select
+                      name="propertyType"
+                      value={searchFilters.propertyType}
+                      onChange={handleSearchInputChange}
+                      className="w-full p-2 border rounded-lg text-sm"
+                    >
+                      <option value="">All Types</option>
+                      <option value="Short Term Rental">
+                        Short Term Rental
+                      </option>
+                      <option value="Short Term Rental >80 sq.m">
+                        Short Term Rental {">"} 80 sq.m
+                      </option>
+                      <option value="Self Sustained Villa">
+                        Self Sustained Villa
+                      </option>
+                      <option value="Self Sustained Residency <=80sq.m">
+                        Self Sustained Residency {"<="} 80sq.m
+                      </option>
+                      <option value="Self Sustained Residency >80sq.m">
+                        Self Sustained Residency {">"} 80sq.m
+                      </option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Minimum Occupancy
+                    </label>
+                    <input
+                      type="number"
+                      name="occupancy"
+                      value={searchFilters.occupancy}
+                      onChange={handleSearchInputChange}
+                      min="1"
+                      className="w-full p-2 border rounded-lg text-sm"
+                      placeholder="Enter minimum guests"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Location
+                    </label>
+                    <input
+                      type="text"
+                      name="location"
+                      value={searchFilters.location}
+                      onChange={handleSearchInputChange}
+                      className="w-full p-2 border rounded-lg text-sm"
+                      placeholder="City, country, or address"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Number of Bedrooms
+                    </label>
+                    <input
+                      type="number"
+                      name="bedrooms"
+                      value={searchFilters.bedrooms}
+                      onChange={handleSearchInputChange}
+                      min="1"
+                      className="w-full p-2 border rounded-lg text-sm"
+                      placeholder="Enter number of bedrooms"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Amenities
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.keys(searchFilters.amenities).map((amenity) => (
+                        <label
+                          key={amenity}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            name={`amenities.${amenity}`}
+                            checked={searchFilters.amenities[amenity]}
+                            onChange={handleSearchInputChange}
+                            className="h-4 w-4 text-indigo-600"
+                          />
+                          <span className="capitalize">
+                            {amenity.replace(/([A-Z])/g, " $1").trim()}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={toggleSearchForm}
+                  className="mt-4 w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="flex justify-center mb-6 sm:mb-8">
           <div className="bg-white p-1 rounded-xl flex shadow-md border border-blue-100">
             <button
@@ -886,7 +1097,6 @@ const Properties = () => {
               <h2 className="text-xl font-bold mb-4">Manage Pricing</h2>
               {renderPricingForm()}
             </div>
-
             <PricingTable
               pricings={pricings}
               onEdit={handleEditPricing}
@@ -926,12 +1136,11 @@ const Properties = () => {
                           strokeLinejoin="round"
                           strokeWidth="2"
                           d="M6 18L18 6M6 6l12 12"
-                        ></path>
+                        />
                       </svg>
                     </button>
                   )}
                 </button>
-
                 {showCategoryFilter && (
                   <div className="absolute top-full left-0 mt-2 w-full sm:w-72 bg-white rounded-xl shadow-lg z-10 py-2 animate-in slide-in-from-top duration-200 border border-blue-100">
                     <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
@@ -958,159 +1167,116 @@ const Properties = () => {
                   </div>
                 )}
               </div>
-
               {selectedCategory && (
                 <div className="text-xs sm:text-sm text-gray-600 bg-white/70 backdrop-blur-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm">
-                  Showing{" "}
-                  {properties.filter((p) => p.type === selectedCategory).length}{" "}
-                  of {properties.length} properties
+                  Showing {filteredProperties.length} of {properties.length}{" "}
+                  properties
                 </div>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-  {properties
-    .filter(
-      (property) =>
-        !selectedCategory || property.type === selectedCategory
-    )
-    .map((property, index) => (
-      <div
-        key={property._id}
-        className="bg-white rounded-2xl sm:rounded-3xl border border-blue-100 hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 overflow-hidden group"
-        style={{ animationDelay: `${index * 100}ms` }}
-      >
-        <div className="relative overflow-hidden group">
-          {property.photos?.[0] ? (
-            <img
-              src={property.photos[0].url}
-              alt={property.title}
-              className="w-full h-48 sm:h-56 md:h-64 object-cover transform group-hover:scale-110 transition-transform duration-700"
-            />
-          ) : (
-            <div className="w-full h-48 sm:h-56 md:h-64 bg-gradient-to-r from-blue-400 to-indigo-500 flex items-center justify-center">
-              <Home className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
-            </div>
-          )}
-        </div>
-
-        <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5">
-          <div>
-            <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2 sm:mb-3 line-clamp-1 hover:text-blue-700 transition-colors">
-              {property.title}
-            </h3>
-            <div className="flex items-center gap-2 text-gray-700 mb-1">
-              <div className="bg-blue-100 p-1 sm:p-1.5 rounded-lg">
-                <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-              </div>
-              <p className="text-xs sm:text-sm truncate font-medium">
-                {property.location?.address ||
-                  "No address specified"}
-              </p>
-            </div>
-            <p className="text-xs sm:text-sm text-gray-600 pl-6 sm:pl-8">
-              {property.location?.city},{" "}
-              {property.location?.country}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between border-t border-gray-100 pt-4 sm:pt-5">
-            <div className="flex items-center gap-3 sm:gap-5">
-              <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-gray-100">
-                <Bed className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-                <span className="text-xs sm:text-sm font-medium">
-                  {property.bedrooms}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-gray-100">
-                <Bath className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-                <span className="text-xs sm:text-sm font-medium">
-                  {property.bathrooms}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {user?.role === "admin" && (
-                <Link
-                  to={`/properties/${property._id}/edit`}
-                  className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors duration-300 group flex items-center justify-center"
-                  title="Edit property"
+              {filteredProperties.map((property, index) => (
+                <div
+                  key={property._id}
+                  className="bg-white rounded-2xl sm:rounded-3xl border border-blue-100 hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 overflow-hidden group"
+                  style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <Edit className="w-5 h-5" />
-                </Link>
-              )}
-              <Link
-                to={`/properties/${property._id}`}
-                className="p-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-xl transition-colors duration-300 group flex items-center justify-center"
-                title="View property"
-              >
-                <Eye className="w-5 h-5 text-white group-hover:scale-110 transition-transform duration-300" />
-              </Link>
-              {user?.role === "admin" && (
-                <button
-                  onClick={() =>
-                    handleDeleteClick(property._id, property.title)
-                  }
-                  className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors duration-300 group flex items-center justify-center"
-                  title="Delete property"
-                >
-                  <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    ))}
-</div>
-
-            {properties.length === 0 && !loading && (
-              <div className="text-center py-20">
-                <div className="bg-white rounded-3xl p-12 max-w-lg mx-auto shadow-xl border border-blue-100">
-                  <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 rounded-full inline-flex mb-6">
-                    <Building2 className="w-16 h-16 text-white mx-auto" />
+                  <div className="relative overflow-hidden group">
+                    {property.photos?.[0] ? (
+                      <img
+                        src={property.photos[0].url}
+                        alt={property.title}
+                        className="w-full h-48 sm:h-56 md:h-64 object-cover transform group-hover:scale-110 transition-transform duration-700"
+                      />
+                    ) : (
+                      <div className="w-full h-48 sm:h-56 md:h-64 bg-gradient-to-r from-blue-400 to-indigo-500 flex items-center justify-center">
+                        <Home className="w-12 h-12 sm:w-16 sm:h-16 text-white" />
+                      </div>
+                    )}
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                    No properties yet
-                  </h3>
-                  <p className="text-gray-600 mb-8 text-lg">
-                    Start building your portfolio by adding your first property
-                    listing!
-                  </p>
-                  <Link
-                    to="/properties/new"
-                    className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
-                  >
-                    <Plus className="w-5 h-5" />
-                    <span className="font-medium">Add Your First Property</span>
-                  </Link>
+                  <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5">
+                    <div>
+                      <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2 sm:mb-3 line-clamp-1 hover:text-blue-700 transition-colors">
+                        {property.title}
+                      </h3>
+                      <div className="flex items-center gap-2 text-gray-700 mb-1">
+                        <div className="bg-blue-100 p-1 sm:p-1.5 rounded-lg">
+                          <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+                        </div>
+                        <p className="text-xs sm:text-sm truncate font-medium">
+                          {property.location?.address || "No address specified"}
+                        </p>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-600 pl-6 sm:pl-8">
+                        {property.location?.city}, {property.location?.country}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-gray-100 pt-4 sm:pt-5">
+                      <div className="flex items-center gap-3 sm:gap-5">
+                        <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-gray-100">
+                          <Bed className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+                          <span className="text-xs sm:text-sm font-medium">
+                            {property.bedrooms}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl border border-gray-100">
+                          <Bath className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+                          <span className="text-xs sm:text-sm font-medium">
+                            {property.bathrooms}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {user?.role === "admin" && (
+                          <Link
+                            to={`/properties/${property._id}/edit`}
+                            className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors duration-300 group flex items-center justify-center"
+                            title="Edit property"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </Link>
+                        )}
+                        <Link
+                          to={`/properties/${property._id}`}
+                          className="p-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-xl transition-colors duration-300 group flex items-center justify-center"
+                          title="View property"
+                        >
+                          <Eye className="w-5 h-5 text-white group-hover:scale-110 transition-transform duration-300" />
+                        </Link>
+                        {user?.role === "admin" && (
+                          <button
+                            onClick={() =>
+                              handleDeleteClick(property._id, property.title)
+                            }
+                            className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors duration-300 group flex items-center justify-center"
+                            title="Delete property"
+                          >
+                            <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              ))}
+            </div>
+
+            {filteredProperties.length === 0 && !loading && (
+              <div className="text-center py-12 bg-white rounded-2xl shadow-md border border-blue-100">
+                <div className="p-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full inline-flex mb-4">
+                  <Search className="w-10 h-10 text-indigo-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  No Properties Found
+                </h3>
+                <p className="text-sm text-gray-600 max-w-md mx-auto">
+                  No properties match your current filters. Try adjusting your
+                  search criteria or clearing the filters to see more
+                  properties.
+                </p>
               </div>
             )}
-
-            {properties.length > 0 &&
-              selectedCategory &&
-              properties.filter((p) => p.type === selectedCategory).length ===
-                0 && (
-                <div className="text-center py-12 bg-white rounded-2xl shadow-md border border-blue-100">
-                  <div className="p-4 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full inline-flex mb-4">
-                    <Filter className="w-10 h-10 text-indigo-600" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    No properties in this category
-                  </h3>
-                  <p className="text-gray-600 mb-6">
-                    Try selecting a different category or clear the filter
-                  </p>
-                  <button
-                    onClick={clearCategoryFilter}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-colors shadow-md hover:shadow-lg"
-                  >
-                    Clear Filter
-                  </button>
-                </div>
-              )}
           </>
         )}
       </main>
@@ -1118,6 +1284,7 @@ const Properties = () => {
   );
 };
 
+// PropTypes for DeleteDialog
 DeleteDialog.propTypes = {
   isOpen: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,

@@ -76,7 +76,7 @@ exports.createBooking = async (req, res) => {
   }
 };
 
-export const updateBookingStatus = async (req, res) => {
+exports.updateBookingStatus = async (req, res) => {
   try {
     const booking = await Booking.findByIdAndUpdate(
       req.params.id,
@@ -93,7 +93,7 @@ export const updateBookingStatus = async (req, res) => {
   }
 };
 
-export const getClientBookings = async (req, res) => {
+exports.getClientBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({
       user: req.params.userId,
@@ -105,7 +105,7 @@ export const getClientBookings = async (req, res) => {
   }
 };
 
-export const getAllBookings = async (req, res) => {
+exports.getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({});
     res.send(bookings);
