@@ -159,39 +159,31 @@ router.get("/property/:propertyId", auth, async (req, res) => {
 });
 
 // Create booking
-router.post("/", auth, checkRole(["client"]), async (req, res) => {
+router.post("/", auth, checkRole(["client", "admin"]), async (req, res) => {
   try {
+    const initialStatus = req.user.role === "admin" ? "confirmed" : "pending";
     
     const property = await Property.findById(req.body.property)
-      .select("pricePerNight bankDetails.currency")
+      .select("pricePerNight bankDetails.currency rooms guestCapacity title location")
       .lean();
-      if (!property) {
-        return res.status(404).json({ message: "Property not found" });
-      }
-      if (!req.body.totalPrice || typeof req.body.totalPrice !== "number") {
-        return res.status(400).json({ message: "Invalid price calculation" });
-      }
-      if (typeof property.pricePerNight !== "number" || isNaN(property.pricePerNight)) {
-        return res.status(400).json({ 
-          message: "Property pricing configuration error: Invalid pricePerNight" 
-        });
-      }
-      if (!property || typeof property.pricePerNight !== "number" || isNaN(property.pricePerNight)) {
-        return res.status(400).json({ 
-          message: "Property pricing not configured properly" 
-        });
-      }
+    if (!property) {
+      return res.status(404).json({ message: "Property not found" });
+    }
+    if (!req.body.totalPrice || typeof req.body.totalPrice !== "number") {
+      return res.status(400).json({ message: "Invalid price calculation" });
+    }
+    if (typeof property.pricePerNight !== "number" || isNaN(property.pricePerNight)) {
+      return res.status(400).json({ 
+        message: "Property pricing configuration error: Invalid pricePerNight" 
+      });
+    }
     if (!property.bankDetails?.currency) {
-      return res
-        .status(400)
-        .json({ message: "Property currency not configured properly" });
+      return res.status(400).json({ message: "Property currency not configured properly" });
     }
 
     // Room availability check
     if (req.body.rooms > property.rooms) {
-      return res
-        .status(400)
-        .json({ message: `Only ${property.rooms} rooms available` });
+      return res.status(400).json({ message: `Only ${property.rooms} rooms available` });
     }
     if (req.body.adults + req.body.children > property.guestCapacity) {
       return res.status(400).json({
@@ -202,19 +194,17 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
     // Date conflict check
     const existingBookings = await Booking.find({
       property: req.body.property,
-      status: { $ne: "cancelled" },
+      status: { $nin: ["cancelled", "rejected"] },
       $or: [
         {
-          checkInDate: { $lt: req.body.checkOutDate },
-          checkOutDate: { $gt: req.body.checkInDate },
+          checkInDate: { $lt: new Date(req.body.checkOutDate) },
+          checkOutDate: { $gt: new Date(req.body.checkInDate) },
         },
       ],
     });
 
     if (existingBookings.length > 0) {
-      return res
-        .status(400)
-        .json({ message: "Property already booked for these dates" });
+      return res.status(400).json({ message: "Property already booked for these dates" });
     }
 
     const requiredFields = [
@@ -228,9 +218,7 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
     const missing = requiredFields.filter((field) => !req.body[field]);
 
     if (missing.length > 0) {
-      return res
-        .status(400)
-        .json({ message: `Missing required fields: ${missing.join(", ")}` });
+      return res.status(400).json({ message: `Missing required fields: ${missing.join(", ")}` });
     }
 
     const startDate = new Date(req.body.checkInDate);
@@ -240,20 +228,9 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
       return res.status(400).json({ message: "Invalid dates provided" });
     }
 
-    // Calculate nights and validate
     const nights = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
     if (isNaN(nights) || nights <= 0) {
       return res.status(400).json({ message: "Invalid date range" });
-    }
-
-    // Ensure pricePerNight is a number
-    if (
-      typeof property.pricePerNight !== "number" ||
-      isNaN(property.pricePerNight)
-    ) {
-      return res
-        .status(500)
-        .json({ message: "Invalid property pricing configuration" });
     }
 
     const booking = new Booking({
@@ -265,12 +242,73 @@ router.post("/", auth, checkRole(["client"]), async (req, res) => {
       commissionPercentage: req.body.commissionPercentage || 0,
       paymentMethod: req.body.paymentMethod,
       user: req.user.id,
-      status: "pending",
+      status: initialStatus,
     });
 
     await booking.save();
-    req.io.emit("newBooking", booking);
-    res.status(201).json(booking);
+
+    // Generate invoice for admin-confirmed bookings
+    let invoice = null;
+    if (initialStatus === "confirmed") {
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+
+      const counter = await Counter.findOneAndUpdate(
+        { _id: "invoiceNumber" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+
+      const invoiceNumber = `INV-${year}${month}-${String(counter.seq).padStart(4, "0")}`;
+
+      invoice = new Invoice({
+        invoiceNumber,
+        user: booking.user,
+        booking: booking._id,
+        property: booking.property,
+        issuedDate: new Date(),
+        dueDate: new Date(booking.checkInDate),
+        status: "confirmed",
+        amounts: {
+          total: booking.totalPrice,
+          currency: booking.currency,
+        },
+        paymentMethod: booking.paymentMethod,
+        guestDetails: {
+          name: booking.guestName,
+          email: booking.email,
+          phone: booking.phone,
+          rooms: booking.rooms,
+          adults: booking.adults,
+          children: booking.children,
+        },
+        commission: {
+          agent: booking.bookingAgent,
+          percentage: booking.commissionPercentage,
+          amount: booking.totalPrice * (booking.commissionPercentage / 100),
+        },
+        propertyDetails: {
+          title: property.title,
+          address: property.location?.address || "N/A",
+          city: property.location?.city || "N/A",
+          country: property.location?.country || "N/A",
+        },
+      });
+
+      await invoice.save();
+      booking.invoice = invoice._id;
+      await booking.save();
+    }
+
+    // Populate booking for response
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate("user", "name email")
+      .populate("property", "title pricePerNight")
+      .populate("invoice", "invoiceNumber status");
+
+    req.io.emit("newBooking", populatedBooking);
+    res.status(201).json(populatedBooking);
   } catch (err) {
     console.error("Booking creation error:", err);
     res.status(400).json({

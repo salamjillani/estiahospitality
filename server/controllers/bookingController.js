@@ -1,4 +1,3 @@
-// controllers/bookingController.js
 const Booking = require("../models/Booking");
 const Property = require("../models/Property");
 const Invoice = require("../models/Invoice");
@@ -6,87 +5,73 @@ const { generateInvoicePDF } = require("../services/pdfService");
 
 exports.createBooking = async (req, res) => {
   try {
-    // Create booking from validated request body
+    const isAdmin = req.user.role === 'admin';
+    const status = isAdmin ? 'confirmed' : 'pending';
+    
     const booking = await Booking.create({
       ...req.body,
       user: req.user._id,
-      status: "pending",
+      status: status,
     });
 
-    // Get property details for invoice snapshot
     const property = await Property.findById(booking.property)
-      .select("title location.pricePerNight bankDetails.currency")
+      .select("pricePerNight bankDetails.currency")
       .lean();
 
-      if (!property.bankDetails?.currency) {
-        throw new Error("Property currency configuration is invalid");
-      }
+    if (isAdmin) {
+      const checkIn = new Date(booking.checkInDate);
+      const checkOut = new Date(booking.checkOutDate);
+      const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
 
-    if (!property) {
-      throw new Error("Property not found");
-    }
-
-    // Calculate nights and price
-    const checkIn = new Date(booking.checkInDate);
-    const checkOut = new Date(booking.checkOutDate);
-    const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-
-    // Create invoice with snapshot data
-    const invoice = new Invoice({
-      user: booking.user,
-      booking: booking._id,
-      property: booking.property,
-      status: booking.status,
-      paymentMethod: booking.paymentMethod,
-      amounts: {
-        total: nights * property.pricePerNight,
-        currency: property.bankDetails.currency,
-      },
-      guestDetails: {
-        name: booking.guestName,
-        email: booking.email,
-        phone: booking.phone,
-        nationality: booking.nationality,
-        rooms: booking.rooms,
-        adults: booking.adults,
-        children: booking.children,
-      },
-      propertyDetails: {
-        title: property.title,
-        address: property.location?.address || "Not specified",
-        city: property.location?.city || "Not specified",
-        country: property.location?.country || "Not specified",
-      },
-    });
-
-    await invoice.save();
-    booking.invoice = invoice._id;
-    await booking.save();
-
-    // Generate PDF (async - don't await)
-    generateInvoicePDF(invoice)
-      .then((pdfPath) => {
-        console.log(`Invoice PDF generated: ${pdfPath}`);
-      })
-      .catch((err) => {
-        console.error("PDF generation failed:", err);
+      const invoice = new Invoice({
+        user: booking.user,
+        booking: booking._id,
+        property: booking.property,
+        status: 'confirmed',
+        paymentMethod: booking.paymentMethod,
+        amounts: {
+          total: booking.totalPrice,
+          currency: property.bankDetails.currency,
+        },
+        guestDetails: {
+          name: booking.guestName,
+          email: booking.email,
+          phone: booking.phone,
+          nationality: booking.nationality,
+          rooms: booking.rooms,
+          adults: booking.adults,
+          children: booking.children,
+        },
+        propertyDetails: {
+          title: property.title,
+          address: property.location?.address || "N/A",
+          city: property.location?.city || "N/A",
+          country: property.location?.country || "N/A",
+        },
       });
 
-    // Send response with booking and invoice data
+      await invoice.save();
+      booking.invoice = invoice._id;
+      await booking.save();
+
+      generateInvoicePDF(invoice)
+        .then((pdfPath) => console.log(`Invoice PDF generated: ${pdfPath}`))
+        .catch((err) => console.error("PDF generation failed:", err));
+    }
+
     res.status(201).json({
       success: true,
       data: {
         booking,
-        invoice: {
+        invoice: isAdmin ? {
           _id: invoice._id,
           invoiceNumber: invoice.invoiceNumber,
           status: invoice.status,
           downloadLink: `/api/invoices/${invoice._id}/pdf`
-        }
+        } : null
       }
     });
   } catch (error) {
-    if (booking) await Booking.findByIdAndDelete(booking._id);
     res.status(400).json({ error: error.message });
   }
 };

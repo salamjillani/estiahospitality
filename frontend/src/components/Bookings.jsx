@@ -24,6 +24,7 @@ import {
   Hotel,
   CheckCircle,
   Phone,
+  ClipboardList,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -44,6 +45,8 @@ import {
 
 const DAY_CELL_WIDTH = 60;
 const ROW_HEIGHT = 140;
+const BOOKING_HEIGHT = 32;
+const BOOKING_GAP = 4;
 
 const currencySymbols = {
   USD: "$",
@@ -84,6 +87,7 @@ const Bookings = () => {
   const [bookedDates, setBookedDates] = useState([]);
   const [fetchingBookings, setFetchingBookings] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   const [formData, setFormData] = useState({
     checkInDate: "",
@@ -344,7 +348,7 @@ const Bookings = () => {
       return propertyBookings.some((b) => {
         const start = new Date(b.checkInDate);
         const end = new Date(b.checkOutDate);
-        return date >= start && date < end;
+        return date >= start && date <= end; // Include checkout date
       });
     },
     [bookings, bookedDates, selectedProperty]
@@ -371,22 +375,34 @@ const Bookings = () => {
       e.stopPropagation();
     }
 
-    if (isDateBooked(property._id, date) || isPastDate(date)) return;
+    // Check if the date is either:
+    // 1. Available
+    // 2. Is the checkout date of an existing booking
+    const isCheckoutDate = bookings.some((b) => {
+      const checkout = new Date(b.checkOutDate);
+      return isSameDay(checkout, date) && b.property?._id === property._id;
+    });
 
-    setSelectedProperty(property);
-    setSelectedDate(date);
-    setFormData((prev) => ({
-      ...prev,
-      checkInDate: format(date, "yyyy-MM-dd"),
-      checkOutDate: format(addDays(date, 1), "yyyy-MM-dd"),
-      property: property._id,
-      currency: property.currency || "USD",
-      rooms: property.bedrooms || 1,
-    }));
+    // Only proceed if the date is not booked (or is a checkout date) and not in the past
+    if (
+      (isCheckoutDate || !isDateBooked(property._id, date)) &&
+      !isPastDate(date)
+    ) {
+      setSelectedProperty(property);
+      setSelectedDate(date);
+      setFormData((prev) => ({
+        ...prev,
+        checkInDate: format(date, "yyyy-MM-dd"),
+        checkOutDate: format(addDays(date, 1), "yyyy-MM-dd"),
+        property: property._id,
+        currency: property.currency || "USD",
+        rooms: property.bedrooms || 1,
+      }));
 
-    loadPropertyDetails(property._id);
-    fetchAgents();
-    fetchPropertyBookings(property._id);
+      loadPropertyDetails(property._id);
+      fetchAgents();
+      fetchPropertyBookings(property._id);
+    }
   };
 
   const closeReservationModal = () => {
@@ -512,20 +528,146 @@ const Bookings = () => {
       pricePerNight: propertyDetails.pricePerNight,
       currency: propertyDetails.currency,
       user: user._id,
-      status: "pending",
+      status: user.role === "admin" ? "confirmed" : "pending",
       checkInDate: new Date(formData.checkInDate).toISOString(),
       checkOutDate: new Date(formData.checkOutDate).toISOString(),
     };
 
     try {
       await api.post("/api/bookings", bookingData);
-      navigate("/my-bookings", { state: { success: "Booking submitted!" } });
+      navigate(user.role === "admin" ? "/dashboard" : "/my-bookings", {
+        state: { success: "Booking submitted!" },
+      });
     } catch (err) {
       setError(err.response?.data?.message || "Failed to submit booking");
     } finally {
       setLoading(false);
       closeReservationModal();
     }
+  };
+
+  const getPositionedBookings = (propertyId) => {
+    const propertyBookings = bookings.filter(
+      (booking) => booking.property?._id === propertyId
+    );
+
+    if (propertyBookings.length === 0) return [];
+
+    const sortedBookings = [...propertyBookings].sort(
+      (a, b) => new Date(a.checkInDate) - new Date(b.checkInDate)
+    );
+
+    const rows = [];
+    const positionedBookings = [];
+
+    sortedBookings.forEach((booking) => {
+      const checkInDate = new Date(booking.checkInDate);
+      const checkOutDate = new Date(booking.checkOutDate);
+
+      let rowIndex = 0;
+      let foundRow = false;
+
+      while (!foundRow && rowIndex < 10) {
+        if (!rows[rowIndex]) {
+          rows[rowIndex] = [];
+          foundRow = true;
+        } else {
+          const hasOverlap = rows[rowIndex].some((existingBooking) => {
+            const existingCheckIn = new Date(existingBooking.checkInDate);
+            const existingCheckOut = new Date(existingBooking.checkOutDate);
+            return (
+              checkInDate <= existingCheckOut && checkOutDate >= existingCheckIn
+            );
+          });
+
+          if (!hasOverlap) {
+            foundRow = true;
+          } else {
+            rowIndex++;
+          }
+        }
+      }
+
+      rows[rowIndex] = rows[rowIndex] || [];
+      rows[rowIndex].push(booking);
+
+      positionedBookings.push({
+        ...booking,
+        rowIndex,
+      });
+    });
+
+    return positionedBookings;
+  };
+
+  const getBookingStyle = (booking) => {
+    const checkInDate = new Date(booking.checkInDate);
+    const checkOutDate = new Date(booking.checkOutDate);
+    const { rowIndex } = booking;
+
+    let startDayIndex = daysToShow.findIndex((day) =>
+      isSameDay(day, checkInDate)
+    );
+    if (startDayIndex < 0) {
+      if (checkInDate < startOfMonth(currentMonth)) {
+        startDayIndex = 0;
+      } else {
+        return { display: "none" };
+      }
+    }
+
+    let endDayIndex = daysToShow.findIndex((day) =>
+      isSameDay(day, checkOutDate)
+    );
+    if (endDayIndex < 0) {
+      if (checkOutDate > daysToShow[daysToShow.length - 1]) {
+        endDayIndex = daysToShow.length - 1;
+      } else {
+        return { display: "none" };
+      }
+    }
+
+    const left = startDayIndex * DAY_CELL_WIDTH;
+    const width = (endDayIndex - startDayIndex + 1) * DAY_CELL_WIDTH - 4;
+    const top = 10 + rowIndex * (BOOKING_HEIGHT + BOOKING_GAP);
+
+    const statusColors = {
+      confirmed: {
+        bg: "bg-gradient-to-r from-blue-500 to-blue-600",
+        hover: "hover:from-blue-600 hover:to-blue-700",
+        border: "border-blue-600",
+      },
+      pending: {
+        bg: "bg-gradient-to-r from-amber-400 to-amber-500",
+        hover: "hover:from-amber-500 hover:to-amber-600",
+        border: "border-amber-500",
+      },
+      cancelled: {
+        bg: "bg-gradient-to-r from-red-400 to-red-500",
+        hover: "hover:from-red-500 hover:to-red-600",
+        border: "border-red-500",
+      },
+    };
+
+    const statusColor = statusColors[booking.status] || statusColors.pending;
+
+    return {
+      left: `${left}px`,
+      width: `${width}px`,
+      top: `${top}px`,
+      height: `${BOOKING_HEIGHT}px`,
+      className: `absolute transition-all duration-150 cursor-pointer rounded-md border shadow-md ${statusColor.bg} ${statusColor.hover} ${statusColor.border}`,
+    };
+  };
+
+  const calculateNights = (start, end) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    return differenceInDays(endDate, startDate);
+  };
+
+  const formatDate = (date) => {
+    return format(new Date(date), "EEE, MMM d, yyyy");
   };
 
   return (
@@ -680,66 +822,103 @@ const Bookings = () => {
                 ))}
               </div>
             </div>
+<div className="min-w-max">
+  {filteredProperties.map((property) => {
+    const positionedBookings = getPositionedBookings(property._id);
+    return (
+      <div
+        key={property._id}
+        className="flex border-b border-gray-200 relative"
+        style={{ height: `${ROW_HEIGHT}px` }}
+      >
+        <div className="flex h-full w-full">
+          {daysToShow.map((day, dayIndex) => {
+            const isBooked = isDateBooked(property._id, day);
+            const isPast = isPastDate(day);
 
-            <div className="min-w-max">
-              {filteredProperties.map((property) => (
-                <div
-                  key={property._id}
-                  className="flex border-b border-gray-200 relative"
-                  style={{ height: `${ROW_HEIGHT}px` }}
-                >
-                  <div className="flex h-full w-full">
-                    {daysToShow.map((day, dayIndex) => {
-                      const isBooked = isDateBooked(property._id, day);
-                      const price = getPriceForDate(property._id, day);
-                      const isPast = isPastDate(day);
+            // Remove isCheckoutDate check since it's now included in isDateBooked
+            const isAvailable = !isBooked && !isPast;
 
-                      return (
-                        <div
-                          key={dayIndex}
-                          className={`h-full border-r border-gray-100 flex-shrink-0 relative ${
-                            format(day, "MMM") !== format(currentMonth, "MMM")
-                              ? "bg-gray-50/50"
-                              : ""
-                          } ${
-                            isSameDay(day, new Date()) ? "bg-blue-50/50" : ""
-                          } ${
-                            !isBooked && !isPast
-                              ? "hover:bg-blue-100/50 cursor-pointer"
-                              : isPast
-                              ? "bg-gray-100/50 cursor-not-allowed"
-                              : "bg-red-50/10 cursor-not-allowed"
-                          }`}
-                          style={{ width: `${DAY_CELL_WIDTH}px` }}
-                          onClick={(e) => {
-                            if (!isBooked && !isPast)
-                              handleDateClick(property, day, e);
-                          }}
-                        >
-                          {isBooked && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <div className="h-8 w-full flex items-center">
-                                <div className="h-[5px] rounded-full w-full bg-red-600/70 mx-2"></div>
-                              </div>
-                            </div>
-                          )}
+            return (
+              <div
+                key={dayIndex}
+                className={`h-full border-r border-gray-100 flex-shrink-0 relative ${
+                  format(day, "MMM") !== format(currentMonth, "MMM")
+                    ? "bg-gray-50/50"
+                    : ""
+                } ${
+                  isSameDay(day, new Date()) ? "bg-blue-50/50" : ""
+                } ${
+                  isAvailable
+                    ? "hover:bg-blue-100/50 cursor-pointer"
+                    : "bg-red-50/10 cursor-not-allowed"
+                }`}
+                style={{ width: `${DAY_CELL_WIDTH}px` }}
+                onClick={
+                  isAvailable
+                    ? (e) => handleDateClick(property, day, e)
+                    : undefined
+                }
+              >
+                {isAvailable && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-base font-medium text-blue-700">
+                      {currencySymbols[property.currency] ||
+                        property.currency}
+                      {getPriceForDate(property._id, day)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-                          {!isBooked && !isPast && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="text-base font-medium text-blue-700">
-                                {currencySymbols[property.currency] ||
-                                  property.currency}
-                                €{price}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+        <div className="absolute inset-0 pointer-events-none">
+          {positionedBookings.map((booking) => {
+            const style = getBookingStyle(booking);
+            const nights = calculateNights(
+              booking.checkInDate,
+              booking.checkOutDate
+            );
+
+            if (style.display === "none") return null;
+
+            return (
+              <div
+                key={booking._id}
+                style={{
+                  left: style.left,
+                  width: style.width,
+                  top: style.top,
+                  height: style.height,
+                  position: "absolute",
+                  zIndex: 10,
+                }}
+                className={`${style.className} pointer-events-auto`}
+                onClick={() => setSelectedBooking(booking)}
+              >
+                <div className="flex items-center justify-between w-full h-full px-2 text-white">
+                  <div className="flex flex-col overflow-hidden">
+                    <div className="text-xs font-semibold truncate">
+                      {booking.guestName}
+                    </div>
+                    <div className="text-[0.65rem] truncate opacity-90">
+                      {booking.bookingAgent?.name || "Direct"}
+                    </div>
+                  </div>
+                  <div className="text-xs font-bold whitespace-nowrap">
+                    {nights}N
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  })}
+</div>
           </div>
         </div>
 
@@ -752,7 +931,7 @@ const Bookings = () => {
           >
             <div
               className="bg-white rounded-xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()} // Prevent propagation to parent
+              onClick={(e) => e.stopPropagation()}
             >
               <button
                 onClick={closeReservationModal}
@@ -1181,6 +1360,152 @@ const Bookings = () => {
                   )}
                   {loading ? "Processing..." : "Confirm Booking"}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedBooking && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl w-full max-w-2xl p-6 relative shadow-2xl">
+              <button
+                onClick={() => setSelectedBooking(null)}
+                className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="h-6 w-6 text-gray-500" />
+              </button>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-blue-800">
+                    <ClipboardList className="h-6 w-6 text-blue-600" />
+                    Booking Details
+                  </h3>
+
+                  <div className="space-y-3 bg-blue-50 p-4 rounded-lg">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Property:</span>
+                      <span className="font-medium text-blue-900">
+                        {selectedBooking.property?.title}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Guest:</span>
+                      <span className="font-medium text-blue-900">
+                        {selectedBooking.guestName}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Check-in:</span>
+                      <span className="font-medium text-blue-900">
+                        {formatDate(selectedBooking.checkInDate)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Check-out:</span>
+                      <span className="font-medium text-blue-900">
+                        {formatDate(selectedBooking.checkOutDate)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Nights:</span>
+                      <span className="font-medium text-blue-900">
+                        {calculateNights(
+                          selectedBooking.checkInDate,
+                          selectedBooking.checkOutDate
+                        )}
+                      </span>
+                    </div>
+                    {/* Add Invoice Download Button */}
+                    {selectedBooking.invoice ? (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Invoice:</span>
+                        <a
+                          href={`${import.meta.env.VITE_API_URL}/api/invoices/${
+                            selectedBooking.invoice._id
+                          }/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          Download Invoice
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Invoice:</span>
+                        <span className="text-gray-500">No invoice</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Booking Channel:</span>
+                      <span className="font-medium text-blue-900">
+                        {selectedBooking.bookingAgent?.name || "Direct"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Mobile:</span>
+                      <span className="font-medium text-blue-900">
+                        {selectedBooking.phone}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-green-800">
+                    <Banknote className="h-6 w-6 text-green-600" />
+                    Payment Details
+                  </h3>
+
+                  <div className="space-y-3 bg-green-50 p-4 rounded-lg">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <span
+                        className={`px-2 py-1 rounded-full text-sm font-medium ${
+                          selectedBooking.status === "confirmed"
+                            ? "bg-green-100 text-green-800"
+                            : selectedBooking.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {selectedBooking.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Price:</span>
+                      <span className="font-medium text-green-900">
+                        {currencySymbols[selectedBooking.currency]}
+                        {selectedBooking.totalPrice?.toFixed(2)}
+                      </span>
+                    </div>
+                    {selectedBooking.commissionPercentage > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Commission:</span>
+                        <span className="font-medium text-green-900">
+                          {selectedBooking.commissionPercentage}%
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Reservation Code:</span>
+                      <span className="font-medium text-green-900">
+                        {selectedBooking.reservationCode}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Booked At:</span>
+                      <span className="font-medium text-green-900">
+                        {format(
+                          new Date(selectedBooking.createdAt),
+                          "MMM d, yyyy HH:mm"
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
