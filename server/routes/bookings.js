@@ -161,7 +161,7 @@ router.get("/property/:propertyId", auth, async (req, res) => {
 });
 
 // Create booking
-router.post("/", auth, checkRole(["client", "admin"]),validateBooking, async (req, res) => {
+router.post("/", auth, checkRole(["client", "admin"]), async (req, res) => {
   try {
     const initialStatus = req.user.role === "admin" ? "confirmed" : "pending";
     
