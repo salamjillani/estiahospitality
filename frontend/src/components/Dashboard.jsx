@@ -4,28 +4,20 @@ import { api } from "../utils/api";
 import Navbar from "../components/Navbar";
 import {
   Loader2,
- 
   Calendar,
-
   Download,
   ChevronRight,
   AlertTriangle,
-
   ClipboardList,
-
   Clock,
-
 } from "lucide-react";
 
 const Dashboard = () => {
- 
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [downloadingInvoice, setDownloadingInvoice] = useState(null);
   const { user } = useAuth();
-
-
 
   const BASE_URL = import.meta.env.VITE_API_URL || "";
 
@@ -80,55 +72,62 @@ const Dashboard = () => {
     }
   };
 
-  
-
-
- 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError("");
-        // Fetch bookings with properly populated invoice data
         const bookingsRes = await api.get(
           "/api/bookings/admin/bookings?populate=invoice"
         );
-        // Process bookings data with safer access to possibly undefined properties
         const processedBookings = Array.isArray(bookingsRes.data || bookingsRes)
           ? (bookingsRes.data || bookingsRes).map((booking) => {
-              // Handle nested objects and dates
               const checkInDate = booking.checkInDate
                 ? new Date(booking.checkInDate).toLocaleDateString()
                 : "N/A";
-
               const checkOutDate = booking.checkOutDate
                 ? new Date(booking.checkOutDate).toLocaleDateString()
                 : "N/A";
-
-              // Safely extract invoice data if it exists
               const invoice = booking.invoice || null;
+              
+              // Calculate nights
+              const nights = booking.checkInDate && booking.checkOutDate
+                ? Math.ceil(
+                    (new Date(booking.checkOutDate) - new Date(booking.checkInDate)) / 
+                    (1000 * 60 * 60 * 24)
+                  )
+                : "N/A";
 
-              // Create a processed booking object with safe property access
+              // Calculate reservation price and fees/taxes (based on 13% VAT from invoice)
+              const totalPrice = parseFloat(booking.totalPrice) || 0;
+              const vatRate = 13;
+              const netAmount = (totalPrice * 100) / (100 + vatRate);
+              const taxAmount = totalPrice - netAmount;
+
               return {
                 ...booking,
                 checkInDate,
                 checkOutDate,
-                // Use optional chaining to safely access invoice properties
-                _id: booking._id, // Use booking ID if invoice ID is not available
+                nights,
+                _id: booking._id,
                 invoiceNumber: invoice?.invoiceNumber || "N/A",
-                totalPrice: booking.totalPrice?.toFixed(2) || "N/A",
+                reservationPrice: netAmount.toFixed(2),
+                feesTaxes: taxAmount.toFixed(2),
                 user: booking.user || { name: "Unknown" },
-                property: booking.property || { title: "Unknown Property" },
-                invoice, // Keep the full invoice object
+                property: booking.property || { 
+                  title: "Unknown Property",
+                  location: { city: "N/A" }
+                },
+                invoice,
+                channelName: booking.bookingAgent?.name || "Direct",
+                location: booking.property?.location?.city || "N/A",
               };
             })
           : [];
         processedBookings.sort(
           (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
         );
-   
         setBookings(processedBookings);
-     
       } catch (err) {
         console.error("Fetch error:", err);
         setError(err.message || "Failed to fetch data");
@@ -159,9 +158,6 @@ const Dashboard = () => {
       <Navbar />
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 pt-20 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        
-
-          {/* Error message */}
           {error && (
             <div className="mb-6 text-sm text-red-600 bg-red-50 p-4 rounded-xl flex items-center gap-3 shadow-md border border-red-100 animate-pulse">
               <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -169,9 +165,6 @@ const Dashboard = () => {
             </div>
           )}
 
-    
-
-          {/* Bookings Section */}
           <div>
             <div className="flex items-center justify-between mb-4 sm:mb-6">
               <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-2 text-gray-800">
@@ -198,10 +191,22 @@ const Dashboard = () => {
                         Property
                       </th>
                       <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                        Channel
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                        Nights
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                        Location
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
                         Dates
                       </th>
                       <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 hidden sm:table-cell">
-                        Total Price
+                        Reservation Price
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 hidden sm:table-cell">
+                        Fees/Taxes
                       </th>
                       <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
                         Status
@@ -243,6 +248,21 @@ const Dashboard = () => {
                           </div>
                         </td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4">
+                          <span className="text-gray-700 text-sm">
+                            {booking.channelName}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                          <span className="text-gray-700 text-sm">
+                            {booking.nights}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                          <span className="text-gray-700 text-sm">
+                            {booking.location}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
                           <div className="flex items-center gap-1 text-xs sm:text-sm bg-indigo-50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-indigo-600 max-w-fit">
                             <Calendar className="h-3 w-3" />
                             <span className="whitespace-nowrap">{booking.checkInDate}</span>
@@ -259,7 +279,13 @@ const Dashboard = () => {
                         <td className="px-3 sm:px-6 py-3 sm:py-4 font-medium hidden sm:table-cell text-sm">
                           <span className="text-gray-800">
                             {currencySymbols[booking.currency] || "$"}
-                            {booking.totalPrice}
+                            {booking.reservationPrice}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 font-medium hidden sm:table-cell text-sm">
+                          <span className="text-gray-800">
+                            {currencySymbols[booking.currency] || "$"}
+                            {booking.feesTaxes}
                           </span>
                         </td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4">
