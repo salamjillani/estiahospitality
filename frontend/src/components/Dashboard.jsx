@@ -499,20 +499,29 @@ const Bookings = () => {
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+const handleChange = (e) => {
+  const { name, value } = e.target;
 
-    if (name === "bookingAgent") {
-      const selectedAgent = agents.find((agent) => agent._id === value);
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-        commissionPercentage: selectedAgent?.commissionPercentage || 0,
-      }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-  };
+  if (name === "bookingAgent") {
+    const selectedAgent = agents.find((agent) => agent._id === value);
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      commissionPercentage: selectedAgent?.commissionPercentage || 0,
+    }));
+  } else {
+    // Convert numeric fields to numbers
+    const numericFields = ['adults', 'children', 'rooms', 'nights'];
+    const parsedValue = numericFields.includes(name) 
+      ? parseInt(value, 10) || 0  // Handle invalid numbers as 0
+      : value;
+
+    setFormData((prev) => ({ 
+      ...prev, 
+      [name]: parsedValue 
+    }));
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
