@@ -112,7 +112,6 @@ const Dashboard = () => {
               const taxAmount = totalPrice - netAmount;
 
               const locationParts = [
-                booking.property?.location?.address,
                 booking.property?.location?.city,
                 booking.property?.location?.country,
               ]
@@ -226,11 +225,9 @@ const Dashboard = () => {
                         <span className="text-gray-800 font-medium">{booking.property?.title || "Property Not Found"}</span>
                       </div>
                       
-                                                  <div className="flex justify-between">
+                      <div className="flex justify-between">
                         <span className="text-gray-500">Location:</span>
-                        <span className="text-gray-800 text-right max-w-48 truncate" title={booking.location}>
-                          {booking.location}
-                        </span>
+                        <span className="text-gray-800">{booking.location}</span>
                       </div>
 
                       <div className="flex justify-between">
@@ -360,18 +357,16 @@ const Dashboard = () => {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="max-w-full overflow-hidden">
-                            <span className="text-gray-700 text-xs block truncate" title={booking.location}>
-                              {booking.location}
-                            </span>
-                          </div>
+                          <span className="text-gray-700 text-xs truncate">
+                            {booking.location}
+                          </span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1 text-xs bg-indigo-50 px-2 py-1 rounded-md text-indigo-600">
-                            <Calendar className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{booking.checkInDate}</span>
-                            <ChevronRight className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{booking.checkOutDate}</span>
+                          <div className="flex items-center gap-1 text-xs bg-indigo-50 px-2 py-1 rounded-md text-indigo-600 max-w-fit whitespace-nowrap">
+                            <Calendar className="h-3 w-3" />
+                            <span>{booking.checkInDate}</span>
+                            <ChevronRight className="h-3 w-3" />
+                            <span>{booking.checkOutDate}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3">
@@ -410,7 +405,7 @@ const Dashboard = () => {
                                 ) : (
                                   <Download className="w-3 h-3 mr-1" />
                                 )}
-                                Download Invoice
+                                Download Invoice || "N/A"}
                               </button>
                             </div>
                           ) : (
