@@ -72,72 +72,80 @@ const Dashboard = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const bookingsRes = await api.get(
-          "/api/bookings/admin/bookings?populate=invoice"
-        );
-        const processedBookings = Array.isArray(bookingsRes.data || bookingsRes)
-          ? (bookingsRes.data || bookingsRes).map((booking) => {
-              const checkInDate = booking.checkInDate
-                ? new Date(booking.checkInDate).toLocaleDateString()
-                : "N/A";
-              const checkOutDate = booking.checkOutDate
-                ? new Date(booking.checkOutDate).toLocaleDateString()
-                : "N/A";
-              const invoice = booking.invoice || null;
-              
-              // Calculate nights
-              const nights = booking.checkInDate && booking.checkOutDate
-                ? Math.ceil(
-                    (new Date(booking.checkOutDate) - new Date(booking.checkInDate)) / 
-                    (1000 * 60 * 60 * 24)
-                  )
-                : "N/A";
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const bookingsRes = await api.get(
+        "/api/bookings/admin/bookings?populate=invoice"
+      );
+      const processedBookings = Array.isArray(bookingsRes.data || bookingsRes)
+        ? (bookingsRes.data || bookingsRes).map((booking) => {
+            const checkInDate = booking.checkInDate
+              ? new Date(booking.checkInDate).toLocaleDateString()
+              : "N/A";
+            const checkOutDate = booking.checkOutDate
+              ? new Date(booking.checkOutDate).toLocaleDateString()
+              : "N/A";
+            const invoice = booking.invoice || null;
+            
+            // Calculate nights
+            const nights = booking.checkInDate && booking.checkOutDate
+              ? Math.ceil(
+                  (new Date(booking.checkOutDate) - new Date(booking.checkInDate)) / 
+                  (1000 * 60 * 60 * 24)
+                )
+              : "N/A";
 
-              // Calculate reservation price and fees/taxes (based on 13% VAT from invoice)
-              const totalPrice = parseFloat(booking.totalPrice) || 0;
-              const vatRate = 13;
-              const netAmount = (totalPrice * 100) / (100 + vatRate);
-              const taxAmount = totalPrice - netAmount;
+            // Calculate reservation price and fees/taxes (based on 13% VAT from invoice)
+            const totalPrice = parseFloat(booking.totalPrice) || 0;
+            const vatRate = 13;
+            const netAmount = (totalPrice * 100) / (100 + vatRate);
+            const taxAmount = totalPrice - netAmount;
 
-              return {
-                ...booking,
-                checkInDate,
-                checkOutDate,
-                nights,
-                _id: booking._id,
-                invoiceNumber: invoice?.invoiceNumber || "N/A",
-                reservationPrice: netAmount.toFixed(2),
-                feesTaxes: taxAmount.toFixed(2),
-                user: booking.user || { name: "Unknown" },
-                property: booking.property || { 
-                  title: "Unknown Property",
-                  location: { city: "N/A" }
-                },
-                invoice,
-                channelName: booking.bookingAgent?.name || "Direct",
-                location: booking.property?.location?.city || "N/A",
-              };
-            })
-          : [];
-        processedBookings.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-        );
-        setBookings(processedBookings);
-      } catch (err) {
-        console.error("Fetch error:", err);
-        setError(err.message || "Failed to fetch data");
-      } finally {
-        setLoading(false);
-      }
-    };
+            // Construct full location address
+            const locationParts = [
+              booking.property?.location?.address,
+              booking.property?.location?.city,
+              booking.property?.location?.country,
+            ].filter(Boolean); // Remove falsy values (null, undefined, empty strings)
+            const location = locationParts.length > 0 ? locationParts.join(", ") : "N/A";
 
-    if (user?.role === "admin") fetchData();
-  }, [user]);
+            return {
+              ...booking,
+              checkInDate,
+              checkOutDate,
+              nights,
+              _id: booking._id,
+              invoiceNumber: invoice?.invoiceNumber || "N/A",
+              reservationPrice: netAmount.toFixed(2),
+              feesTaxes: taxAmount.toFixed(2),
+              user: booking.user || { name: "Unknown" },
+              property: booking.property || { 
+                title: "Unknown Property",
+                location: { city: "N/A" }
+              },
+              invoice,
+              channelName: booking.bookingAgent?.name || "Direct",
+              location, // Use the constructed location
+            };
+          })
+        : [];
+      processedBookings.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      setBookings(processedBookings);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError(err.message || "Failed to fetch data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (user?.role === "admin") fetchData();
+}, [user]);
 
   if (loading) {
     return (
