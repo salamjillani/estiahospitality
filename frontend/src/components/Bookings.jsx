@@ -104,14 +104,13 @@ useEffect(() => {
             const netAmount = (totalPrice * 100) / (100 + vatRate);
             const taxAmount = totalPrice - netAmount;
 
-            // Construct full location address
 const locationParts = [
   booking.property?.location?.address,
   booking.property?.location?.city,
   booking.property?.location?.country,
 ]
-  .map(part => part ? part.trim() : "") // Trim each part and handle undefined as ""
-  .filter(part => part !== ""); // Filter out empty strings after trimming
+  .map(part => part ? part.trim() : "")
+  .filter(part => part !== "");
 const location = locationParts.length > 0 ? locationParts.join(", ") : "N/A";
 
             return {
