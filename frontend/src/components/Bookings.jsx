@@ -405,7 +405,7 @@ const Dashboard = () => {
                                 ) : (
                                   <Download className="w-3 h-3 mr-1" />
                                 )}
-                                Download Invoice || "N/A"}
+                                Download Invoice
                               </button>
                             </div>
                           ) : (
