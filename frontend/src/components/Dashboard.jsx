@@ -139,35 +139,37 @@ const Bookings = () => {
     }
   }, [daysToShow]);
 
-  useEffect(() => {
-    const fetchAllPropertyBookings = async () => {
-      const newBookedDates = {};
-      for (const property of properties) {
-        try {
-          const response = await api.get(
-            `/api/bookings/property/${property._id}`
-          );
-          const dates = response
-            .filter((b) => b.status !== "cancelled")
-            .flatMap((b) => {
-              const start = new Date(b.checkInDate);
-              const end = new Date(b.checkOutDate);
-              return eachDayOfInterval({ start, end }).map((d) =>
-                format(d, "yyyy-MM-dd")
-              );
-            });
-          newBookedDates[property._id] = [...new Set(dates)]; // Remove duplicates
-        } catch (err) {
-          console.error(`Error fetching dates for ${property._id}:`, err);
-        }
+// In the useEffect for fetching property booked dates:
+useEffect(() => {
+  const fetchAllPropertyBookings = async () => {
+    const newBookedDates = {};
+    for (const property of properties) {
+      try {
+        const response = await api.get(
+          `/api/bookings/property/${property._id}`
+        );
+        const dates = response
+          .filter((b) => b.status !== "cancelled")
+          .flatMap((b) => {
+            const start = new Date(b.checkInDate);
+            const end = new Date(b.checkOutDate);
+            return eachDayOfInterval({ start, end }).map((d) =>
+              format(d, "yyyy-MM-dd")
+            );
+          });
+        newBookedDates[property._id] = [...new Set(dates)];
+      } catch (err) {
+        console.error(`Error fetching dates for ${property._id}:`, err);
       }
-      setPropertyBookedDates(newBookedDates);
-    };
-
-    if (user.role !== "admin" && properties.length > 0) {
-      fetchAllPropertyBookings();
     }
-  }, [properties, user.role]);
+    setPropertyBookedDates(newBookedDates);
+  };
+
+  // Remove the role check to fetch for all users
+  if (properties.length > 0) {
+    fetchAllPropertyBookings();
+  }
+}, [properties]); // Remove user.role from dependencies
 
   const fetchProperties = useCallback(async () => {
     try {
@@ -499,20 +501,29 @@ const Bookings = () => {
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+const handleChange = (e) => {
+  const { name, value } = e.target;
 
-    if (name === "bookingAgent") {
-      const selectedAgent = agents.find((agent) => agent._id === value);
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-        commissionPercentage: selectedAgent?.commissionPercentage || 0,
-      }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-  };
+  if (name === "bookingAgent") {
+    const selectedAgent = agents.find((agent) => agent._id === value);
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+      commissionPercentage: selectedAgent?.commissionPercentage || 0,
+    }));
+  } else {
+    // Convert numeric fields to numbers
+    const numericFields = ['adults', 'children', 'rooms', 'nights'];
+    const parsedValue = numericFields.includes(name) 
+      ? parseInt(value, 10) || 0  // Handle invalid numbers as 0
+      : value;
+
+    setFormData((prev) => ({ 
+      ...prev, 
+      [name]: parsedValue 
+    }));
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -558,7 +569,7 @@ const Bookings = () => {
 
     try {
       await api.post("/api/bookings", bookingData);
-      navigate(user.role === "admin" ? "/dashboard" : "/my-bookings", {
+      navigate(user.role === "admin" ? "/bookings" : "/my-bookings", {
         state: { success: "Booking submitted!" },
       });
     } catch (err) {

@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   ClipboardList,
   Clock,
+  FileText,
+  Info,
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -17,6 +19,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [downloadingInvoice, setDownloadingInvoice] = useState(null);
+  const [showDetails, setShowDetails] = useState(null);
   const { user } = useAuth();
 
   const BASE_URL = import.meta.env.VITE_API_URL || "";
@@ -72,6 +75,10 @@ const Dashboard = () => {
     }
   };
 
+  const toggleDetails = (id) => {
+    setShowDetails(showDetails === id ? null : id);
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -104,6 +111,14 @@ const Dashboard = () => {
               const netAmount = (totalPrice * 100) / (100 + vatRate);
               const taxAmount = totalPrice - netAmount;
 
+              const locationParts = [
+                booking.property?.location?.city,
+                booking.property?.location?.country,
+              ]
+                .map(part => part ? part.trim() : "")
+                .filter(part => part !== "");
+              const location = locationParts.length > 0 ? locationParts.join(", ") : "N/A";
+
               return {
                 ...booking,
                 checkInDate,
@@ -120,7 +135,7 @@ const Dashboard = () => {
                 },
                 invoice,
                 channelName: booking.bookingAgent?.name || "Direct",
-                location: booking.property?.location?.city || "N/A",
+                location,
               };
             })
           : [];
@@ -176,42 +191,133 @@ const Dashboard = () => {
               </span>
             </div>
 
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            {/* Mobile view - Card layout */}
+            <div className="lg:hidden space-y-4">
+              {bookings.map((booking) => (
+                <div 
+                  key={booking._id} 
+                  className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden"
+                >
+                  <div className="p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
+                          {(booking.user?.name || "G").charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-gray-800 font-medium">{booking.user?.name || "Guest " + booking.reservationCode}</span>
+                      </div>
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium shadow-sm ${
+                          booking.status === "confirmed"
+                            ? "bg-green-100 text-green-800"
+                            : booking.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {booking.status}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Property:</span>
+                        <span className="text-gray-800 font-medium">{booking.property?.title || "Property Not Found"}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Location:</span>
+                        <span className="text-gray-800">{booking.location}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Dates:</span>
+                        <div className="flex items-center gap-1 text-xs bg-indigo-50 px-2 py-1 rounded-md text-indigo-600">
+                          <Calendar className="h-3 w-3" />
+                          <span>{booking.checkInDate}</span>
+                          <ChevronRight className="h-3 w-3" />
+                          <span>{booking.checkOutDate}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Nights:</span>
+                        <span className="text-gray-800">{booking.nights}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Channel:</span>
+                        <span className="text-gray-800">{booking.channelName}</span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Reservation:</span>
+                        <span className="text-gray-800 font-medium">
+                          {currencySymbols[booking.currency] || "$"}{booking.reservationPrice}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Fees/Taxes:</span>
+                        <span className="text-gray-800 font-medium">
+                          {currencySymbols[booking.currency] || "$"}{booking.feesTaxes}
+                        </span>
+                      </div>
+                    </div>
+
+                    {booking.invoice && booking.invoice._id && (
+                      <div className="mt-4 flex justify-between items-center pt-3 border-t border-gray-100">
+                        <span className="text-xs text-gray-500">Invoice #{booking.invoice.invoiceNumber || "N/A"}</span>
+                        <button
+                          onClick={() => handleDownloadInvoice(booking.invoice._id)}
+                          className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 px-3 py-1.5 rounded-md flex items-center transition-colors shadow-sm text-xs"
+                          disabled={downloadingInvoice === booking.invoice._id}
+                        >
+                          {downloadingInvoice === booking.invoice._id ? (
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          ) : (
+                            <Download className="w-3 h-3 mr-1" />
+                          )}
+                          Download Invoice
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop view - Table layout */}
+            <div className="hidden lg:block bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full table-fixed">
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 hidden sm:table-cell">
-                        R.Code
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                      <th className="w-16 px-4 py-3 text-left text-xs font-semibold text-gray-700">
                         Guest
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 hidden md:table-cell">
+                      <th className="w-24 px-4 py-3 text-left text-xs font-semibold text-gray-700">
                         Property
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                      <th className="w-16 px-4 py-3 text-left text-xs font-semibold text-gray-700">
                         Channel
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                      <th className="w-12 px-4 py-3 text-left text-xs font-semibold text-gray-700">
                         Nights
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                      <th className="w-20 px-4 py-3 text-left text-xs font-semibold text-gray-700">
                         Location
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                      <th className="w-28 px-4 py-3 text-left text-xs font-semibold text-gray-700">
                         Dates
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 hidden sm:table-cell">
-                        Reservation Price
+                      <th className="w-20 px-4 py-3 text-left text-xs font-semibold text-gray-700">
+                        Price
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 hidden sm:table-cell">
-                        Fees/Taxes
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700">
+                      <th className="w-14 px-4 py-3 text-left text-xs font-semibold text-gray-700">
                         Status
                       </th>
-                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs sm:text-sm font-semibold text-gray-700 hidden lg:table-cell">
+                      <th className="w-24 px-4 py-3 text-left text-xs font-semibold text-gray-700">
                         Invoice
                       </th>
                     </tr>
@@ -222,75 +328,60 @@ const Dashboard = () => {
                         key={booking._id}
                         className="hover:bg-gray-50 transition-colors"
                       >
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 hidden sm:table-cell">
-                          <span className="font-mono text-xs bg-gray-100 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-md text-gray-700 shadow-sm">
-                            {booking.reservationCode}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
+                            <div className="h-7 w-7 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-semibold shadow-sm">
                               {(booking.user?.name || "G")
                                 .charAt(0)
                                 .toUpperCase()}
                             </div>
-                            <span className="text-gray-800 font-medium text-sm">
+                            <span className="text-gray-800 font-medium text-xs truncate">
                               {booking.user?.name ||
                                 "Guest " + booking.reservationCode}
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 hidden md:table-cell">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-700 text-sm">
-                              {booking.property?.title || "Property Not Found"}
-                            </span>
+                        <td className="px-4 py-3">
+                          <div className="text-gray-700 text-xs truncate">
+                            {booking.property?.title || "Property Not Found"}
                           </div>
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4">
-                          <span className="text-gray-700 text-sm">
+                        <td className="px-4 py-3">
+                          <span className="text-gray-700 text-xs">
                             {booking.channelName}
                           </span>
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4">
-                          <span className="text-gray-700 text-sm">
+                        <td className="px-4 py-3">
+                          <span className="text-gray-700 text-xs">
                             {booking.nights}
                           </span>
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4">
-                          <span className="text-gray-700 text-sm">
+                        <td className="px-4 py-3">
+                          <span className="text-gray-700 text-xs truncate">
                             {booking.location}
                           </span>
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4">
-                          <div className="flex items-center gap-1 text-xs sm:text-sm bg-indigo-50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-indigo-600 max-w-fit">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 text-xs bg-indigo-50 px-2 py-1 rounded-md text-indigo-600 max-w-fit whitespace-nowrap">
                             <Calendar className="h-3 w-3" />
-                            <span className="whitespace-nowrap">{booking.checkInDate}</span>
+                            <span>{booking.checkInDate}</span>
                             <ChevronRight className="h-3 w-3" />
-                            <span className="whitespace-nowrap">{booking.checkOutDate}</span>
+                            <span>{booking.checkOutDate}</span>
                           </div>
-                          {booking.arrivalTime && (
-                            <div className="flex items-center gap-1 text-xs text-gray-500 mt-1 ml-1 sm:ml-2">
-                              <Clock className="h-3 w-3" />
-                              <span>Arrival: {booking.arrivalTime}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-xs space-y-1">
+                            <div className="font-medium text-gray-800">
+                              {currencySymbols[booking.currency] || "$"}{booking.reservationPrice}
                             </div>
-                          )}
+                            <div className="text-gray-500">
+                              +{currencySymbols[booking.currency] || "$"}{booking.feesTaxes} tax
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 font-medium hidden sm:table-cell text-sm">
-                          <span className="text-gray-800">
-                            {currencySymbols[booking.currency] || "$"}
-                            {booking.reservationPrice}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 font-medium hidden sm:table-cell text-sm">
-                          <span className="text-gray-800">
-                            {currencySymbols[booking.currency] || "$"}
-                            {booking.feesTaxes}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <td className="px-4 py-3">
                           <span
-                            className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium shadow-sm ${
+                            className={`px-2 py-1 rounded-full text-xs font-medium shadow-sm ${
                               booking.status === "confirmed"
                                 ? "bg-green-100 text-green-800"
                                 : booking.status === "pending"
@@ -301,31 +392,24 @@ const Dashboard = () => {
                             {booking.status}
                           </span>
                         </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 hidden lg:table-cell">
+                        <td className="px-4 py-3">
                           {booking.invoice && booking.invoice._id ? (
-                            <div className="flex gap-2">
+                            <div className="flex flex-col gap-1">
                               <button
-                                onClick={() =>
-                                  handleDownloadInvoice(booking.invoice._id)
-                                }
-                                className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 px-2 sm:px-3 py-1 sm:py-1.5 rounded-md flex items-center transition-colors shadow-sm text-xs sm:text-sm"
-                                disabled={
-                                  downloadingInvoice === booking.invoice._id
-                                }
+                                onClick={() => handleDownloadInvoice(booking.invoice._id)}
+                                className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white hover:from-indigo-600 hover:to-indigo-700 px-2 py-1 rounded-md flex items-center justify-center transition-colors shadow-sm text-xs"
+                                disabled={downloadingInvoice === booking.invoice._id}
                               >
                                 {downloadingInvoice === booking.invoice._id ? (
-                                  <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 animate-spin" />
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                                 ) : (
-                                  <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                  <Download className="w-3 h-3 mr-1" />
                                 )}
                                 Download Invoice
                               </button>
-                              <span className="text-xs sm:text-sm text-gray-500 flex items-center">
-                                #{booking.invoice.invoiceNumber || "N/A"}
-                              </span>
                             </div>
                           ) : (
-                            <span className="text-gray-400 text-xs sm:text-sm italic">
+                            <span className="text-gray-400 text-xs italic">
                               No Invoice
                             </span>
                           )}
