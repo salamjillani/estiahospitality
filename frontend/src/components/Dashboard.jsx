@@ -65,6 +65,7 @@ const Bookings = () => {
   const [bookings, setBookings] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [propertyBookingsCache, setPropertyBookingsCache] = useState({});
   const [propertySearchQuery, setPropertySearchQuery] = useState("");
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -138,6 +139,29 @@ const Bookings = () => {
       }
     }
   }, [daysToShow]);
+
+  useEffect(() => {
+  const fetchAllBookings = async () => {
+    for (const property of filteredProperties) {
+      if (!propertyBookingsCache[property._id]) {
+        try {
+          const response = await api.get(`/api/bookings/property/${property._id}`);
+          const propertyBookings = response.filter((b) => b.status !== "cancelled");
+          setPropertyBookingsCache((prev) => ({
+            ...prev,
+            [property._id]: propertyBookings,
+          }));
+        } catch (err) {
+          console.error(`Error fetching bookings for property ${property._id}:`, err);
+        }
+      }
+    }
+  };
+
+  if (filteredProperties.length > 0) {
+    fetchAllBookings();
+  }
+}, [filteredProperties, propertyBookingsCache, api]);
 
   // In the useEffect for fetching property booked dates:
   useEffect(() => {
@@ -373,24 +397,39 @@ const Bookings = () => {
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
 const isDateBooked = useCallback(
-  (propertyId, date) => {
+  async (propertyId, date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     const allBooked = propertyBookedDates[propertyId] || [];
     const isBooked = allBooked.includes(dateStr);
 
+    // Fetch or use cached bookings for the property
+    let propertyBookings = propertyBookingsCache[propertyId];
+    if (!propertyBookings) {
+      try {
+        const response = await api.get(`/api/bookings/property/${propertyId}`);
+        propertyBookings = response.filter((b) => b.status !== "cancelled");
+        setPropertyBookingsCache((prev) => ({
+          ...prev,
+          [propertyId]: propertyBookings,
+        }));
+      } catch (err) {
+        console.error(`Error fetching bookings for property ${propertyId}:`, err);
+        return { isBooked, isCheckoutDate: false };
+      }
+    }
+
     // Check if the date is a checkout date
-    const isCheckoutDate = bookings.some((b) => {
+    const isCheckoutDate = propertyBookings.some((b) => {
       const checkout = parseISO(b.checkOutDate);
       return (
         isSameDay(checkout, date) &&
-        (b.property?._id === propertyId || b.property === propertyId) &&
-        b.status !== "cancelled"
+        (b.property?._id === propertyId || b.property === propertyId)
       );
     });
 
     return { isBooked, isCheckoutDate };
   },
-  [propertyBookedDates, bookings]
+  [propertyBookedDates, propertyBookingsCache, api]
 );
 
   const isPastDate = (date) => {
@@ -407,6 +446,26 @@ const isDateBooked = useCallback(
     );
     return compareDate < todayDate;
   };
+
+  const getDateBookedStatus = useCallback(
+  (propertyId, date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const allBooked = propertyBookedDates[propertyId] || [];
+    const isBooked = allBooked.includes(dateStr);
+    const propertyBookings = propertyBookingsCache[propertyId] || [];
+    
+    const isCheckoutDate = propertyBookings.some((b) => {
+      const checkout = parseISO(b.checkOutDate);
+      return (
+        isSameDay(checkout, date) &&
+        (b.property?._id === propertyId || b.property === propertyId)
+      );
+    });
+
+    return { isBooked, isCheckoutDate };
+  },
+  [propertyBookedDates, propertyBookingsCache]
+);
 
 const handleDateClick = (property, date, e) => {
   e.preventDefault();
@@ -875,7 +934,7 @@ const handleDateClick = (property, date, e) => {
               </div>
             </div>
             <div className="min-w-max">
-            {filteredProperties.map((property) => {
+           {filteredProperties.map((property) => {
   const positionedBookings = getPositionedBookings(property._id);
   return (
     <div
@@ -885,7 +944,7 @@ const handleDateClick = (property, date, e) => {
     >
       <div className="flex h-full w-full">
         {daysToShow.map((day, dayIndex) => {
-          const { isBooked, isCheckoutDate } = isDateBooked(property._id, day);
+          const { isBooked, isCheckoutDate } = getDateBookedStatus(property._id, day);
           const isPast = isPastDate(day);
           const isAvailable = !isBooked && !isPast;
           const isClickable = (isAvailable || isCheckoutDate) && !isPast;
@@ -925,7 +984,6 @@ const handleDateClick = (property, date, e) => {
           );
         })}
       </div>
-      {/* Rest of the booking rendering remains unchanged */}
       <div className="absolute inset-0 pointer-events-none">
         {positionedBookings.map((booking) => {
           const style = getBookingStyle(booking);
