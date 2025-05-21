@@ -558,7 +558,7 @@ const Bookings = () => {
 
     try {
       await api.post("/api/bookings", bookingData);
-      navigate(user.role === "admin" ? "/dashboard" : "/my-bookings", {
+      navigate(user.role === "admin" ? "/bookings" : "/my-bookings", {
         state: { success: "Booking submitted!" },
       });
     } catch (err) {
