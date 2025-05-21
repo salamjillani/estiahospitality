@@ -139,37 +139,37 @@ const Bookings = () => {
     }
   }, [daysToShow]);
 
-// In the useEffect for fetching property booked dates:
-useEffect(() => {
-  const fetchAllPropertyBookings = async () => {
-    const newBookedDates = {};
-    for (const property of properties) {
-      try {
-        const response = await api.get(
-          `/api/bookings/property/${property._id}`
-        );
-        const dates = response
-          .filter((b) => b.status !== "cancelled")
-          .flatMap((b) => {
-            const start = new Date(b.checkInDate);
-            const end = new Date(b.checkOutDate);
-            return eachDayOfInterval({ start, end }).map((d) =>
-              format(d, "yyyy-MM-dd")
-            );
-          });
-        newBookedDates[property._id] = [...new Set(dates)];
-      } catch (err) {
-        console.error(`Error fetching dates for ${property._id}:`, err);
+  // In the useEffect for fetching property booked dates:
+  useEffect(() => {
+    const fetchAllPropertyBookings = async () => {
+      const newBookedDates = {};
+      for (const property of properties) {
+        try {
+          const response = await api.get(
+            `/api/bookings/property/${property._id}`
+          );
+          const dates = response
+            .filter((b) => b.status !== "cancelled")
+            .flatMap((b) => {
+              const start = new Date(b.checkInDate);
+              const end = new Date(b.checkOutDate);
+              return eachDayOfInterval({ start, end }).map((d) =>
+                format(d, "yyyy-MM-dd")
+              );
+            });
+          newBookedDates[property._id] = [...new Set(dates)];
+        } catch (err) {
+          console.error(`Error fetching dates for ${property._id}:`, err);
+        }
       }
-    }
-    setPropertyBookedDates(newBookedDates);
-  };
+      setPropertyBookedDates(newBookedDates);
+    };
 
-  // Remove the role check to fetch for all users
-  if (properties.length > 0) {
-    fetchAllPropertyBookings();
-  }
-}, [properties]); // Remove user.role from dependencies
+    // Remove the role check to fetch for all users
+    if (properties.length > 0) {
+      fetchAllPropertyBookings();
+    }
+  }, [properties]); // Remove user.role from dependencies
 
   const fetchProperties = useCallback(async () => {
     try {
@@ -204,26 +204,33 @@ useEffect(() => {
     }
   }, []);
 
-  const fetchBookings = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
-      let endpoint =
-        user.role === "admin"
-          ? "/api/bookings/admin"
-          : `/api/bookings/client/${user._id}`;
-      const data = await api.get(endpoint);
-      setBookings(data || []);
-    } catch (err) {
-      setError(
-        err.message.includes("401")
-          ? "Session expired"
-          : "Failed to load bookings"
-      );
-    } finally {
-      setLoading(false);
+ const fetchBookings = useCallback(async () => {
+  try {
+    setLoading(true);
+    setError("");
+    let endpoint =
+      user.role === "admin"
+        ? "/api/bookings/admin"
+        : `/api/bookings/client/${user._id}`;
+    const data = await api.get(endpoint);
+    if (!data || data.length === 0) {
+      console.warn("No bookings found for endpoint:", endpoint);
+      setBookings([]);
+    } else {
+      console.log("Fetched bookings:", data);
+      setBookings(data);
     }
-  }, [user]);
+  } catch (err) {
+    console.error("Error fetching bookings:", err);
+    setError(
+      err.message.includes("401")
+        ? "Session expired"
+        : "Failed to load bookings: " + err.message
+    );
+  } finally {
+    setLoading(false);
+  }
+}, [user]);
 
   useEffect(() => {
     const unsubscribe = websocketService.subscribe(
@@ -365,19 +372,26 @@ useEffect(() => {
   const previousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-  const isDateBooked = useCallback(
-    (propertyId, date) => {
-      const dateStr = format(date, "yyyy-MM-dd");
-      const allBooked = propertyBookedDates[propertyId] || [];
-      const userBooked = bookings.some(
-        (b) =>
-          isSameDay(parseISO(b.checkInDate), date) && b.user?._id === user._id
-      );
+const isDateBooked = useCallback(
+  (propertyId, date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const allBooked = propertyBookedDates[propertyId] || [];
+    const isBooked = allBooked.includes(dateStr);
 
-      return allBooked.includes(dateStr) && !userBooked;
-    },
-    [bookedDates, propertyBookedDates, bookings, user._id]
-  );
+    // Check if the date is a checkout date
+    const isCheckoutDate = bookings.some((b) => {
+      const checkout = parseISO(b.checkOutDate);
+      return (
+        isSameDay(checkout, date) &&
+        (b.property?._id === propertyId || b.property === propertyId) &&
+        b.status !== "cancelled"
+      );
+    });
+
+    return { isBooked, isCheckoutDate };
+  },
+  [propertyBookedDates, bookings]
+);
 
   const isPastDate = (date) => {
     const today = new Date();
@@ -394,41 +408,30 @@ useEffect(() => {
     return compareDate < todayDate;
   };
 
-  const handleDateClick = (property, date, e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+const handleDateClick = (property, date, e) => {
+  e.preventDefault();
+  e.stopPropagation();
 
-    // Check if the date is either:
-    // 1. Available
-    // 2. Is the checkout date of an existing booking
-    const isCheckoutDate = bookings.some((b) => {
-      const checkout = new Date(b.checkOutDate);
-      return isSameDay(checkout, date) && b.property?._id === property._id;
-    });
+  const { isBooked, isCheckoutDate } = isDateBooked(property._id, date);
+  const isPast = isPastDate(date);
 
-    // Only proceed if the date is not booked (or is a checkout date) and not in the past
-    if (
-      (isCheckoutDate || !isDateBooked(property._id, date)) &&
-      !isPastDate(date)
-    ) {
-      setSelectedProperty(property);
-      setSelectedDate(date);
-      setFormData((prev) => ({
-        ...prev,
-        checkInDate: format(date, "yyyy-MM-dd"),
-        checkOutDate: format(addDays(date, 1), "yyyy-MM-dd"),
-        property: property._id,
-        currency: property.currency || "USD",
-        rooms: property.bedrooms || 1,
-      }));
+  if ((isCheckoutDate || !isBooked) && !isPast) {
+    setSelectedProperty(property);
+    setSelectedDate(date);
+    setFormData((prev) => ({
+      ...prev,
+      checkInDate: format(date, "yyyy-MM-dd"),
+      checkOutDate: format(addDays(date, 1), "yyyy-MM-dd"),
+      property: property._id,
+      currency: property.currency || "USD",
+      rooms: property.bedrooms || 1,
+    }));
 
-      loadPropertyDetails(property._id);
-      fetchAgents();
-      fetchPropertyBookings(property._id);
-    }
-  };
+    loadPropertyDetails(property._id);
+    fetchAgents();
+    fetchPropertyBookings(property._id);
+  }
+};
 
   const closeReservationModal = () => {
     setSelectedDate(null);
@@ -501,29 +504,29 @@ useEffect(() => {
     }
   };
 
-const handleChange = (e) => {
-  const { name, value } = e.target;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
 
-  if (name === "bookingAgent") {
-    const selectedAgent = agents.find((agent) => agent._id === value);
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-      commissionPercentage: selectedAgent?.commissionPercentage || 0,
-    }));
-  } else {
-    // Convert numeric fields to numbers
-    const numericFields = ['adults', 'children', 'rooms', 'nights'];
-    const parsedValue = numericFields.includes(name) 
-      ? parseInt(value, 10) || 0  // Handle invalid numbers as 0
-      : value;
+    if (name === "bookingAgent") {
+      const selectedAgent = agents.find((agent) => agent._id === value);
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        commissionPercentage: selectedAgent?.commissionPercentage || 0,
+      }));
+    } else {
+      // Convert numeric fields to numbers
+      const numericFields = ["adults", "children", "rooms", "nights"];
+      const parsedValue = numericFields.includes(name)
+        ? parseInt(value, 10) || 0 // Handle invalid numbers as 0
+        : value;
 
-    setFormData((prev) => ({ 
-      ...prev, 
-      [name]: parsedValue 
-    }));
-  }
-};
+      setFormData((prev) => ({
+        ...prev,
+        [name]: parsedValue,
+      }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -580,75 +583,75 @@ const handleChange = (e) => {
     }
   };
 
-  const getPositionedBookings = useCallback(
-    (propertyId) => {
-      // Filter bookings for this property and not cancelled
-      let propertyBookings = bookings.filter(
-        (b) =>
-          (b.property?._id?.toString?.() === propertyId ||
-            b.property?.toString?.() === propertyId ||
-            b.property === propertyId) &&
-          b.status !== "cancelled"
+ const getPositionedBookings = useCallback(
+  (propertyId) => {
+    // Filter bookings for this property and not cancelled
+    let propertyBookings = bookings.filter(
+      (b) =>
+        (b.property?._id?.toString?.() === propertyId ||
+          b.property?.toString?.() === propertyId ||
+          b.property === propertyId) &&
+        b.status !== "cancelled"
+    );
+
+    if (user.role !== "admin") {
+      propertyBookings = propertyBookings.filter(
+        (b) => (b.user?._id || b.user) === user._id
       );
+    }
 
-      if (user.role !== "admin") {
-        propertyBookings = propertyBookings.filter(
-          (b) => (b.user?._id || b.user) === user._id
-        );
-      }
+    console.log(`Bookings for property ${propertyId}:`, propertyBookings);
 
-      if (propertyBookings.length === 0) return [];
+    if (propertyBookings.length === 0) return [];
 
-      const sortedBookings = [...propertyBookings].sort(
-        (a, b) => new Date(a.checkInDate) - new Date(b.checkInDate)
-      );
+    const sortedBookings = [...propertyBookings].sort(
+      (a, b) => new Date(a.checkInDate) - new Date(b.checkInDate)
+    );
 
-      const rows = [];
-      const positioned = [];
+    const rows = [];
+    const positioned = [];
 
-      sortedBookings.forEach((booking) => {
-        const checkInDate = new Date(booking.checkInDate);
-        const checkOutDate = new Date(booking.checkOutDate);
+    sortedBookings.forEach((booking) => {
+      const checkInDate = new Date(booking.checkInDate);
+      const checkOutDate = new Date(booking.checkOutDate);
 
-        let rowIndex = 0;
-        let foundRow = false;
+      let rowIndex = 0;
+      let foundRow = false;
 
-        while (!foundRow && rowIndex < 10) {
-          if (!rows[rowIndex]) {
-            rows[rowIndex] = [];
+      while (!foundRow && rowIndex < 10) {
+        if (!rows[rowIndex]) {
+          rows[rowIndex] = [];
+          foundRow = true;
+        } else {
+          const hasOverlap = rows[rowIndex].some((existingBooking) => {
+            const existingCheckIn = new Date(existingBooking.checkInDate);
+            const existingCheckOut = new Date(existingBooking.checkOutDate);
+            return (
+              checkInDate <= existingCheckOut && checkOutDate >= existingCheckIn
+            );
+          });
+
+          if (!hasOverlap) {
             foundRow = true;
           } else {
-            const hasOverlap = rows[rowIndex].some((existingBooking) => {
-              const existingCheckIn = new Date(existingBooking.checkInDate);
-              const existingCheckOut = new Date(existingBooking.checkOutDate);
-              return (
-                checkInDate <= existingCheckOut &&
-                checkOutDate >= existingCheckIn
-              );
-            });
-
-            if (!hasOverlap) {
-              foundRow = true;
-            } else {
-              rowIndex++;
-            }
+            rowIndex++;
           }
         }
+      }
 
-        rows[rowIndex] = rows[rowIndex] || [];
-        rows[rowIndex].push(booking);
+      rows[rowIndex] = rows[rowIndex] || [];
+      rows[rowIndex].push(booking);
 
-        positioned.push({
-          ...booking,
-          rowIndex,
-        });
+      positioned.push({
+        ...booking,
+        rowIndex,
       });
+    });
 
-      return positioned;
-    },
-    [bookings, user.role, user._id]
-  );
-
+    return positioned;
+  },
+  [bookings, user.role, user._id]
+);
   const getBookingStyle = (booking) => {
     const checkInDate = new Date(booking.checkInDate);
     const checkOutDate = new Date(booking.checkOutDate);
@@ -872,101 +875,98 @@ const handleChange = (e) => {
               </div>
             </div>
             <div className="min-w-max">
-              {filteredProperties.map((property) => {
-                const positionedBookings = getPositionedBookings(property._id);
-                return (
-                  <div
-                    key={property._id}
-                    className="flex border-b border-gray-200 relative"
-                    style={{ height: `${ROW_HEIGHT}px` }}
-                  >
-                    <div className="flex h-full w-full">
-                      {daysToShow.map((day, dayIndex) => {
-                        const isBooked = isDateBooked(property._id, day);
-                        const isPast = isPastDate(day);
+            {filteredProperties.map((property) => {
+  const positionedBookings = getPositionedBookings(property._id);
+  return (
+    <div
+      key={property._id}
+      className="flex border-b border-gray-200 relative"
+      style={{ height: `${ROW_HEIGHT}px` }}
+    >
+      <div className="flex h-full w-full">
+        {daysToShow.map((day, dayIndex) => {
+          const { isBooked, isCheckoutDate } = isDateBooked(property._id, day);
+          const isPast = isPastDate(day);
+          const isAvailable = !isBooked && !isPast;
+          const isClickable = (isAvailable || isCheckoutDate) && !isPast;
 
-                        const isAvailable = !isBooked && !isPast;
-
-                        return (
-                          <div
-                            key={dayIndex}
-                            className={`h-full border-r relative ${
-                              isBooked
-                                ? "bg-gray-100/50 cursor-not-allowed"
-                                : isAvailable
-                                ? "hover:bg-blue-100/50 cursor-pointer"
-                                : ""
-                            }`}
-                            style={{ width: `${DAY_CELL_WIDTH}px` }}
-                            onClick={
-                              isAvailable
-                                ? (e) => handleDateClick(property, day, e)
-                                : undefined
-                            }
-                          >
-                            {isBooked && (
-                              <div className="absolute inset-0 flex items-center justify-center z-10">
-                                <div className="h-1 w-full rounded-full bg-red-500"></div>
-                              </div>
-                            )}
-                            {isAvailable && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="text-base font-medium text-blue-700">
-                                  {currencySymbols[property.currency] ||
-                                    property.currency}
-                                 €{getPriceForDate(property._id, day)}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="absolute inset-0 pointer-events-none">
-                      {positionedBookings.map((booking) => {
-                        const style = getBookingStyle(booking);
-                        const nights = calculateNights(
-                          booking.checkInDate,
-                          booking.checkOutDate
-                        );
-
-                        if (style.display === "none") return null;
-
-                        return (
-                          <div
-                            key={booking._id}
-                            style={{
-                              left: style.left,
-                              width: style.width,
-                              top: style.top,
-                              height: style.height,
-                              position: "absolute",
-                              zIndex: 10,
-                            }}
-                            className={`${style.className} pointer-events-auto`}
-                            onClick={() => setSelectedBooking(booking)}
-                          >
-                            <div className="flex items-center justify-between w-full h-full px-2 text-white">
-                              <div className="flex flex-col overflow-hidden">
-                                <div className="text-xs font-semibold truncate">
-                                  {booking.guestName}
-                                </div>
-                                <div className="text-[0.65rem] truncate opacity-90">
-                                  {booking.bookingAgent?.name || "Direct"}
-                                </div>
-                              </div>
-                              <div className="text-xs font-bold whitespace-nowrap">
-                                {nights}N
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+          return (
+            <div
+              key={dayIndex}
+              className={`h-full border-r relative ${
+                isBooked && !isCheckoutDate
+                  ? "bg-gray-100 cursor-not-allowed"
+                  : isClickable
+                  ? "hover:bg-blue-50 cursor-pointer"
+                  : "bg-gray-100 cursor-not-allowed"
+              }`}
+              style={{ width: `${DAY_CELL_WIDTH}px` }}
+              onClick={isClickable ? (e) => handleDateClick(property, day, e) : undefined}
+            >
+              {isBooked && !isCheckoutDate && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="h-1 w-full bg-red-500 rounded-full"></div>
+                </div>
+              )}
+              {isCheckoutDate && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="h-1 w-full bg-green-500 rounded-full"></div>
+                </div>
+              )}
+              {isClickable && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-sm font-medium text-blue-600">
+                    {currencySymbols[property.currency] || property.currency}
+                    {getPriceForDate(property._id, day)}
                   </div>
-                );
-              })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Rest of the booking rendering remains unchanged */}
+      <div className="absolute inset-0 pointer-events-none">
+        {positionedBookings.map((booking) => {
+          const style = getBookingStyle(booking);
+          const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
+
+          if (style.display === "none") return null;
+
+          return (
+            <div
+              key={booking._id}
+              style={{
+                left: style.left,
+                width: style.width,
+                top: style.top,
+                height: style.height,
+                position: "absolute",
+                zIndex: 10,
+              }}
+              className={`${style.className} pointer-events-auto`}
+              onClick={() => setSelectedBooking(booking)}
+            >
+              <div className="flex items-center justify-between w-full h-full px-2 text-white">
+                <div className="flex flex-col overflow-hidden">
+                  <div className="text-xs font-semibold truncate">
+                    {booking.guestName || "Guest"}
+                  </div>
+                  <div className="text-[0.65rem] truncate opacity-90">
+                    {booking.bookingAgent?.name || "Direct"}
+                  </div>
+                </div>
+                <div className="text-xs font-bold whitespace-nowrap">
+                  {nights}N
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+})}
             </div>
           </div>
         </div>
