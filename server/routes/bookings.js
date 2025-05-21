@@ -52,7 +52,7 @@ router.get("/admin/bookings", auth, adminOnly, async (req, res) => {
         path: "invoice",
         select: "_id invoiceNumber status issuedDate", // Ensure correct fields
       })
-      .populate("property", "title pricePerNight")
+      .populate("property", "title pricePerNight location")
       .populate("user", "name email");
     res.json(bookings);
   } catch (err) {
