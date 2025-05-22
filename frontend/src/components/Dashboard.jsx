@@ -174,7 +174,6 @@ const Bookings = () => {
           .flatMap((b) => {
             const start = new Date(b.checkInDate);
             const end = new Date(b.checkOutDate);
-            // Include all dates from check-in to the day before check-out
             const interval = eachDayOfInterval({ start, end: subDays(end, 1) });
             return interval.map((d) => format(d, "yyyy-MM-dd"));
           });
@@ -427,7 +426,6 @@ const Bookings = () => {
         );
       });
 
-      // Check if the date is a check-in date for any booking
       const isCheckInDate = propertyBookings.some((b) => {
         const checkin = parseISO(b.checkInDate);
         return (
@@ -471,11 +469,10 @@ const Bookings = () => {
         );
       });
 
-      // Check if the date is a check-in date for any booking
       const isCheckInDate = propertyBookings.some((b) => {
         const checkin = parseISO(b.checkInDate);
         return (
-?$          isSameDay(checkin, date) &&
+          isSameDay(checkin, date) &&
           (b.property?._id === propertyId || b.property === propertyId)
         );
       });
@@ -492,7 +489,6 @@ const Bookings = () => {
     isDateBooked(property._id, date).then(({ isBooked, isCheckoutDate, isCheckInDate }) => {
       const isPast = isPastDate(date);
 
-      // Only allow clicking if the date is not booked, not a check-in date, and not past
       if (!isBooked && !isCheckInDate && !isPast) {
         setSelectedProperty(property);
         setSelectedDate(date);
