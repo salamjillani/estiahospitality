@@ -41,6 +41,7 @@ import {
   isSameDay,
   differenceInDays,
   parseISO,
+  subDays,
 } from "date-fns";
 
 const DAY_CELL_WIDTH = 60;
@@ -414,7 +415,7 @@ const Bookings = () => {
           }));
         } catch (err) {
           console.error(`Error fetching bookings for property ${propertyId}:`, err);
-          return { isBooked, isCheckoutDate: false };
+          return { isBooked, isCheckoutDate: false, isCheckInDate: false };
         }
       }
 
@@ -474,7 +475,7 @@ const Bookings = () => {
       const isCheckInDate = propertyBookings.some((b) => {
         const checkin = parseISO(b.checkInDate);
         return (
-          isSameDay(checkin, date) &&
+?$          isSameDay(checkin, date) &&
           (b.property?._id === propertyId || b.property === propertyId)
         );
       });
