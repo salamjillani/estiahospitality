@@ -268,8 +268,17 @@ const Bookings = () => {
 
   useEffect(() => {
     if (user) {
-      fetchProperties();
-      fetchBookings();
+      const fetchInitialData = async () => {
+        setLoading(true);
+        try {
+          await Promise.all([fetchProperties(), fetchBookings()]);
+        } catch (err) {
+          setError("Failed to load initial data: " + err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchInitialData();
     }
   }, [user, fetchProperties, fetchBookings]);
 
@@ -735,7 +744,6 @@ const Bookings = () => {
     }
 
     const left = startDayIndex * DAY_CELL_WIDTH;
-    // Modified to exclude checkout date from width calculation
     const width = (endDayIndex - startDayIndex) * DAY_CELL_WIDTH - 4;
     const top = 10 + rowIndex * (BOOKING_HEIGHT + BOOKING_GAP);
 
@@ -780,6 +788,16 @@ const Bookings = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {loading && (
+        <div className="fixed inset-0 bg-white/90 flex items-center justify-center z-50">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+            <p className="text-lg font-medium text-blue-800">
+              Loading properties and bookings...
+            </p>
+          </div>
+        </div>
+      )}
       <Navbar
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
@@ -885,17 +903,6 @@ const Bookings = () => {
             onScroll={handleCalendarScroll}
             className="flex-1 overflow-x-auto overflow-y-auto relative"
           >
-            {loading && (
-              <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-20">
-                <div className="flex flex-col items-center">
-                  <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-                  <p className="mt-2 text-blue-600 font-medium">
-                    Loading data...
-                  </p>
-                </div>
-              </div>
-            )}
-
             <div className="sticky top-0 z-20 bg-white/95 border-b border-gray-200 flex min-w-max">
               <div className="flex">
                 {daysToShow.map((day, index) => (
