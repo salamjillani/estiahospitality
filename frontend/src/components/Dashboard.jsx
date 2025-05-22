@@ -158,44 +158,35 @@ const Bookings = () => {
       }
     };
 
-    if (filteredProperties.length > 0) {
+    if (filteredProperties.length > 0 && !loading) {
       fetchAllBookings();
     }
-  }, [filteredProperties, propertyBookingsCache]);
+  }, [filteredProperties, propertyBookingsCache, loading]);
 
-  useEffect(() => {
-    const fetchAllPropertyBookings = async () => {
-      const newBookedDates = {};
-      for (const property of properties) {
-        try {
-          const response = await api.get(
-            `/api/bookings/property/${property._id}`
-          );
-          const dates = response
-            .filter((b) => b.status !== "cancelled")
-            .flatMap((b) => {
-              const start = new Date(b.checkInDate);
-              const end = new Date(b.checkOutDate);
-              return eachDayOfInterval({ start, end }).map((d) =>
-                format(d, "yyyy-MM-dd")
-              );
-            });
-          newBookedDates[property._id] = [...new Set(dates)];
-        } catch (err) {
-          console.error(`Error fetching dates for ${property._id}:`, err);
-        }
+  const fetchAllPropertyBookings = useCallback(async () => {
+    const newBookedDates = {};
+    for (const property of properties) {
+      try {
+        const response = await api.get(`/api/bookings/property/${property._id}`);
+        const dates = response
+          .filter((b) => b.status !== "cancelled")
+          .flatMap((b) => {
+            const start = new Date(b.checkInDate);
+            const end = new Date(b.checkOutDate);
+            // Include all dates from check-in to the day before check-out
+            const interval = eachDayOfInterval({ start, end: subDays(end, 1) });
+            return interval.map((d) => format(d, "yyyy-MM-dd"));
+          });
+        newBookedDates[property._id] = [...new Set(dates)];
+      } catch (err) {
+        console.error(`Error fetching dates for ${property._id}:`, err);
       }
-      setPropertyBookedDates(newBookedDates);
-    };
-
-    if (properties.length > 0) {
-      fetchAllPropertyBookings();
     }
+    return newBookedDates;
   }, [properties]);
 
   const fetchProperties = useCallback(async () => {
     try {
-      setLoading(true);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/properties`,
         {
@@ -211,9 +202,11 @@ const Bookings = () => {
       setFilteredProperties(data || []);
 
       try {
-        const pricingRes = await api.get("/api/pricings");
+        const [pricingRes, categoriesRes] = await Promise.all([
+          api.get("/api/pricings"),
+          api.get("/api/category-prices"),
+        ]);
         setPricings(pricingRes);
-        const categoriesRes = await api.get("/api/category-prices");
         setCategories(categoriesRes);
       } catch (pricingErr) {
         console.error("Error fetching pricing data:", pricingErr);
@@ -221,14 +214,11 @@ const Bookings = () => {
       }
     } catch (err) {
       setError("Error fetching properties: " + err.message);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
   const fetchBookings = useCallback(async () => {
     try {
-      setLoading(true);
       setError("");
       let endpoint =
         user.role === "admin"
@@ -249,8 +239,6 @@ const Bookings = () => {
           ? "Session expired"
           : "Failed to load bookings: " + err.message
       );
-    } finally {
-      setLoading(false);
     }
   }, [user]);
 
@@ -271,7 +259,13 @@ const Bookings = () => {
       const fetchInitialData = async () => {
         setLoading(true);
         try {
-          await Promise.all([fetchProperties(), fetchBookings()]);
+          await Promise.all([
+            fetchProperties(),
+            fetchBookings(),
+            fetchAllPropertyBookings().then((newBookedDates) => {
+              setPropertyBookedDates(newBookedDates);
+            }),
+          ]);
         } catch (err) {
           setError("Failed to load initial data: " + err.message);
         } finally {
@@ -280,7 +274,7 @@ const Bookings = () => {
       };
       fetchInitialData();
     }
-  }, [user, fetchProperties, fetchBookings]);
+  }, [user, fetchProperties, fetchBookings, fetchAllPropertyBookings]);
 
   useEffect(() => {
     const filtered = properties.filter(
@@ -432,7 +426,16 @@ const Bookings = () => {
         );
       });
 
-      return { isBooked, isCheckoutDate };
+      // Check if the date is a check-in date for any booking
+      const isCheckInDate = propertyBookings.some((b) => {
+        const checkin = parseISO(b.checkInDate);
+        return (
+          isSameDay(checkin, date) &&
+          (b.property?._id === propertyId || b.property === propertyId)
+        );
+      });
+
+      return { isBooked, isCheckoutDate, isCheckInDate };
     },
     [propertyBookedDates, propertyBookingsCache]
   );
@@ -467,7 +470,16 @@ const Bookings = () => {
         );
       });
 
-      return { isBooked, isCheckoutDate };
+      // Check if the date is a check-in date for any booking
+      const isCheckInDate = propertyBookings.some((b) => {
+        const checkin = parseISO(b.checkInDate);
+        return (
+          isSameDay(checkin, date) &&
+          (b.property?._id === propertyId || b.property === propertyId)
+        );
+      });
+
+      return { isBooked, isCheckoutDate, isCheckInDate };
     },
     [propertyBookedDates, propertyBookingsCache]
   );
@@ -476,10 +488,11 @@ const Bookings = () => {
     e.preventDefault();
     e.stopPropagation();
 
-    isDateBooked(property._id, date).then(({ isBooked, isCheckoutDate }) => {
+    isDateBooked(property._id, date).then(({ isBooked, isCheckoutDate, isCheckInDate }) => {
       const isPast = isPastDate(date);
 
-      if ((isCheckoutDate || !isBooked) && !isPast) {
+      // Only allow clicking if the date is not booked, not a check-in date, and not past
+      if (!isBooked && !isCheckInDate && !isPast) {
         setSelectedProperty(property);
         setSelectedDate(date);
         setFormData((prev) => ({
@@ -948,35 +961,34 @@ const Bookings = () => {
                   >
                     <div className="flex h-full w-full">
                       {daysToShow.map((day, dayIndex) => {
-                        const { isBooked, isCheckoutDate } = getDateBookedStatus(property._id, day);
+                        const { isBooked, isCheckoutDate, isCheckInDate } = getDateBookedStatus(property._id, day);
                         const isPast = isPastDate(day);
-                        const isAvailable = !isBooked && !isPast;
-                        const isClickable = (isAvailable || isCheckoutDate) && !isPast;
+                        const isAvailable = !isBooked && !isCheckInDate && !isPast;
 
                         return (
                           <div
                             key={dayIndex}
                             className={`h-full border-r relative ${
-                              isBooked && !isCheckoutDate
+                              isBooked || isCheckInDate
                                 ? "bg-gray-100 cursor-not-allowed"
-                                : isClickable
+                                : isAvailable
                                 ? "hover:bg-blue-50 cursor-pointer"
                                 : "bg-gray-100 cursor-not-allowed"
                             }`}
                             style={{ width: `${DAY_CELL_WIDTH}px` }}
-                            onClick={isClickable ? (e) => handleDateClick(property, day, e) : undefined}
+                            onClick={isAvailable ? (e) => handleDateClick(property, day, e) : undefined}
                           >
-                            {isBooked && !isCheckoutDate && (
+                            {(isBooked || isCheckInDate) && (
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="h-1 w-full bg-red-500 rounded-full"></div>
                               </div>
                             )}
-                            {isCheckoutDate && (
+                            {isCheckoutDate && !isBooked && !isCheckInDate && (
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="h-1 w-full bg-green-500 rounded-full"></div>
                               </div>
                             )}
-                            {isClickable && (
+                            {isAvailable && (
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="text-sm font-medium text-blue-600">
                                   {currencySymbols[property.currency] || property.currency}
