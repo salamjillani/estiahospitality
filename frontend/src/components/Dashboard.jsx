@@ -44,7 +44,7 @@ import {
   subDays,
 } from "date-fns";
 
-const DAY_CELL_WIDTH = 60;
+const DAY_CELL_WIDTH = 100;
 const ROW_HEIGHT = 140;
 const BOOKING_HEIGHT = 32;
 const BOOKING_GAP = 4;
@@ -726,65 +726,65 @@ const Bookings = () => {
     [bookings, user.role, user._id]
   );
 
-  const getBookingStyle = (booking) => {
-    const checkInDate = new Date(booking.checkInDate);
-    const checkOutDate = new Date(booking.checkOutDate);
-    const { rowIndex } = booking;
+const getBookingStyle = (booking) => {
+  const checkInDate = new Date(booking.checkInDate);
+  const checkOutDate = new Date(booking.checkOutDate);
+  const { rowIndex } = booking;
 
-    let startDayIndex = daysToShow.findIndex((day) =>
-      isSameDay(day, checkInDate)
-    );
-    if (startDayIndex < 0) {
-      if (checkInDate < startOfMonth(currentMonth)) {
-        startDayIndex = 0;
-      } else {
-        return { display: "none" };
-      }
+  let startDayIndex = daysToShow.findIndex((day) =>
+    isSameDay(day, checkInDate)
+  );
+  if (startDayIndex < 0) {
+    if (checkInDate < startOfMonth(currentMonth)) {
+      startDayIndex = 0;
+    } else {
+      return { display: "none" };
     }
+  }
 
-    let endDayIndex = daysToShow.findIndex((day) =>
-      isSameDay(day, checkOutDate)
-    );
-    if (endDayIndex < 0) {
-      if (checkOutDate > daysToShow[daysToShow.length - 1]) {
-        endDayIndex = daysToShow.length - 1;
-      } else {
-        return { display: "none" };
-      }
+  let endDayIndex = daysToShow.findIndex((day) =>
+    isSameDay(day, checkOutDate)
+  );
+  if (endDayIndex < 0) {
+    if (checkOutDate > daysToShow[daysToShow.length - 1]) {
+      endDayIndex = daysToShow.length - 1;
+    } else {
+      return { display: "none" };
     }
+  }
 
-    const left = startDayIndex * DAY_CELL_WIDTH;
-    const width = (endDayIndex - startDayIndex) * DAY_CELL_WIDTH - 4;
-    const top = 10 + rowIndex * (BOOKING_HEIGHT + BOOKING_GAP);
+  const left = startDayIndex * DAY_CELL_WIDTH;
+  const width = (endDayIndex - startDayIndex) * DAY_CELL_WIDTH - 4;
+  const top = 10 + rowIndex * (BOOKING_HEIGHT + BOOKING_GAP);
 
-    const statusColors = {
-      confirmed: {
-        bg: "bg-gradient-to-r from-blue-500 to-blue-600",
-        hover: "hover:from-blue-600 hover:to-blue-700",
-        border: "border-blue-600",
-      },
-      pending: {
-        bg: "bg-gradient-to-r from-amber-400 to-amber-500",
-        hover: "hover:from-amber-500 hover:to-amber-600",
-        border: "border-amber-500",
-      },
-      cancelled: {
-        bg: "bg-gradient-to-r from-red-400 to-red-500",
-        hover: "hover:from-red-500 hover:to-red-600",
-        border: "border-red-500",
-      },
-    };
-
-    const statusColor = statusColors[booking.status] || statusColors.pending;
-
-    return {
-      left: `${left}px`,
-      width: `${width}px`,
-      top: `${top}px`,
-      height: `${BOOKING_HEIGHT}px`,
-      className: `absolute transition-all duration-150 cursor-pointer rounded-md border shadow-md ${statusColor.bg} ${statusColor.hover} ${statusColor.border}`,
-    };
+  const statusColors = {
+    confirmed: {
+      bg: "bg-gradient-to-r from-blue-500 to-blue-600",
+      hover: "hover:from-blue-600 hover:to-blue-700",
+      border: "border-blue-600",
+    },
+    pending: {
+      bg: "bg-gradient-to-r from-amber-400 to-amber-500",
+      hover: "hover:from-amber-500 hover:to-amber-600",
+      border: "border-amber-500",
+    },
+    cancelled: {
+      bg: "bg-gradient-to-r from-red-400 to-red-500",
+      hover: "hover:from-red-500 hover:to-red-600",
+      border: "border-red-500",
+    },
   };
+
+  const statusColor = statusColors[booking.status] || statusColors.pending;
+
+  return {
+    left: `${left}px`,
+    width: `${width}px`,
+    top: `${top}px`,
+    height: `${BOOKING_HEIGHT}px`,
+    className: `absolute transition-all duration-150 cursor-pointer rounded-md border shadow-md ${statusColor.bg} ${statusColor.hover} ${statusColor.border} flex items-center px-3`, // Added padding
+  };
+};
 
   const calculateNights = (start, end) => {
     const startDate = new Date(start);
@@ -908,138 +908,138 @@ const Bookings = () => {
             </div>
           </div>
 
-          <div
-            ref={calendarRef}
-            onScroll={handleCalendarScroll}
-            className="flex-1 overflow-x-auto overflow-y-auto relative"
-          >
-            <div className="sticky top-0 z-20 bg-white/95 border-b border-gray-200 flex min-w-max">
-              <div className="flex">
-                {daysToShow.map((day, index) => (
-                  <div
-                    key={index}
-                    className={`flex-shrink-0 text-center py-2 text-xs font-medium ${
-                      format(day, "MMM") !== format(currentMonth, "MMM")
-                        ? "text-gray-400 bg-gray-50"
-                        : "text-gray-700"
-                    } ${
-                      isSameDay(day, new Date())
-                        ? "bg-blue-50 text-blue-700"
-                        : ""
-                    }`}
-                    style={{ width: `${DAY_CELL_WIDTH}px` }}
-                  >
-                    <div className="flex flex-col items-center">
-                      <span className="text-xs uppercase">
-                        {format(day, "EEE")}
-                      </span>
-                      <span
-                        className={`w-6 h-6 flex items-center justify-center mt-1 rounded-full ${
-                          isSameDay(day, new Date())
-                            ? "bg-blue-500 text-white"
-                            : ""
-                        }`}
-                      >
-                        {format(day, "d")}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+         <div
+      ref={calendarRef}
+      onScroll={handleCalendarScroll}
+      className="flex-1 overflow-x-auto overflow-y-auto relative"
+    >
+      <div className="sticky top-0 z-20 bg-white/95 border-b border-gray-200 flex min-w-max">
+        <div className="flex">
+          {daysToShow.map((day, index) => (
+            <div
+              key={index}
+              className={`flex-shrink-0 text-center py-2 text-xs font-medium ${
+                format(day, "MMM") !== format(currentMonth, "MMM")
+                  ? "text-gray-400 bg-gray-50"
+                  : "text-gray-700"
+              } ${
+                isSameDay(day, new Date())
+                  ? "bg-blue-50 text-blue-700"
+                  : ""
+              }`}
+              style={{ width: `${DAY_CELL_WIDTH}px` }} // Updated width
+            >
+              <div className="flex flex-col items-center">
+                <span className="text-xs uppercase">
+                  {format(day, "EEE")}
+                </span>
+                <span
+                  className={`w-6 h-6 flex items-center justify-center mt-1 rounded-full ${
+                    isSameDay(day, new Date())
+                      ? "bg-blue-500 text-white"
+                      : ""
+                  }`}
+                >
+                  {format(day, "d")}
+                </span>
               </div>
             </div>
-            <div className="min-w-max">
-              {filteredProperties.map((property) => {
-                const positionedBookings = getPositionedBookings(property._id);
-                return (
-                  <div
-                    key={property._id}
-                    className="flex border-b border-gray-200 relative"
-                    style={{ height: `${ROW_HEIGHT}px` }}
-                  >
-                    <div className="flex h-full w-full">
-                      {daysToShow.map((day, dayIndex) => {
-                        const { isBooked, isCheckoutDate, isCheckInDate } = getDateBookedStatus(property._id, day);
-                        const isPast = isPastDate(day);
-                        const isAvailable = !isBooked && !isCheckInDate && !isPast;
+          ))}
+        </div>
+      </div>
+      <div className="min-w-max">
+        {filteredProperties.map((property) => {
+          const positionedBookings = getPositionedBookings(property._id);
+          return (
+            <div
+              key={property._id}
+              className="flex border-b border-gray-200 relative"
+              style={{ height: `${ROW_HEIGHT}px` }}
+            >
+              <div className="flex h-full w-full">
+                {daysToShow.map((day, dayIndex) => {
+                  const { isBooked, isCheckoutDate, isCheckInDate } = getDateBookedStatus(property._id, day);
+                  const isPast = isPastDate(day);
+                  const isAvailable = !isBooked && !isCheckInDate && !isPast;
 
-                        return (
-                          <div
-                            key={dayIndex}
-                            className={`h-full border-r relative ${
-                              isBooked || isCheckInDate
-                                ? "bg-gray-100 cursor-not-allowed"
-                                : isAvailable
-                                ? "hover:bg-blue-50 cursor-pointer"
-                                : "bg-gray-100 cursor-not-allowed"
-                            }`}
-                            style={{ width: `${DAY_CELL_WIDTH}px` }}
-                            onClick={isAvailable ? (e) => handleDateClick(property, day, e) : undefined}
-                          >
-                            {(isBooked || isCheckInDate) && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="h-1 w-full bg-red-500 rounded-full"></div>
-                              </div>
-                            )}
-                            {isCheckoutDate && !isBooked && !isCheckInDate && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="h-1 w-full bg-green-500 rounded-full"></div>
-                              </div>
-                            )}
-                            {isAvailable && (
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="text-sm font-medium text-blue-600">
-                                  {currencySymbols[property.currency] || property.currency}
-                                  {getPriceForDate(property._id, day)}
-                                </div>
-                              </div>
-                            )}
+                  return (
+                    <div
+                      key={dayIndex}
+                      className={`h-full border-r relative ${
+                        isBooked || isCheckInDate
+                          ? "bg-gray-100 cursor-not-allowed"
+                          : isAvailable
+                          ? "hover:bg-blue-50 cursor-pointer"
+                          : "bg-gray-100 cursor-not-allowed"
+                      }`}
+                      style={{ width: `${DAY_CELL_WIDTH}px` }} // Updated width
+                      onClick={isAvailable ? (e) => handleDateClick(property, day, e) : undefined}
+                    >
+                      {(isBooked || isCheckInDate) && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="h-1 w-full bg-red-500 rounded-full"></div>
+                        </div>
+                      )}
+                      {isCheckoutDate && !isBooked && !isCheckInDate && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="h-1 w-full bg-green-500 rounded-full"></div>
+                        </div>
+                      )}
+                      {isAvailable && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-sm font-medium text-blue-600">
+                            {currencySymbols[property.currency] || property.currency}
+                            {getPriceForDate(property._id, day)}
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
                     </div>
-                    <div className="absolute inset-0 pointer-events-none">
-                      {positionedBookings.map((booking) => {
-                        const style = getBookingStyle(booking);
-                        const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
+                  );
+                })}
+              </div>
+              <div className="absolute inset-0 pointer-events-none">
+                {positionedBookings.map((booking) => {
+                  const style = getBookingStyle(booking);
+                  const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
 
-                        if (style.display === "none") return null;
+                  if (style.display === "none") return null;
 
-                        return (
-                          <div
-                            key={booking._id}
-                            style={{
-                              left: style.left,
-                              width: style.width,
-                              top: style.top,
-                              height: style.height,
-                              position: "absolute",
-                              zIndex: 10,
-                            }}
-                            className={`${style.className} pointer-events-auto`}
-                            onClick={() => setSelectedBooking(booking)}
-                          >
-                            <div className="flex items-center justify-between w-full h-full px-2 text-white">
-                              <div className="flex flex-col overflow-hidden">
-                                <div className="text-xs font-semibold truncate">
-                                  {booking.guestName || "Guest"}
-                                </div>
-                                <div className="text-[0.65rem] truncate opacity-90">
-                                  {booking.bookingAgent?.name || "Direct"}
-                                </div>
-                              </div>
-                              <div className="text-xs font-bold whitespace-nowrap">
-                                {nights}N
-                              </div>
-                            </div>
+                  return (
+                    <div
+                      key={booking._id}
+                      style={{
+                        left: style.left,
+                        width: style.width,
+                        top: style.top,
+                        height: style.height,
+                        position: "absolute",
+                        zIndex: 10,
+                      }}
+                      className={`${style.className} pointer-events-auto`}
+                      onClick={() => setSelectedBooking(booking)}
+                    >
+                      <div className="flex items-center justify-between w-full h-full px-3 text-white"> {/* Increased padding */}
+                        <div className="flex flex-col overflow-hidden">
+                          <div className="text-sm font-semibold truncate"> {/* Slightly larger font */}
+                            {booking.guestName || "Guest"}
                           </div>
-                        );
-                      })}
+                          <div className="text-xs truncate opacity-90"> {/* Slightly larger font */}
+                            {booking.bookingAgent?.name || "Direct"}
+                          </div>
+                        </div>
+                        <div className="text-sm font-bold whitespace-nowrap"> {/* Slightly larger font */}
+                          {nights}N
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          );
+        })}
+      </div>
+    </div>
         </div>
 
         {selectedProperty && selectedDate && (
