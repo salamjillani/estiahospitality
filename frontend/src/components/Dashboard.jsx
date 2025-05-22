@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { websocketService } from "../services/websocketService";
 import { api } from "../utils/api";
+import { debounce } from "lodash";
 import {
   Loader2,
   Search,
@@ -141,28 +142,36 @@ const Bookings = () => {
     }
   }, [daysToShow]);
 
-  useEffect(() => {
-    const fetchAllBookings = async () => {
+const fetchAllBookings = useCallback(
+    debounce(async () => {
+      const newCache = { ...propertyBookingsCache };
+      let hasNewData = false;
+
       for (const property of filteredProperties) {
-        if (!propertyBookingsCache[property._id]) {
+        if (!newCache[property._id]) {
           try {
             const response = await api.get(`/api/bookings/property/${property._id}`);
             const propertyBookings = response.filter((b) => b.status !== "cancelled");
-            setPropertyBookingsCache((prev) => ({
-              ...prev,
-              [property._id]: propertyBookings,
-            }));
+            newCache[property._id] = propertyBookings;
+            hasNewData = true;
           } catch (err) {
             console.error(`Error fetching bookings for property ${property._id}:`, err);
           }
         }
       }
-    };
 
+      if (hasNewData) {
+        setPropertyBookingsCache(newCache);
+      }
+    }, 500), // Debounce for 500ms
+    [filteredProperties, propertyBookingsCache]
+  );
+
+  useEffect(() => {
     if (filteredProperties.length > 0 && !loading) {
       fetchAllBookings();
     }
-  }, [filteredProperties, propertyBookingsCache, loading]);
+  }, [filteredProperties, loading, fetchAllBookings]);
 
   const fetchAllPropertyBookings = useCallback(async () => {
     const newBookedDates = {};
@@ -254,27 +263,34 @@ const Bookings = () => {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      const fetchInitialData = async () => {
-        setLoading(true);
-        try {
-          await Promise.all([
-            fetchProperties(),
-            fetchBookings(),
-            fetchAllPropertyBookings().then((newBookedDates) => {
-              setPropertyBookedDates(newBookedDates);
-            }),
-          ]);
-        } catch (err) {
-          setError("Failed to load initial data: " + err.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchInitialData();
-    }
-  }, [user, fetchProperties, fetchBookings, fetchAllPropertyBookings]);
+useEffect(() => {
+  if (user) {
+    const fetchInitialData = async () => {
+      if (!loading) return; // Prevent re-running if already loaded
+      setLoading(true);
+      try {
+        await Promise.all([
+          fetchProperties(),
+          fetchBookings(),
+          fetchAllPropertyBookings().then((newBookedDates) => {
+            setPropertyBookedDates((prev) => {
+              // Only update if new data differs
+              if (JSON.stringify(prev) !== JSON.stringify(newBookedDates)) {
+                return newBookedDates;
+              }
+              return prev;
+            });
+          }),
+        ]);
+      } catch (err) {
+        setError("Failed to load initial data: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInitialData();
+  }
+}, [user, fetchProperties, fetchBookings, fetchAllPropertyBookings, loading]);
 
   useEffect(() => {
     const filtered = properties.filter(
@@ -486,7 +502,7 @@ const Bookings = () => {
     e.preventDefault();
     e.stopPropagation();
 
-    isDateBooked(property._id, date).then(({ isBooked,  isCheckInDate }) => {
+    isDateBooked(property._id, date).then(({ isBooked, isCheckInDate }) => {
       const isPast = isPastDate(date);
 
       if (!isBooked && !isCheckInDate && !isPast) {
@@ -657,74 +673,77 @@ const Bookings = () => {
     }
   };
 
-  const getPositionedBookings = useCallback(
-    (propertyId) => {
-      let propertyBookings = bookings.filter(
-        (b) =>
-          (b.property?._id?.toString?.() === propertyId ||
-            b.property?.toString?.() === propertyId ||
-            b.property === propertyId) &&
-          b.status !== "cancelled"
+const getPositionedBookings = useCallback(
+  (propertyId) => {
+    let propertyBookings = bookings.filter(
+      (b) =>
+        (b.property?._id?.toString?.() === propertyId ||
+          b.property?.toString?.() === propertyId ||
+          b.property === propertyId) &&
+        b.status !== "cancelled"
+    );
+
+    if (user.role !== "admin") {
+      propertyBookings = propertyBookings.filter(
+        (b) => (b.user?._id || b.user) === user._id
       );
+    }
 
-      if (user.role !== "admin") {
-        propertyBookings = propertyBookings.filter(
-          (b) => (b.user?._id || b.user) === user._id
-        );
-      }
-
+    // Only log in development mode
+    if (import.meta.env.NODE_ENV === "development") {
       console.log(`Bookings for property ${propertyId}:`, propertyBookings);
+    }
 
-      if (propertyBookings.length === 0) return [];
+    if (propertyBookings.length === 0) return [];
 
-      const sortedBookings = [...propertyBookings].sort(
-        (a, b) => new Date(a.checkInDate) - new Date(b.checkInDate)
-      );
+    const sortedBookings = [...propertyBookings].sort(
+      (a, b) => new Date(a.checkInDate) - new Date(b.checkInDate)
+    );
 
-      const rows = [];
-      const positioned = [];
+    const rows = [];
+    const positioned = [];
 
-      sortedBookings.forEach((booking) => {
-        const checkInDate = new Date(booking.checkInDate);
-        const checkOutDate = new Date(booking.checkOutDate);
+    sortedBookings.forEach((booking) => {
+      const checkInDate = new Date(booking.checkInDate);
+      const checkOutDate = new Date(booking.checkOutDate);
 
-        let rowIndex = 0;
-        let foundRow = false;
+      let rowIndex = 0;
+      let foundRow = false;
 
-        while (!foundRow && rowIndex < 10) {
-          if (!rows[rowIndex]) {
-            rows[rowIndex] = [];
+      while (!foundRow && rowIndex < 10) {
+        if (!rows[rowIndex]) {
+          rows[rowIndex] = [];
+          foundRow = true;
+        } else {
+          const hasOverlap = rows[rowIndex].some((existingBooking) => {
+            const existingCheckIn = new Date(existingBooking.checkInDate);
+            const existingCheckOut = new Date(existingBooking.checkOutDate);
+            return (
+              checkInDate <= existingCheckOut && checkOutDate >= existingCheckIn
+            );
+          });
+
+          if (!hasOverlap) {
             foundRow = true;
           } else {
-            const hasOverlap = rows[rowIndex].some((existingBooking) => {
-              const existingCheckIn = new Date(existingBooking.checkInDate);
-              const existingCheckOut = new Date(existingBooking.checkOutDate);
-              return (
-                checkInDate <= existingCheckOut && checkOutDate >= existingCheckIn
-              );
-            });
-
-            if (!hasOverlap) {
-              foundRow = true;
-            } else {
-              rowIndex++;
-            }
+            rowIndex++;
           }
         }
+      }
 
-        rows[rowIndex] = rows[rowIndex] || [];
-        rows[rowIndex].push(booking);
+      rows[rowIndex] = rows[rowIndex] || [];
+      rows[rowIndex].push(booking);
 
-        positioned.push({
-          ...booking,
-          rowIndex,
-        });
+      positioned.push({
+        ...booking,
+        rowIndex,
       });
+    });
 
-      return positioned;
-    },
-    [bookings, user.role, user._id]
-  );
+    return positioned;
+  },
+  [bookings, user.role, user._id]
+);
 
   const getBookingStyle = (booking) => {
     const checkInDate = new Date(booking.checkInDate);

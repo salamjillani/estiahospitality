@@ -13,6 +13,7 @@ const jwt = require("jsonwebtoken");
 const invoiceRoutes = require("./routes/invoices");
 const categoryPriceRoutes = require('./routes/categoryPrices');
 const pricingRoutes = require('./routes/pricing');
+const rateLimit = require('express-rate-limit');
 
 
 // Initialize Express and HTTP server
@@ -79,6 +80,12 @@ const upload = multer({
   },
 });
 
+const bookingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests, please try again later.',
+});
+
 app.post(
   "/api/properties/upload",
   upload.array("photos", 10),
@@ -122,6 +129,7 @@ app.use("/api/booking-agents", require("./routes/bookingAgents"));
 app.use('/api/category-prices', categoryPriceRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use('/api/pricings', pricingRoutes);
+app.use('/api/bookings', bookingLimiter);
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));

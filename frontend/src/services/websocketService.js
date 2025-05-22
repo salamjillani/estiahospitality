@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 import { getAuthToken } from '../utils/api';
 
+// In websocketService.js
 class WebSocketService {
   constructor() {
     this.subscribers = new Map();
@@ -9,31 +10,28 @@ class WebSocketService {
     this.connected = false;
     this.authAttempts = 0;
     this.connectionPromise = null;
+    this.reconnectTimeout = null; // Add timeout for controlled reconnection
   }
 
   connect() {
-    // Return existing connection promise if already connecting
     if (this.connectionPromise) return this.connectionPromise;
     
-    // Return immediately if already connected
     if (this.connected && this.socket?.connected) {
       return Promise.resolve(this.socket);
     }
 
-    // Create a new connection promise
     this.connectionPromise = new Promise((resolve, reject) => {
       const token = getAuthToken();
       if (!token) {
         console.warn('WebSocket connection delayed - no auth token');
-        setTimeout(() => {
+        this.reconnectTimeout = setTimeout(() => {
           this.connectionPromise = null;
           resolve(this.connect());
-        }, 1000);
+        }, 2000); // Increase delay to 2 seconds
         return;
       }
 
       try {
-        // Clean up any existing socket
         if (this.socket) {
           this.socket.offAny();
           this.socket.disconnect();
@@ -43,19 +41,18 @@ class WebSocketService {
           transports: ['websocket'],
           auth: { token },
           reconnection: true,
-          reconnectionAttempts: 5,
-          reconnectionDelay: 3000,
+          reconnectionAttempts: 3, // Reduce reconnection attempts
+          reconnectionDelay: 5000, // Increase delay to 5 seconds
           withCredentials: true,
           autoConnect: true,
         });
 
-        // Connection handlers
         this.socket.on('connect', () => {
           console.log('WebSocket connected:', this.socket.id);
           this.connected = true;
           this.authAttempts = 0;
+          clearTimeout(this.reconnectTimeout); // Clear reconnect timeout
           
-          // Notify all 'connect' subscribers
           const callbacks = this.subscribers.get('connect');
           if (callbacks) {
             callbacks.forEach(callback => callback());
@@ -69,34 +66,33 @@ class WebSocketService {
           console.log('WebSocket disconnected:', reason);
           this.connected = false;
           
-          // Notify all 'disconnect' subscribers
           const callbacks = this.subscribers.get('disconnect');
           if (callbacks) {
             callbacks.forEach(callback => callback(reason));
           }
           
           if (reason === 'io server disconnect') {
-            setTimeout(() => this.socket.connect(), 1000);
+            this.reconnectTimeout = setTimeout(() => this.socket.connect(), 5000);
           }
         });
 
         this.socket.on('connect_error', (error) => {
           console.error('Connection error:', error.message);
           
-          if (++this.authAttempts > 5) {
+          if (++this.authAttempts > 3) {
             reject(new Error('Failed to connect to WebSocket server after multiple attempts'));
             this.connectionPromise = null;
+            clearTimeout(this.reconnectTimeout);
             return;
           }
           
-          setTimeout(() => {
+          this.reconnectTimeout = setTimeout(() => {
             if (!this.connected) {
               this.socket.connect();
             }
-          }, this.authAttempts * 1000);
+          }, this.authAttempts * 5000);
         });
 
-        // Enhanced event handler with better error handling
         this.socket.onAny((event, ...args) => {
           console.log(`Received event: ${event}`, args);
           try {
@@ -129,6 +125,7 @@ class WebSocketService {
       this.socket.disconnect();
       this.connected = false;
       this.connectionPromise = null;
+      clearTimeout(this.reconnectTimeout); // Clear timeout on disconnect
     }
   }
 
