@@ -141,28 +141,49 @@ const Bookings = () => {
     }
   }, [daysToShow]);
 
+  // Memoize filteredProperties to prevent unnecessary re-renders
+  const stableFilteredProperties = useMemo(() => {
+    return properties.filter(
+      (property) =>
+        property.title
+          .toLowerCase()
+          .includes(propertySearchQuery.toLowerCase()) ||
+        property.location?.city
+          ?.toLowerCase()
+          .includes(propertySearchQuery.toLowerCase())
+    );
+  }, [properties, propertySearchQuery]);
+
+  useEffect(() => {
+    setFilteredProperties(stableFilteredProperties);
+  }, [stableFilteredProperties]);
+
+  // Fetch bookings for properties only once per property
   useEffect(() => {
     const fetchAllBookings = async () => {
-      for (const property of filteredProperties) {
-        if (!propertyBookingsCache[property._id]) {
-          try {
-            const response = await api.get(`/api/bookings/property/${property._id}`);
-            const propertyBookings = response.filter((b) => b.status !== "cancelled");
-            setPropertyBookingsCache((prev) => ({
-              ...prev,
-              [property._id]: propertyBookings,
-            }));
-          } catch (err) {
-            console.error(`Error fetching bookings for property ${property._id}:`, err);
-          }
+      const propertiesToFetch = stableFilteredProperties.filter(
+        (property) => !propertyBookingsCache[property._id]
+      );
+      if (propertiesToFetch.length === 0) return;
+
+      for (const property of propertiesToFetch) {
+        try {
+          const response = await api.get(`/api/bookings/property/${property._id}`);
+          const propertyBookings = response.filter((b) => b.status !== "cancelled");
+          setPropertyBookingsCache((prev) => ({
+            ...prev,
+            [property._id]: propertyBookings,
+          }));
+        } catch (err) {
+          console.error(`Error fetching bookings for property ${property._id}:`, err);
         }
       }
     };
 
-    if (filteredProperties.length > 0 && !loading) {
+    if (stableFilteredProperties.length > 0 && !loading) {
       fetchAllBookings();
     }
-  }, [filteredProperties, propertyBookingsCache, loading]);
+  }, [stableFilteredProperties, loading]);
 
   const fetchAllPropertyBookings = useCallback(async () => {
     const newBookedDates = {};
@@ -199,19 +220,6 @@ const Bookings = () => {
       );
       const data = await response.json();
       setProperties(data || []);
-      setFilteredProperties(data || []);
-
-      try {
-        const [pricingRes, categoriesRes] = await Promise.all([
-          api.get("/api/pricings"),
-          api.get("/api/category-prices"),
-        ]);
-        setPricings(pricingRes);
-        setCategories(categoriesRes);
-      } catch (pricingErr) {
-        console.error("Error fetching pricing data:", pricingErr);
-        setError("Error fetching pricing data");
-      }
     } catch (err) {
       setError("Error fetching properties: " + err.message);
     }
@@ -229,7 +237,6 @@ const Bookings = () => {
         console.warn("No bookings found for endpoint:", endpoint);
         setBookings([]);
       } else {
-        console.log("Fetched bookings:", data);
         setBookings(data);
       }
     } catch (err) {
@@ -242,17 +249,30 @@ const Bookings = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    const unsubscribe = websocketService.subscribe(
-      "bookingUpdate",
-      (updatedBooking) => {
-        setBookings((prev) =>
-          prev.map((b) => (b._id === updatedBooking._id ? updatedBooking : b))
-        );
+  // Debounce WebSocket updates to prevent excessive re-renders
+  const handleBookingUpdate = useCallback((updatedBooking) => {
+    setBookings((prev) => {
+      const index = prev.findIndex((b) => b._id === updatedBooking._id);
+      if (index === -1 && updatedBooking.status !== "cancelled") {
+        return [...prev, updatedBooking];
       }
-    );
-    return () => unsubscribe();
+      return prev.map((b) =>
+        b._id === updatedBooking._id ? updatedBooking : b
+      );
+    });
   }, []);
+
+  useEffect(() => {
+    let timeout;
+    const unsubscribe = websocketService.subscribe("bookingUpdate", (data) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => handleBookingUpdate(data), 500);
+    });
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
+  }, [handleBookingUpdate]);
 
   useEffect(() => {
     if (user) {
@@ -275,19 +295,6 @@ const Bookings = () => {
       fetchInitialData();
     }
   }, [user, fetchProperties, fetchBookings, fetchAllPropertyBookings]);
-
-  useEffect(() => {
-    const filtered = properties.filter(
-      (property) =>
-        property.title
-          .toLowerCase()
-          .includes(propertySearchQuery.toLowerCase()) ||
-        property.location?.city
-          ?.toLowerCase()
-          .includes(propertySearchQuery.toLowerCase())
-    );
-    setFilteredProperties(filtered);
-  }, [propertySearchQuery, properties]);
 
   const getPriceForDate = useCallback(
     (propertyId, date) => {
@@ -672,8 +679,6 @@ const Bookings = () => {
           (b) => (b.user?._id || b.user) === user._id
         );
       }
-
-      console.log(`Bookings for property ${propertyId}:`, propertyBookings);
 
       if (propertyBookings.length === 0) return [];
 
