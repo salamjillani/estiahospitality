@@ -41,6 +41,7 @@ import {
   isSameDay,
   differenceInDays,
   parseISO,
+  subDays,
 } from "date-fns";
 
 const DAY_CELL_WIDTH = 60;
@@ -141,63 +142,51 @@ const Bookings = () => {
   }, [daysToShow]);
 
   useEffect(() => {
-  const fetchAllBookings = async () => {
-    for (const property of filteredProperties) {
-      if (!propertyBookingsCache[property._id]) {
-        try {
-          const response = await api.get(`/api/bookings/property/${property._id}`);
-          const propertyBookings = response.filter((b) => b.status !== "cancelled");
-          setPropertyBookingsCache((prev) => ({
-            ...prev,
-            [property._id]: propertyBookings,
-          }));
-        } catch (err) {
-          console.error(`Error fetching bookings for property ${property._id}:`, err);
+    const fetchAllBookings = async () => {
+      for (const property of filteredProperties) {
+        if (!propertyBookingsCache[property._id]) {
+          try {
+            const response = await api.get(`/api/bookings/property/${property._id}`);
+            const propertyBookings = response.filter((b) => b.status !== "cancelled");
+            setPropertyBookingsCache((prev) => ({
+              ...prev,
+              [property._id]: propertyBookings,
+            }));
+          } catch (err) {
+            console.error(`Error fetching bookings for property ${property._id}:`, err);
+          }
         }
       }
-    }
-  };
-
-  if (filteredProperties.length > 0) {
-    fetchAllBookings();
-  }
-}, [filteredProperties, propertyBookingsCache, api]);
-
-  // In the useEffect for fetching property booked dates:
-  useEffect(() => {
-    const fetchAllPropertyBookings = async () => {
-      const newBookedDates = {};
-      for (const property of properties) {
-        try {
-          const response = await api.get(
-            `/api/bookings/property/${property._id}`
-          );
-          const dates = response
-            .filter((b) => b.status !== "cancelled")
-            .flatMap((b) => {
-              const start = new Date(b.checkInDate);
-              const end = new Date(b.checkOutDate);
-              return eachDayOfInterval({ start, end }).map((d) =>
-                format(d, "yyyy-MM-dd")
-              );
-            });
-          newBookedDates[property._id] = [...new Set(dates)];
-        } catch (err) {
-          console.error(`Error fetching dates for ${property._id}:`, err);
-        }
-      }
-      setPropertyBookedDates(newBookedDates);
     };
 
-    // Remove the role check to fetch for all users
-    if (properties.length > 0) {
-      fetchAllPropertyBookings();
+    if (filteredProperties.length > 0 && !loading) {
+      fetchAllBookings();
     }
-  }, [properties]); // Remove user.role from dependencies
+  }, [filteredProperties, propertyBookingsCache, loading]);
+
+  const fetchAllPropertyBookings = useCallback(async () => {
+    const newBookedDates = {};
+    for (const property of properties) {
+      try {
+        const response = await api.get(`/api/bookings/property/${property._id}`);
+        const dates = response
+          .filter((b) => b.status !== "cancelled")
+          .flatMap((b) => {
+            const start = new Date(b.checkInDate);
+            const end = new Date(b.checkOutDate);
+            const interval = eachDayOfInterval({ start, end: subDays(end, 1) });
+            return interval.map((d) => format(d, "yyyy-MM-dd"));
+          });
+        newBookedDates[property._id] = [...new Set(dates)];
+      } catch (err) {
+        console.error(`Error fetching dates for ${property._id}:`, err);
+      }
+    }
+    return newBookedDates;
+  }, [properties]);
 
   const fetchProperties = useCallback(async () => {
     try {
-      setLoading(true);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/properties`,
         {
@@ -213,9 +202,11 @@ const Bookings = () => {
       setFilteredProperties(data || []);
 
       try {
-        const pricingRes = await api.get("/api/pricings");
+        const [pricingRes, categoriesRes] = await Promise.all([
+          api.get("/api/pricings"),
+          api.get("/api/category-prices"),
+        ]);
         setPricings(pricingRes);
-        const categoriesRes = await api.get("/api/category-prices");
         setCategories(categoriesRes);
       } catch (pricingErr) {
         console.error("Error fetching pricing data:", pricingErr);
@@ -223,38 +214,33 @@ const Bookings = () => {
       }
     } catch (err) {
       setError("Error fetching properties: " + err.message);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
- const fetchBookings = useCallback(async () => {
-  try {
-    setLoading(true);
-    setError("");
-    let endpoint =
-      user.role === "admin"
-        ? "/api/bookings/admin"
-        : `/api/bookings/client/${user._id}`;
-    const data = await api.get(endpoint);
-    if (!data || data.length === 0) {
-      console.warn("No bookings found for endpoint:", endpoint);
-      setBookings([]);
-    } else {
-      console.log("Fetched bookings:", data);
-      setBookings(data);
+  const fetchBookings = useCallback(async () => {
+    try {
+      setError("");
+      let endpoint =
+        user.role === "admin"
+          ? "/api/bookings/admin"
+          : `/api/bookings/client/${user._id}`;
+      const data = await api.get(endpoint);
+      if (!data || data.length === 0) {
+        console.warn("No bookings found for endpoint:", endpoint);
+        setBookings([]);
+      } else {
+        console.log("Fetched bookings:", data);
+        setBookings(data);
+      }
+    } catch (err) {
+      console.error("Error fetching bookings:", err);
+      setError(
+        err.message.includes("401")
+          ? "Session expired"
+          : "Failed to load bookings: " + err.message
+      );
     }
-  } catch (err) {
-    console.error("Error fetching bookings:", err);
-    setError(
-      err.message.includes("401")
-        ? "Session expired"
-        : "Failed to load bookings: " + err.message
-    );
-  } finally {
-    setLoading(false);
-  }
-}, [user]);
+  }, [user]);
 
   useEffect(() => {
     const unsubscribe = websocketService.subscribe(
@@ -270,10 +256,25 @@ const Bookings = () => {
 
   useEffect(() => {
     if (user) {
-      fetchProperties();
-      fetchBookings();
+      const fetchInitialData = async () => {
+        setLoading(true);
+        try {
+          await Promise.all([
+            fetchProperties(),
+            fetchBookings(),
+            fetchAllPropertyBookings().then((newBookedDates) => {
+              setPropertyBookedDates(newBookedDates);
+            }),
+          ]);
+        } catch (err) {
+          setError("Failed to load initial data: " + err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchInitialData();
     }
-  }, [user, fetchProperties, fetchBookings]);
+  }, [user, fetchProperties, fetchBookings, fetchAllPropertyBookings]);
 
   useEffect(() => {
     const filtered = properties.filter(
@@ -396,41 +397,47 @@ const Bookings = () => {
   const previousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-const isDateBooked = useCallback(
-  async (propertyId, date) => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    const allBooked = propertyBookedDates[propertyId] || [];
-    const isBooked = allBooked.includes(dateStr);
+  const isDateBooked = useCallback(
+    async (propertyId, date) => {
+      const dateStr = format(date, "yyyy-MM-dd");
+      const allBooked = propertyBookedDates[propertyId] || [];
+      const isBooked = allBooked.includes(dateStr);
 
-    // Fetch or use cached bookings for the property
-    let propertyBookings = propertyBookingsCache[propertyId];
-    if (!propertyBookings) {
-      try {
-        const response = await api.get(`/api/bookings/property/${propertyId}`);
-        propertyBookings = response.filter((b) => b.status !== "cancelled");
-        setPropertyBookingsCache((prev) => ({
-          ...prev,
-          [propertyId]: propertyBookings,
-        }));
-      } catch (err) {
-        console.error(`Error fetching bookings for property ${propertyId}:`, err);
-        return { isBooked, isCheckoutDate: false };
+      let propertyBookings = propertyBookingsCache[propertyId];
+      if (!propertyBookings) {
+        try {
+          const response = await api.get(`/api/bookings/property/${propertyId}`);
+          propertyBookings = response.filter((b) => b.status !== "cancelled");
+          setPropertyBookingsCache((prev) => ({
+            ...prev,
+            [propertyId]: propertyBookings,
+          }));
+        } catch (err) {
+          console.error(`Error fetching bookings for property ${propertyId}:`, err);
+          return { isBooked, isCheckoutDate: false, isCheckInDate: false };
+        }
       }
-    }
 
-    // Check if the date is a checkout date
-    const isCheckoutDate = propertyBookings.some((b) => {
-      const checkout = parseISO(b.checkOutDate);
-      return (
-        isSameDay(checkout, date) &&
-        (b.property?._id === propertyId || b.property === propertyId)
-      );
-    });
+      const isCheckoutDate = propertyBookings.some((b) => {
+        const checkout = parseISO(b.checkOutDate);
+        return (
+          isSameDay(checkout, date) &&
+          (b.property?._id === propertyId || b.property === propertyId)
+        );
+      });
 
-    return { isBooked, isCheckoutDate };
-  },
-  [propertyBookedDates, propertyBookingsCache, api]
-);
+      const isCheckInDate = propertyBookings.some((b) => {
+        const checkin = parseISO(b.checkInDate);
+        return (
+          isSameDay(checkin, date) &&
+          (b.property?._id === propertyId || b.property === propertyId)
+        );
+      });
+
+      return { isBooked, isCheckoutDate, isCheckInDate };
+    },
+    [propertyBookedDates, propertyBookingsCache]
+  );
 
   const isPastDate = (date) => {
     const today = new Date();
@@ -448,49 +455,58 @@ const isDateBooked = useCallback(
   };
 
   const getDateBookedStatus = useCallback(
-  (propertyId, date) => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    const allBooked = propertyBookedDates[propertyId] || [];
-    const isBooked = allBooked.includes(dateStr);
-    const propertyBookings = propertyBookingsCache[propertyId] || [];
-    
-    const isCheckoutDate = propertyBookings.some((b) => {
-      const checkout = parseISO(b.checkOutDate);
-      return (
-        isSameDay(checkout, date) &&
-        (b.property?._id === propertyId || b.property === propertyId)
-      );
+    (propertyId, date) => {
+      const dateStr = format(date, "yyyy-MM-dd");
+      const allBooked = propertyBookedDates[propertyId] || [];
+      const isBooked = allBooked.includes(dateStr);
+      const propertyBookings = propertyBookingsCache[propertyId] || [];
+
+      const isCheckoutDate = propertyBookings.some((b) => {
+        const checkout = parseISO(b.checkOutDate);
+        return (
+          isSameDay(checkout, date) &&
+          (b.property?._id === propertyId || b.property === propertyId)
+        );
+      });
+
+      const isCheckInDate = propertyBookings.some((b) => {
+        const checkin = parseISO(b.checkInDate);
+        return (
+          isSameDay(checkin, date) &&
+          (b.property?._id === propertyId || b.property === propertyId)
+        );
+      });
+
+      return { isBooked, isCheckoutDate, isCheckInDate };
+    },
+    [propertyBookedDates, propertyBookingsCache]
+  );
+
+  const handleDateClick = (property, date, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    isDateBooked(property._id, date).then(({ isBooked,  isCheckInDate }) => {
+      const isPast = isPastDate(date);
+
+      if (!isBooked && !isCheckInDate && !isPast) {
+        setSelectedProperty(property);
+        setSelectedDate(date);
+        setFormData((prev) => ({
+          ...prev,
+          checkInDate: format(date, "yyyy-MM-dd"),
+          checkOutDate: format(addDays(date, 1), "yyyy-MM-dd"),
+          property: property._id,
+          currency: property.currency || "USD",
+          rooms: property.bedrooms || 1,
+        }));
+
+        loadPropertyDetails(property._id);
+        fetchAgents();
+        fetchPropertyBookings(property._id);
+      }
     });
-
-    return { isBooked, isCheckoutDate };
-  },
-  [propertyBookedDates, propertyBookingsCache]
-);
-
-const handleDateClick = (property, date, e) => {
-  e.preventDefault();
-  e.stopPropagation();
-
-  const { isBooked, isCheckoutDate } = isDateBooked(property._id, date);
-  const isPast = isPastDate(date);
-
-  if ((isCheckoutDate || !isBooked) && !isPast) {
-    setSelectedProperty(property);
-    setSelectedDate(date);
-    setFormData((prev) => ({
-      ...prev,
-      checkInDate: format(date, "yyyy-MM-dd"),
-      checkOutDate: format(addDays(date, 1), "yyyy-MM-dd"),
-      property: property._id,
-      currency: property.currency || "USD",
-      rooms: property.bedrooms || 1,
-    }));
-
-    loadPropertyDetails(property._id);
-    fetchAgents();
-    fetchPropertyBookings(property._id);
-  }
-};
+  };
 
   const closeReservationModal = () => {
     setSelectedDate(null);
@@ -574,10 +590,9 @@ const handleDateClick = (property, date, e) => {
         commissionPercentage: selectedAgent?.commissionPercentage || 0,
       }));
     } else {
-      // Convert numeric fields to numbers
       const numericFields = ["adults", "children", "rooms", "nights"];
       const parsedValue = numericFields.includes(name)
-        ? parseInt(value, 10) || 0 // Handle invalid numbers as 0
+        ? parseInt(value, 10) || 0
         : value;
 
       setFormData((prev) => ({
@@ -642,75 +657,75 @@ const handleDateClick = (property, date, e) => {
     }
   };
 
- const getPositionedBookings = useCallback(
-  (propertyId) => {
-    // Filter bookings for this property and not cancelled
-    let propertyBookings = bookings.filter(
-      (b) =>
-        (b.property?._id?.toString?.() === propertyId ||
-          b.property?.toString?.() === propertyId ||
-          b.property === propertyId) &&
-        b.status !== "cancelled"
-    );
-
-    if (user.role !== "admin") {
-      propertyBookings = propertyBookings.filter(
-        (b) => (b.user?._id || b.user) === user._id
+  const getPositionedBookings = useCallback(
+    (propertyId) => {
+      let propertyBookings = bookings.filter(
+        (b) =>
+          (b.property?._id?.toString?.() === propertyId ||
+            b.property?.toString?.() === propertyId ||
+            b.property === propertyId) &&
+          b.status !== "cancelled"
       );
-    }
 
-    console.log(`Bookings for property ${propertyId}:`, propertyBookings);
-
-    if (propertyBookings.length === 0) return [];
-
-    const sortedBookings = [...propertyBookings].sort(
-      (a, b) => new Date(a.checkInDate) - new Date(b.checkInDate)
-    );
-
-    const rows = [];
-    const positioned = [];
-
-    sortedBookings.forEach((booking) => {
-      const checkInDate = new Date(booking.checkInDate);
-      const checkOutDate = new Date(booking.checkOutDate);
-
-      let rowIndex = 0;
-      let foundRow = false;
-
-      while (!foundRow && rowIndex < 10) {
-        if (!rows[rowIndex]) {
-          rows[rowIndex] = [];
-          foundRow = true;
-        } else {
-          const hasOverlap = rows[rowIndex].some((existingBooking) => {
-            const existingCheckIn = new Date(existingBooking.checkInDate);
-            const existingCheckOut = new Date(existingBooking.checkOutDate);
-            return (
-              checkInDate <= existingCheckOut && checkOutDate >= existingCheckIn
-            );
-          });
-
-          if (!hasOverlap) {
-            foundRow = true;
-          } else {
-            rowIndex++;
-          }
-        }
+      if (user.role !== "admin") {
+        propertyBookings = propertyBookings.filter(
+          (b) => (b.user?._id || b.user) === user._id
+        );
       }
 
-      rows[rowIndex] = rows[rowIndex] || [];
-      rows[rowIndex].push(booking);
+      console.log(`Bookings for property ${propertyId}:`, propertyBookings);
 
-      positioned.push({
-        ...booking,
-        rowIndex,
+      if (propertyBookings.length === 0) return [];
+
+      const sortedBookings = [...propertyBookings].sort(
+        (a, b) => new Date(a.checkInDate) - new Date(b.checkInDate)
+      );
+
+      const rows = [];
+      const positioned = [];
+
+      sortedBookings.forEach((booking) => {
+        const checkInDate = new Date(booking.checkInDate);
+        const checkOutDate = new Date(booking.checkOutDate);
+
+        let rowIndex = 0;
+        let foundRow = false;
+
+        while (!foundRow && rowIndex < 10) {
+          if (!rows[rowIndex]) {
+            rows[rowIndex] = [];
+            foundRow = true;
+          } else {
+            const hasOverlap = rows[rowIndex].some((existingBooking) => {
+              const existingCheckIn = new Date(existingBooking.checkInDate);
+              const existingCheckOut = new Date(existingBooking.checkOutDate);
+              return (
+                checkInDate <= existingCheckOut && checkOutDate >= existingCheckIn
+              );
+            });
+
+            if (!hasOverlap) {
+              foundRow = true;
+            } else {
+              rowIndex++;
+            }
+          }
+        }
+
+        rows[rowIndex] = rows[rowIndex] || [];
+        rows[rowIndex].push(booking);
+
+        positioned.push({
+          ...booking,
+          rowIndex,
+        });
       });
-    });
 
-    return positioned;
-  },
-  [bookings, user.role, user._id]
-);
+      return positioned;
+    },
+    [bookings, user.role, user._id]
+  );
+
   const getBookingStyle = (booking) => {
     const checkInDate = new Date(booking.checkInDate);
     const checkOutDate = new Date(booking.checkOutDate);
@@ -739,7 +754,7 @@ const handleDateClick = (property, date, e) => {
     }
 
     const left = startDayIndex * DAY_CELL_WIDTH;
-    const width = (endDayIndex - startDayIndex + 1) * DAY_CELL_WIDTH - 4;
+    const width = (endDayIndex - startDayIndex) * DAY_CELL_WIDTH - 4;
     const top = 10 + rowIndex * (BOOKING_HEIGHT + BOOKING_GAP);
 
     const statusColors = {
@@ -783,6 +798,16 @@ const handleDateClick = (property, date, e) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {loading && (
+        <div className="fixed inset-0 bg-white/90 flex items-center justify-center z-50">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+            <p className="text-lg font-medium text-blue-800">
+              Loading properties and bookings...
+            </p>
+          </div>
+        </div>
+      )}
       <Navbar
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
@@ -888,17 +913,6 @@ const handleDateClick = (property, date, e) => {
             onScroll={handleCalendarScroll}
             className="flex-1 overflow-x-auto overflow-y-auto relative"
           >
-            {loading && (
-              <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-20">
-                <div className="flex flex-col items-center">
-                  <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-                  <p className="mt-2 text-blue-600 font-medium">
-                    Loading data...
-                  </p>
-                </div>
-              </div>
-            )}
-
             <div className="sticky top-0 z-20 bg-white/95 border-b border-gray-200 flex min-w-max">
               <div className="flex">
                 {daysToShow.map((day, index) => (
@@ -934,97 +948,96 @@ const handleDateClick = (property, date, e) => {
               </div>
             </div>
             <div className="min-w-max">
-           {filteredProperties.map((property) => {
-  const positionedBookings = getPositionedBookings(property._id);
-  return (
-    <div
-      key={property._id}
-      className="flex border-b border-gray-200 relative"
-      style={{ height: `${ROW_HEIGHT}px` }}
-    >
-      <div className="flex h-full w-full">
-        {daysToShow.map((day, dayIndex) => {
-          const { isBooked, isCheckoutDate } = getDateBookedStatus(property._id, day);
-          const isPast = isPastDate(day);
-          const isAvailable = !isBooked && !isPast;
-          const isClickable = (isAvailable || isCheckoutDate) && !isPast;
+              {filteredProperties.map((property) => {
+                const positionedBookings = getPositionedBookings(property._id);
+                return (
+                  <div
+                    key={property._id}
+                    className="flex border-b border-gray-200 relative"
+                    style={{ height: `${ROW_HEIGHT}px` }}
+                  >
+                    <div className="flex h-full w-full">
+                      {daysToShow.map((day, dayIndex) => {
+                        const { isBooked, isCheckoutDate, isCheckInDate } = getDateBookedStatus(property._id, day);
+                        const isPast = isPastDate(day);
+                        const isAvailable = !isBooked && !isCheckInDate && !isPast;
 
-          return (
-            <div
-              key={dayIndex}
-              className={`h-full border-r relative ${
-                isBooked && !isCheckoutDate
-                  ? "bg-gray-100 cursor-not-allowed"
-                  : isClickable
-                  ? "hover:bg-blue-50 cursor-pointer"
-                  : "bg-gray-100 cursor-not-allowed"
-              }`}
-              style={{ width: `${DAY_CELL_WIDTH}px` }}
-              onClick={isClickable ? (e) => handleDateClick(property, day, e) : undefined}
-            >
-              {isBooked && !isCheckoutDate && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-1 w-full bg-red-500 rounded-full"></div>
-                </div>
-              )}
-              {isCheckoutDate && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-1 w-full bg-green-500 rounded-full"></div>
-                </div>
-              )}
-              {isClickable && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-sm font-medium text-blue-600">
-                    {currencySymbols[property.currency] || property.currency}
-                    {getPriceForDate(property._id, day)}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className="absolute inset-0 pointer-events-none">
-        {positionedBookings.map((booking) => {
-          const style = getBookingStyle(booking);
-          const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
+                        return (
+                          <div
+                            key={dayIndex}
+                            className={`h-full border-r relative ${
+                              isBooked || isCheckInDate
+                                ? "bg-gray-100 cursor-not-allowed"
+                                : isAvailable
+                                ? "hover:bg-blue-50 cursor-pointer"
+                                : "bg-gray-100 cursor-not-allowed"
+                            }`}
+                            style={{ width: `${DAY_CELL_WIDTH}px` }}
+                            onClick={isAvailable ? (e) => handleDateClick(property, day, e) : undefined}
+                          >
+                            {(isBooked || isCheckInDate) && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="h-1 w-full bg-red-500 rounded-full"></div>
+                              </div>
+                            )}
+                            {isCheckoutDate && !isBooked && !isCheckInDate && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="h-1 w-full bg-green-500 rounded-full"></div>
+                              </div>
+                            )}
+                            {isAvailable && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="text-sm font-medium text-blue-600">
+                                  {currencySymbols[property.currency] || property.currency}
+                                  {getPriceForDate(property._id, day)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="absolute inset-0 pointer-events-none">
+                      {positionedBookings.map((booking) => {
+                        const style = getBookingStyle(booking);
+                        const nights = calculateNights(booking.checkInDate, booking.checkOutDate);
 
-          if (style.display === "none") return null;
+                        if (style.display === "none") return null;
 
-          return (
-            <div
-              key={booking._id}
-              style={{
-                left: style.left,
-                width: style.width,
-                top: style.top,
-                height: style.height,
-                position: "absolute",
-                zIndex: 10,
-              }}
-              className={`${style.className} pointer-events-auto`}
-              onClick={() => setSelectedBooking(booking)}
-            >
-              <div className="flex items-center justify-between w-full h-full px-2 text-white">
-                <div className="flex flex-col overflow-hidden">
-                  <div className="text-xs font-semibold truncate">
-                    {booking.guestName || "Guest"}
+                        return (
+                          <div
+                            key={booking._id}
+                            style={{
+                              left: style.left,
+                              width: style.width,
+                              top: style.top,
+                              height: style.height,
+                              position: "absolute",
+                              zIndex: 10,
+                            }}
+                            className={`${style.className} pointer-events-auto`}
+                            onClick={() => setSelectedBooking(booking)}
+                          >
+                            <div className="flex items-center justify-between w-full h-full px-2 text-white">
+                              <div className="flex flex-col overflow-hidden">
+                                <div className="text-xs font-semibold truncate">
+                                  {booking.guestName || "Guest"}
+                                </div>
+                                <div className="text-[0.65rem] truncate opacity-90">
+                                  {booking.bookingAgent?.name || "Direct"}
+                                </div>
+                              </div>
+                              <div className="text-xs font-bold whitespace-nowrap">
+                                {nights}N
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="text-[0.65rem] truncate opacity-90">
-                    {booking.bookingAgent?.name || "Direct"}
-                  </div>
-                </div>
-                <div className="text-xs font-bold whitespace-nowrap">
-                  {nights}N
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-})}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1523,7 +1536,6 @@ const handleDateClick = (property, date, e) => {
                         )}
                       </span>
                     </div>
-                    {/* Add Invoice Download Button */}
                     {selectedBooking.invoice ? (
                       <div className="flex justify-between">
                         <span className="text-gray-600">Invoice:</span>
@@ -1544,7 +1556,6 @@ const handleDateClick = (property, date, e) => {
                         <span className="text-gray-500">No invoice</span>
                       </div>
                     )}
-
                     <div className="flex justify-between">
                       <span className="text-gray-600">Booking Channel:</span>
                       <span className="font-medium text-blue-900">
